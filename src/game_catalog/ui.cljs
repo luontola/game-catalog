@@ -7,12 +7,17 @@
 (def sample-data
   {:games {#uuid "e5da0728-35f3-4330-9432-9199142166ef" {:name "Amnesia: Rebirth"
                                                          :release 2020
-                                                         :series "Amnesia"}
+                                                         :series "Amnesia"
+                                                         :purchases [#uuid "a94b179d-d41d-48bc-b874-5e2f1019e61a"
+                                                                     #uuid "86464e3b-07b7-4e8e-bc01-c424de332f93"]}
            #uuid "1284c953-9ecf-4caa-bb0c-90e6d900b5bc" {:name "Amnesia: The Dark Descent"
                                                          :release 2010
-                                                         :series "Amnesia"}
-           #uuid "84ab7ef8-adb2-4944-b933-fdc0d4ea6ba3" {:name "Darwinia"}
+                                                         :series "Amnesia"
+                                                         :purchases [#uuid "7d201baf-7a4d-49eb-8dd1-4bfd9920320e"]}
+           #uuid "84ab7ef8-adb2-4944-b933-fdc0d4ea6ba3" {:name "Darwinia"
+                                                         :purchases [#uuid "7d201baf-7a4d-49eb-8dd1-4bfd9920320e"]}
            #uuid "f96d974f-50de-431c-bc27-976ecc1d0bb3" {:name "Satisfactory"
+                                                         :purchases [#uuid "a94b179d-d41d-48bc-b874-5e2f1019e61a"]
                                                          :status "Backlog"}}
    :purchases {#uuid "7d201baf-7a4d-49eb-8dd1-4bfd9920320e" {:date "2017-06-07"
                                                              :cost "0 EUR"
@@ -46,7 +51,7 @@
     :data-path :series
     :data-type :text}
    {:title "Purchases"
-    :data-path nil
+    :data-path :purchases
     :data-type :reference}
    {:title "Status"
     :data-path :status
@@ -55,7 +60,7 @@
     :data-path :content
     :data-type :text}
    {:title "DLCs"
-    :data-path nil
+    :data-path :dlcs
     :data-type :reference}])
 
 (defn game-sort-key [{:keys [name series release]}]
@@ -80,10 +85,10 @@
     :data-path :cost
     :data-type :money}
    {:title "Base Games"
-    :data-path nil ; TODO
+    :data-path :base-games
     :data-type :reference}
    {:title "DLCs"
-    :data-path nil ; TODO
+    :data-path :dlcs
     :data-type :reference}
    {:title "Bundle Name"
     :data-path :bundle-name
