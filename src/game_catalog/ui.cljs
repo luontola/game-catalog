@@ -32,6 +32,32 @@
 
 (defonce *data (r/atom sample-data))
 
+(def games-columns
+  [{:title "Name"
+    :data-path :name
+    :data-type :text}
+   {:title "Release"
+    :data-path :release
+    :data-type :text}
+   {:title "Remake"
+    :data-path :remake
+    :data-type :text}
+   {:title "Series"
+    :data-path :series
+    :data-type :text}
+   {:title "Purchases"
+    :data-path nil
+    :data-type :reference}
+   {:title "Status"
+    :data-path :status
+    :data-type :text}
+   {:title "Content"
+    :data-path :content
+    :data-type :text}
+   {:title "DLCs"
+    :data-path nil
+    :data-type :reference}])
+
 (defn game-sort-key [{:keys [name series release]}]
   (-> (str (when-not (str/blank? series)
              (str series " " release " "))
@@ -41,76 +67,36 @@
       (str/trim)))
 
 (defn games-table []
-  (let [games (->> (:games @*data)
-                   (sort-by (comp game-sort-key val)))
-        data-path [:games]]
-    [:table.spreadsheet
-     [:thead
-      [:tr
-       [:th "Name"]
-       [:th "Release"]
-       [:th "Remake"]
-       [:th "Series"]
-       [:th "Purchases"]
-       [:th "Status"]
-       [:th "Content"]
-       [:th "DLCs"]]]
-     [:tbody
-      (for [[id _game] games]
-        (let [data-path (conj data-path id)]
-          [:tr {:key (str id)}
-           [spreadsheet/data-cell {:*data *data
-                                   :data-path (conj data-path :name)
-                                   :data-type :text}]
-           [spreadsheet/data-cell {:*data *data
-                                   :data-path (conj data-path :release)
-                                   :data-type :text}]
-           [spreadsheet/data-cell {:*data *data
-                                   :data-path (conj data-path :remake)
-                                   :data-type :text}]
-           [spreadsheet/data-cell {:*data *data
-                                   :data-path (conj data-path :series)
-                                   :data-type :text}]
-           [:td ""] ; TODO: purchases
-           [spreadsheet/data-cell {:*data *data
-                                   :data-path (conj data-path :status)
-                                   :data-type :text}]
-           [spreadsheet/data-cell {:*data *data
-                                   :data-path (conj data-path :content)
-                                   :data-type :text}]
-           [:td ""]]))]])) ; TODO: DLCs
+  [spreadsheet/table {:columns games-columns
+                      :*data *data
+                      :data-path [:games]
+                      :sort-key game-sort-key}])
+
+(def purchases-columns
+  [{:title "Date"
+    :data-path :date
+    :data-type :text}
+   {:title "Cost"
+    :data-path :cost
+    :data-type :money}
+   {:title "Base Games"
+    :data-path nil ; TODO
+    :data-type :reference}
+   {:title "DLCs"
+    :data-path nil ; TODO
+    :data-type :reference}
+   {:title "Bundle Name"
+    :data-path :bundle-name
+    :data-type :text}
+   {:title "Shop"
+    :data-path :shop
+    :data-type :multi-select}])
 
 (defn purchases-table []
-  (let [purchases (->> (:purchases @*data)
-                       (sort-by (comp :date val)))
-        data-path [:purchases]]
-    [:table.spreadsheet
-     [:thead
-      [:tr
-       [:th "Date"]
-       [:th "Cost"]
-       [:th "Base Games"]
-       [:th "DLCs"]
-       [:th "Bundle Name"]
-       [:th "Shop"]]]
-     [:tbody
-      (for [[id _purchase] purchases]
-        (let [data-path (conj data-path id)]
-          [:tr {:key (str id)}
-           [spreadsheet/data-cell {:*data *data
-                                   :data-path (conj data-path :date)
-                                   :data-type :text}]
-           [spreadsheet/data-cell {:*data *data
-                                   :data-path (conj data-path :cost)
-                                   :data-type :money}]
-           [:td ""] ; TODO: base games
-           [:td ""] ; TODO: DLCs
-           [spreadsheet/data-cell {:*data *data
-                                   :data-path (conj data-path :bundle-name)
-                                   :data-type :text}]
-           [spreadsheet/data-cell {:*data *data
-                                   :data-path (conj data-path :shop)
-                                   :data-type :multi-select}]]))]]))
+  [spreadsheet/table {:columns purchases-columns
+                      :*data *data
+                      :data-path [:purchases]
+                      :sort-key :date}])
 
 (defn app []
   [:<>
