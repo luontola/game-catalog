@@ -52,7 +52,8 @@
     :data-type :text}
    {:title "Purchases"
     :data-path :purchases
-    :data-type :reference}
+    :data-type :reference
+    :reference-path [:purchases]}
    {:title "Status"
     :data-path :status
     :data-type :text}
@@ -61,7 +62,8 @@
     :data-type :text}
    {:title "DLCs"
     :data-path :dlcs
-    :data-type :reference}])
+    :data-type :reference
+    :reference-path [:dlcs]}])
 
 (defn game-sort-key [{:keys [name series release]}]
   (-> (str (when-not (str/blank? series)
@@ -86,10 +88,12 @@
     :data-type :money}
    {:title "Base Games"
     :data-path :base-games
-    :data-type :reference}
+    :data-type :reference
+    :reference-path [:games]}
    {:title "DLCs"
     :data-path :dlcs
-    :data-type :reference}
+    :data-type :reference
+    :reference-path [:dlcs]}
    {:title "Bundle Name"
     :data-path :bundle-name
     :data-type :text}
