@@ -1,6 +1,11 @@
 {
   "name": "game-catalog",
   "version": "0.0.1",
+  "author": {
+    "name": "Esko Luontola",
+    "url": "https://www.luontola.fi"
+  },
+  "license": "Apache-2.0",
   "private": true,
   "scripts": {
     "pom": "rm -f pom.xml && shadow-cljs pom",
