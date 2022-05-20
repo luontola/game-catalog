@@ -65,13 +65,37 @@
          [:td (str (:content game))]
          [:td ""]])]])) ; TODO: DLCs
 
+(defn purchases-table []
+  (let [purchases (->> (:purchases @*data)
+                       (sort-by (comp :date val)))]
+    [:table.spreadsheet
+     [:thead
+      [:tr
+       [:th "Date"]
+       [:th "Cost"]
+       [:th "Base Games"]
+       [:th "DLCs"]
+       [:th "Bundle Name"]
+       [:th "Shop"]]]
+     [:tbody
+      (for [[id purchase] purchases]
+        [:tr {:key (str id)}
+         [:td (str (:date purchase))]
+         [:td {:style {:text-align "right"}}
+          (str (:cost purchase))]
+         [:td ""] ; TODO: base games
+         [:td ""] ; TODO: DLCs
+         [:td (str (:bundle-name purchase))]
+         [:td (str/join ", " (:shop purchase))]])]]))
+
 (defn app []
   [:<>
    [:h1 "Game Catalog"]
    [:h2 "Games"]
    [games-table]
    [:h2 "DLCs"]
-   [:h2 "Purchases"]])
+   [:h2 "Purchases"]
+   [purchases-table]])
 
 (defn init! []
   (let [root (.getElementById js/document "root")]
