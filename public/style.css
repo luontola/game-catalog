@@ -19,5 +19,8 @@ table.spreadsheet td {
     border-bottom: 1px solid #dee2e3;
     font-weight: normal;
     text-align: left;
+}
+
+.data-cell {
     padding: 6px 12px;
 }

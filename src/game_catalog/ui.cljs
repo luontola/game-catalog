@@ -1,5 +1,6 @@
 (ns game-catalog.ui
   (:require [clojure.string :as str]
+            [game-catalog.spreadsheet :as spreadsheet]
             [reagent.core :as r]
             [reagent.dom :as dom]))
 
@@ -41,7 +42,8 @@
 
 (defn games-table []
   (let [games (->> (:games @*data)
-                   (sort-by (comp game-sort-key val)))]
+                   (sort-by (comp game-sort-key val)))
+        data-path [:games]]
     [:table.spreadsheet
      [:thead
       [:tr
@@ -54,20 +56,34 @@
        [:th "Content"]
        [:th "DLCs"]]]
      [:tbody
-      (for [[id game] games]
-        [:tr {:key (str id)}
-         [:td (str (:name game))]
-         [:td (str (:release game))]
-         [:td (str (:remake game))]
-         [:td (str (:series game))]
-         [:td ""] ; TODO: purchases
-         [:td (str (:status game))]
-         [:td (str (:content game))]
-         [:td ""]])]])) ; TODO: DLCs
+      (for [[id _game] games]
+        (let [data-path (conj data-path id)]
+          [:tr {:key (str id)}
+           [spreadsheet/data-cell {:*data *data
+                                   :data-path (conj data-path :name)
+                                   :data-type :text}]
+           [spreadsheet/data-cell {:*data *data
+                                   :data-path (conj data-path :release)
+                                   :data-type :text}]
+           [spreadsheet/data-cell {:*data *data
+                                   :data-path (conj data-path :remake)
+                                   :data-type :text}]
+           [spreadsheet/data-cell {:*data *data
+                                   :data-path (conj data-path :series)
+                                   :data-type :text}]
+           [:td ""] ; TODO: purchases
+           [spreadsheet/data-cell {:*data *data
+                                   :data-path (conj data-path :status)
+                                   :data-type :text}]
+           [spreadsheet/data-cell {:*data *data
+                                   :data-path (conj data-path :content)
+                                   :data-type :text}]
+           [:td ""]]))]])) ; TODO: DLCs
 
 (defn purchases-table []
   (let [purchases (->> (:purchases @*data)
-                       (sort-by (comp :date val)))]
+                       (sort-by (comp :date val)))
+        data-path [:purchases]]
     [:table.spreadsheet
      [:thead
       [:tr
@@ -78,15 +94,23 @@
        [:th "Bundle Name"]
        [:th "Shop"]]]
      [:tbody
-      (for [[id purchase] purchases]
-        [:tr {:key (str id)}
-         [:td (str (:date purchase))]
-         [:td {:style {:text-align "right"}}
-          (str (:cost purchase))]
-         [:td ""] ; TODO: base games
-         [:td ""] ; TODO: DLCs
-         [:td (str (:bundle-name purchase))]
-         [:td (str/join ", " (:shop purchase))]])]]))
+      (for [[id _purchase] purchases]
+        (let [data-path (conj data-path id)]
+          [:tr {:key (str id)}
+           [spreadsheet/data-cell {:*data *data
+                                   :data-path (conj data-path :date)
+                                   :data-type :text}]
+           [spreadsheet/data-cell {:*data *data
+                                   :data-path (conj data-path :cost)
+                                   :data-type :money}]
+           [:td ""] ; TODO: base games
+           [:td ""] ; TODO: DLCs
+           [spreadsheet/data-cell {:*data *data
+                                   :data-path (conj data-path :bundle-name)
+                                   :data-type :text}]
+           [spreadsheet/data-cell {:*data *data
+                                   :data-path (conj data-path :shop)
+                                   :data-type :multi-select}]]))]]))
 
 (defn app []
   [:<>
