@@ -1,22 +1,28 @@
 {
   "name": "game-catalog",
-  "version": "0.0.1",
+  "version": "0.0.1-SNAPSHOT",
+  "description": "Game catalog to remember what games have been bought from which store",
+  "homepage": "https://github.com/luontola/game-catalog",
   "author": {
     "name": "Esko Luontola",
     "url": "https://www.luontola.fi"
   },
   "license": "Apache-2.0",
-  "private": true,
-  "scripts": {
-    "pom": "rm -f pom.xml && shadow-cljs pom",
-    "start": "shadow-cljs watch frontend",
-    "build": "shadow-cljs release frontend"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/luontola/game-catalog.git"
   },
+  "private": true,
   "dependencies": {
     "react": "^18.1.0",
     "react-dom": "^18.1.0"
   },
   "devDependencies": {
     "shadow-cljs": "2.19.0"
+  },
+  "scripts": {
+    "pom": "rm -f pom.xml && shadow-cljs pom",
+    "start": "shadow-cljs watch frontend",
+    "build": "shadow-cljs release frontend"
   }
 }
