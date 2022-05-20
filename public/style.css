@@ -21,6 +21,11 @@ table.spreadsheet td {
     text-align: left;
 }
 
+table.spreadsheet td:focus {
+    outline: 2px solid #4884f9;
+    outline-offset: -1px;
+}
+
 .data-cell {
     padding: 6px 12px;
 }
