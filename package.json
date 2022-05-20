@@ -2,6 +2,15 @@
   "name": "game-catalog",
   "version": "0.0.1",
   "private": true,
+  "scripts": {
+    "pom": "rm -f pom.xml && shadow-cljs pom",
+    "start": "shadow-cljs watch frontend",
+    "build": "shadow-cljs release frontend"
+  },
+  "dependencies": {
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
+  },
   "devDependencies": {
     "shadow-cljs": "2.19.0"
   }
