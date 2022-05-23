@@ -7,19 +7,24 @@
 
 (defn data-cell [{:keys [*data data-path data-type reference-path]}]
   (r/with-let [*self (r/atom nil)
-               *editing? (r/atom false)]
+               *editing? (r/atom false)
+               *edited-value (r/atom nil)]
     (let [value (get-in @*data data-path)]
       [:td {:tab-index (if @*editing? -1 0)
             :ref #(reset! *self %)
             :on-double-click (fn [event]
                                (js/console.log event)
+                               (reset! *edited-value value)
                                (reset! *editing? true))}
        (if @*editing?
          [:input {:type "text"
                   :auto-focus true
-                  :on-blur (fn [event]
-                             (js/console.log event)
+                  :value @*edited-value
+                  :on-blur (fn [_event]
+                             (swap! *data assoc-in data-path @*edited-value)
                              (reset! *editing? false))
+                  :on-change (fn [event]
+                               (reset! *edited-value (str (.. event -target -value))))
                   :style {:width "100%"
                           :height "36px"
                           :border 0
