@@ -1,8 +1,8 @@
 (ns game-catalog.ui
   (:require [clojure.string :as str]
+            ["react-dom/client" :refer [createRoot]]
             [game-catalog.spreadsheet :as spreadsheet]
-            [reagent.core :as r]
-            [reagent.dom :as dom]))
+            [reagent.core :as r]))
 
 (def sample-data
   {:games {#uuid "e5da0728-35f3-4330-9432-9199142166ef" {:name "Amnesia: Rebirth"
@@ -116,13 +116,10 @@
    [:h2 "Purchases"]
    [purchases-table]])
 
+(defonce root (createRoot (.getElementById js/document "root")))
+
 (defn init! []
-  (let [root (.getElementById js/document "root")]
-    (dom/render [app] root)))
+  (.render root (r/as-element [app])))
 
-(init!)
-
-(defn ^:dev/before-load stop [])
-
-(defn ^:dev/after-load start []
+(defn ^:dev/after-load re-render []
   (init!))

@@ -3,5 +3,5 @@
  :dev-http {8080 "public"}
  :builds {:frontend {:target :browser
                      :output-dir "public/js"
-                     :modules {:main {:entries [game-catalog.ui]}}
+                     :modules {:main {:init-fn game-catalog.ui/init!}}
                      :compiler-options {:source-map true}}}}
