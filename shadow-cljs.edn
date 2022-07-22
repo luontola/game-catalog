@@ -1,7 +1,13 @@
 {:source-paths ["src"]
- :dependencies [[reagent "1.1.1"]]
+ :dependencies [[funcool/promesa "8.0.450"]
+                [reagent "1.1.1"]]
  :dev-http {8080 "public"}
- :builds {:frontend {:target :browser
-                     :output-dir "public/js"
-                     :modules {:main {:init-fn game-catalog.ui/init!}}
-                     :compiler-options {:source-map true}}}}
+
+ :builds
+ {:frontend {:target :browser
+             :output-dir "public/js"
+             :modules {:main {:init-fn game-catalog.ui/init!}}
+             :compiler-options {:source-map true}}
+  :karma {:target :karma
+          :output-to "target/karma/test.js"
+          :ns-regexp "-test$"}}}
