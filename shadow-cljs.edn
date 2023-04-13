@@ -1,5 +1,5 @@
 {:source-paths ["src"]
- :dependencies [[funcool/promesa "8.0.450"]
+ :dependencies [[funcool/promesa "10.0.594"]
                 [reagent "1.1.1"]]
  :dev-http {8080 "public"}
 

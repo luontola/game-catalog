@@ -5,6 +5,11 @@ incremental transition to a custom application when the solution grows to requir
 
 ## Developing
 
+Prepare dependencies
+
+    npm install
+    npm rum pom
+
 Start dev server
 
     npm run start
