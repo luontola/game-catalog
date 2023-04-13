@@ -63,8 +63,11 @@
                                            :data-path [:things 100 :stuff]
                                            :data-type :text}])]
           (rt/simulate! :dblClick (rt/query-selector ctx "td"))
-          (is (some? (rt/query-selector ctx "input"))
-              "assume field is editable")
+          (let [input (rt/query-selector ctx "input")]
+            (is (some? input)
+                "assume field is editable")
+            (is (= js/document.activeElement input)
+                "assume field is focused"))
 
           (rt/simulate! :keyboard "123{Tab}")               ; XXX: fragile, sometimes misses the first character
 
