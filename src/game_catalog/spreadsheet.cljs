@@ -12,8 +12,7 @@
     (let [value (get-in @*data data-path)]
       [:td {:tab-index (if @*editing? -1 0)
             :ref #(reset! *self %)
-            :on-double-click (fn [event]
-                               (js/console.log event)
+            :on-double-click (fn [_event]
                                (reset! *edited-value value)
                                (reset! *editing? true))}
        (if @*editing?

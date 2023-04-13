@@ -45,9 +45,9 @@
         (p/let [*data (r/atom {:things {100 {:stuff "Something"}}})
                 ctx (rt/render [data-cell {:*data *data
                                            :data-path [:things 100 :stuff]
-                                           :data-type :text}])
-                cell (rt/query-selector ctx "td")]
-          (rt/simulate! :dblClick cell)
+                                           :data-type :text}])]
+
+          (rt/simulate! :dblClick (rt/query-selector ctx "td"))
 
           (let [input (rt/query-selector ctx "input")]
             (is (some? input)
@@ -57,7 +57,24 @@
             (is (= js/document.activeElement input)
                 "input field is focused"))))
 
-      (testing "stop editing: blur")
+      (testing "stop editing: press tab"
+        (p/let [*data (r/atom {:things {100 {:stuff "Something"}}})
+                ctx (rt/render [data-cell {:*data *data
+                                           :data-path [:things 100 :stuff]
+                                           :data-type :text}])]
+          (rt/simulate! :dblClick (rt/query-selector ctx "td"))
+          (is (some? (rt/query-selector ctx "input"))
+              "assume field is editable")
+
+          (rt/simulate! :keyboard "123{Tab}")               ; XXX: fragile, sometimes misses the first character
+
+          (is (nil? (rt/query-selector ctx "input"))
+              "removes the input field")
+          (is (= "Something123" (rt/inner-text ctx))
+              "displays the updated value")
+          (is (= {:things {100 {:stuff "Something123"}}}
+                 @*data)
+              "updates the database")))
 
       (testing "edit text")
 
