@@ -69,7 +69,7 @@
             (is (= js/document.activeElement input)
                 "assume field is focused"))
 
-          (rt/simulate! :keyboard "123{Tab}")               ; XXX: fragile, sometimes misses the first character
+          (rt/simulate! :keyboard "123{Tab}") ; XXX: fragile, sometimes misses the first character
 
           (is (nil? (rt/query-selector ctx "input"))
               "removes the input field")

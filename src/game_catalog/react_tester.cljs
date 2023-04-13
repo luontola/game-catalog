@@ -9,9 +9,12 @@
 
 (def ^:dynamic *user-event*)
 
+(def user-event-options
+  {:delay 1}) ; increase delay between inputs to reduce test fragility
+
 (def fixture
   {:before (fn []
-             (set! *user-event* (.setup user-event)))
+             (set! *user-event* (.setup user-event (clj->js user-event-options))))
    :after (fn []
             (set! *user-event* nil)
             (rtl/cleanup))})
@@ -19,7 +22,7 @@
 (use-fixtures :each fixture)
 
 (defn render [hiccup]
-  (rtl/cleanup)                                             ; needed when the same test renders a component multiple times
+  (rtl/cleanup) ; needed when the same test renders a component multiple times
   (rtl/render (r/as-element hiccup)))
 
 (defn simulate! [event target]
