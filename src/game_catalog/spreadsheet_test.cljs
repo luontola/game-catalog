@@ -1,8 +1,5 @@
 (ns game-catalog.spreadsheet-test
-  (:require ["@testing-library/react" :as rtl]
-            ["@testing-library/user-event$default" :as user-event]
-            ["react-dom$flushSync" :as flushSync]
-            [cljs.test :refer [async deftest is testing use-fixtures]]
+  (:require [cljs.test :refer [async deftest is testing use-fixtures]]
             [game-catalog.react-tester :as rt]
             [game-catalog.spreadsheet :as spreadsheet]
             [promesa.core :as p]
@@ -45,16 +42,12 @@
                  (rt/inner-text ctx)))))
 
       (testing "start editing: double-click"
-        (p/let [user (.setup user-event)                    ; TODO: move to fixture
-                *data (r/atom {:things {100 {:stuff "Something"}}})
+        (p/let [*data (r/atom {:things {100 {:stuff "Something"}}})
                 ctx (rt/render [data-cell {:*data *data
                                            :data-path [:things 100 :stuff]
                                            :data-type :text}])
                 cell (rt/query-selector ctx "td")]
-          ;; TODO: wrapper for sending events
-          ((.-dblClick user) cell)
-          (rtl/act (fn []
-                     (r/flush)))
+          (rt/simulate! :dblClick cell)
 
           (let [input (rt/query-selector ctx "input")]
             (is (some? input)

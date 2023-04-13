@@ -1,16 +1,32 @@
 (ns game-catalog.react-tester
   (:require ["@testing-library/react" :as rtl]
+            ["@testing-library/user-event$default" :as user-event]
             [cljs.test :refer [deftest is testing use-fixtures]]
             [clojure.string :as str]
+            [goog.object :as g]
+            [promesa.core :as p]
             [reagent.core :as r]))
 
-(def fixture {:after rtl/cleanup})
+(def ^:dynamic *user-event*)
+
+(def fixture
+  {:before (fn []
+             (set! *user-event* (.setup user-event)))
+   :after (fn []
+            (set! *user-event* nil)
+            (rtl/cleanup))})
 
 (use-fixtures :each fixture)
 
 (defn render [hiccup]
   (rtl/cleanup)                                             ; needed when the same test renders a component multiple times
   (rtl/render (r/as-element hiccup)))
+
+(defn simulate! [event target]
+  (p/do
+    ((g/get *user-event* (name event)) target)
+    (rtl/act (fn []
+               (r/flush)))))
 
 
 (defn inner-text [rendered]
