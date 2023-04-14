@@ -1,8 +1,11 @@
 (ns game-catalog.ui
-  (:require [clojure.string :as str]
-            ["react-dom/client" :refer [createRoot]]
+  (:require [clojure.pprint :as pp]
+            [clojure.string :as str]
+            [fipp.edn :as fipp.edn]
+            [game-catalog.db :as db]
             [game-catalog.spreadsheet :as spreadsheet]
-            [reagent.core :as r]))
+            [reagent.core :as r]
+            [reagent.dom :as dom]))
 
 (def sample-data
   {:games {#uuid "e5da0728-35f3-4330-9432-9199142166ef" {:name "Amnesia: Rebirth"
@@ -107,6 +110,9 @@
                       :data-path [:purchases]
                       :sort-key :date}])
 
+(defn pretty-print [data]
+  [:pre (with-out-str (fipp.edn/pprint data))])
+
 (defn app []
   [:<>
    [:h1 "Game Catalog"]
@@ -114,12 +120,13 @@
    [games-table]
    [:h2 "DLCs"]
    [:h2 "Purchases"]
-   [purchases-table]])
+   [purchases-table]
+   [pretty-print @*data]])
 
-(defonce root (createRoot (.getElementById js/document "root")))
+(defonce root (.getElementById js/document "root"))
 
 (defn init! []
-  (.render root (r/as-element [app])))
+  (dom/render [app] root))
 
 (defn ^:dev/after-load re-render []
   (init!))

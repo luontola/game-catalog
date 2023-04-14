@@ -31,6 +31,7 @@
                   :auto-focus true
                   :value @*form-value
                   :on-blur (fn [_event]
+                             ;; TODO: references need to be synced to both directions
                              (swap! *data assoc-in data-path @*parsed-value)
                              (reset! *editing? false))
                   :on-change (fn [event]
