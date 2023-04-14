@@ -97,24 +97,21 @@
                             (str/join "; "))
             (str data-value))])])))
 
-(defn table [{:keys [*data data-path sort-key columns]}]
-  (let [records (->> (get-in @*data data-path)
-                     (sort-by (comp sort-key val)))]
+(defn table [{:keys [*data self-collection sort-key columns]}]
+  (let [documents-by-id (->> (get-in @*data [self-collection :documents])
+                             (sort-by (comp sort-key val)))]
     [:table.spreadsheet
      [:thead
       (into [:tr]
             (for [column columns]
               [:th (str (:title column))]))]
      [:tbody
-      (for [[id _record] records]
-        (let [data-path (conj data-path id)]
-          (into [:tr {:key (str id)}]
-                (for [column columns]
-                  [data-cell {:*data *data
-                              ;; TODO: data-path is sometimes a vector and sometimes a keyword -> use two different names
-                              :data-path (conj data-path
-                                               :documents
-                                               (:data-path column))
-                              :data-type (:data-type column)
-                              :reference-collection (:reference-collection column)
-                              :reference-foreign-key (:reference-foreign-key column)}]))))]]))
+      (for [[self-id _document] documents-by-id]
+        (into [:tr {:key (str self-id)}]
+              (for [column columns]
+                [data-cell {:*data *data
+                            ;; TODO: data-path is sometimes a vector and sometimes a keyword -> use two different names
+                            :data-path [self-collection :documents self-id (:data-path column)]
+                            :data-type (:data-type column)
+                            :reference-collection (:reference-collection column)
+                            :reference-foreign-key (:reference-foreign-key column)}])))]]))
