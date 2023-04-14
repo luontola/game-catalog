@@ -11,12 +11,13 @@
       (parse-uuid s)
       s))
 
-(defn data-cell [{:keys [*data data-path data-type reference-collection reference-foreign-key]}]
+(defn data-cell [{:keys [*data data-type self-collection self-id self-field reference-collection reference-foreign-key]}]
   (r/with-let [*self (r/atom nil)
                *editing? (r/atom false)
                *form-value (r/atom nil)
                *parsed-value (r/atom nil)]
-    (let [data-value (get-in @*data data-path)]
+    (let [data-path [self-collection :documents self-id self-field]
+          data-value (get-in @*data data-path)]
       [:td {:tab-index (if @*editing? -1 0)
             :ref #(reset! *self %)
             :on-double-click (fn [_event]
@@ -39,8 +40,7 @@
                                  (let [old-value (set old-value)
                                        new-value (set new-value)
                                        added-ids (set/difference new-value old-value)
-                                       removed-ids (set/difference old-value new-value)
-                                       [_ _ self-id] data-path] ; TODO: a direct way of getting the current record's ID
+                                       removed-ids (set/difference old-value new-value)]
                                    (doseq [added-id added-ids]
                                      (swap! *data update-in [reference-collection :documents added-id]
                                             (fn [record]
@@ -110,8 +110,9 @@
         (into [:tr {:key (str self-id)}]
               (for [column columns]
                 [data-cell {:*data *data
-                            ;; TODO: data-path is sometimes a vector and sometimes a keyword -> use two different names
-                            :data-path [self-collection :documents self-id (:data-path column)]
                             :data-type (:data-type column)
+                            :self-collection self-collection
+                            :self-id self-id
+                            :self-field (:field column)
                             :reference-collection (:reference-collection column)
                             :reference-foreign-key (:reference-foreign-key column)}])))]]))

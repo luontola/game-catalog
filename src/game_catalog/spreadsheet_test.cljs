@@ -31,16 +31,20 @@
       (testing "view text"
         (let [*data (r/atom {:things {:documents {100 {:stuff "Something"}}}})
               ctx (rt/render [data-cell {:*data *data
-                                         :data-path [:things :documents 100 :stuff]
-                                         :data-type :text}])]
+                                         :data-type :text
+                                         :self-collection :things
+                                         :self-id 100
+                                         :self-field :stuff}])]
           (is (= "Something"
                  (rt/inner-text ctx)))))
 
       (testing "view multi-select"
         (let [*data (r/atom {:things {:documents {100 {:stuff ["Foo" "Bar"]}}}})
               ctx (rt/render [data-cell {:*data *data
-                                         :data-path [:things :documents 100 :stuff]
-                                         :data-type :multi-select}])]
+                                         :data-type :multi-select
+                                         :self-collection :things
+                                         :self-id 100
+                                         :self-field :stuff}])]
           (is (= "Foo, Bar"
                  (rt/inner-text ctx)))))
 
@@ -51,8 +55,10 @@
                                                   300 {:name "Bar"
                                                        :thingies [100]}}}})
               ctx (rt/render [data-cell {:*data *data
-                                         :data-path [:things :documents 100 :stuff]
                                          :data-type :reference
+                                         :self-collection :things
+                                         :self-id 100
+                                         :self-field :stuff
                                          :reference-collection :stuffs
                                          :reference-foreign-key :thingies}])]
           (is (= "Foo; Bar"
@@ -61,8 +67,10 @@
       (testing "start editing: double-click"
         (p/let [*data (r/atom {:things {:documents {100 {:stuff "Something"}}}})
                 ctx (rt/render [data-cell {:*data *data
-                                           :data-path [:things :documents 100 :stuff]
-                                           :data-type :text}])]
+                                           :data-type :text
+                                           :self-collection :things
+                                           :self-id 100
+                                           :self-field :stuff}])]
 
           (rt/simulate! :dblClick (rt/query-selector ctx "td"))
 
@@ -77,8 +85,10 @@
       (testing "stop editing: press tab"
         (p/let [*data (r/atom {:things {:documents {100 {:stuff "Something"}}}})
                 ctx (rt/render [data-cell {:*data *data
-                                           :data-path [:things :documents 100 :stuff]
-                                           :data-type :text}])]
+                                           :data-type :text
+                                           :self-collection :things
+                                           :self-id 100
+                                           :self-field :stuff}])]
           (enter-edit-mode! ctx)
 
           (rt/simulate! :keyboard "123{Tab}")
@@ -94,8 +104,10 @@
       (testing "edit text"
         (p/let [*data (r/atom {:things {:documents {100 {:stuff "Old Text"}}}})
                 ctx (rt/render [data-cell {:*data *data
-                                           :data-path [:things :documents 100 :stuff]
-                                           :data-type :text}])]
+                                           :data-type :text
+                                           :self-collection :things
+                                           :self-id 100
+                                           :self-field :stuff}])]
           (enter-edit-mode! ctx)
 
           (let [input (rt/query-selector ctx "input")]
@@ -111,8 +123,10 @@
         (p/let [*data (r/atom {:things {:documents {100 {:stuff ["Thing 1"
                                                                  "Thing 2"]}}}})
                 ctx (rt/render [data-cell {:*data *data
-                                           :data-path [:things :documents 100 :stuff]
-                                           :data-type :multi-select}])]
+                                           :data-type :multi-select
+                                           :self-collection :things
+                                           :self-id 100
+                                           :self-field :stuff}])]
           (enter-edit-mode! ctx)
 
           (let [input (rt/query-selector ctx "input")]
@@ -133,8 +147,10 @@
                                                          :thingies [100]}
                                                     400 {:name "Gazonk"}}}})
                 ctx (rt/render [data-cell {:*data *data
-                                           :data-path [:things :documents 100 :stuff]
                                            :data-type :reference
+                                           :self-collection :things
+                                           :self-id 100
+                                           :self-field :stuff
                                            :reference-collection :stuffs
                                            :reference-foreign-key :thingies}])]
           (enter-edit-mode! ctx)

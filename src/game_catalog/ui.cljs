@@ -9,30 +9,30 @@
 
 (def sample-collections
   {:games {:columns [{:title "Name"
-                      :data-path :name
+                      :field :name
                       :data-type :text}
                      {:title "Release"
-                      :data-path :release
+                      :field :release
                       :data-type :text}
                      {:title "Remake"
-                      :data-path :remake
+                      :field :remake
                       :data-type :text}
                      {:title "Series"
-                      :data-path :series
+                      :field :series
                       :data-type :text}
                      {:title "Purchases"
-                      :data-path :purchases
+                      :field :purchases
                       :data-type :reference
                       :reference-collection :purchases
                       :reference-foreign-key :base-games}
                      {:title "Status"
-                      :data-path :status
+                      :field :status
                       :data-type :text}
                      {:title "Content"
-                      :data-path :content
+                      :field :content
                       :data-type :text}
                      {:title "DLCs"
-                      :data-path :dlcs
+                      :field :dlcs
                       :data-type :reference
                       :reference-collection :dlcs
                       :reference-foreign-key :base-game}]
@@ -52,26 +52,26 @@
                                                                      :status "Backlog"}}}
 
    :purchases {:columns [{:title "Date"
-                          :data-path :date
+                          :field :date
                           :data-type :text}
                          {:title "Cost"
-                          :data-path :cost
+                          :field :cost
                           :data-type :money}
                          {:title "Base Games"
-                          :data-path :base-games
+                          :field :base-games
                           :data-type :reference
                           :reference-collection :games
                           :reference-foreign-key :purchases}
                          {:title "DLCs"
-                          :data-path :dlcs
+                          :field :dlcs
                           :data-type :reference
                           :reference-collection :dlcs
                           :reference-foreign-key :purchases}
                          {:title "Bundle Name"
-                          :data-path :bundle-name
+                          :field :bundle-name
                           :data-type :text}
                          {:title "Shop"
-                          :data-path :shop
+                          :field :shop
                           :data-type :multi-select}]
                :documents {#uuid "7d201baf-7a4d-49eb-8dd1-4bfd9920320e" {:date "2017-06-07"
                                                                          :cost "0 EUR"
