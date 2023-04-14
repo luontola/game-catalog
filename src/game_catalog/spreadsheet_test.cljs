@@ -19,6 +19,12 @@
       (is (= js/document.activeElement input)
           "assume field is focused"))))
 
+(defn- exit-edit-mode! [ctx]
+  (p/do
+    (rt/simulate! :keyboard "{Tab}")
+    (is (nil? (rt/query-selector ctx "input"))
+        "assume input field is removed")))
+
 (deftest data-cell-test
   (async done
     (p/do
@@ -83,7 +89,21 @@
                  @*data)
               "updates the database")))
 
-      (testing "edit text")
+      (testing "edit text"
+        (p/let [*data (r/atom {:things {100 {:stuff "Old Text"}}})
+                ctx (rt/render [data-cell {:*data *data
+                                           :data-path [:things 100 :stuff]
+                                           :data-type :text}])]
+          (enter-edit-mode! ctx)
+
+          (let [input (rt/query-selector ctx "input")]
+            (is (= "Old Text" (.-value input)))
+            (rt/fire-event! :change input {:target {:value "New Text"}})
+            (is (= "New Text" (.-value input))))
+
+          (exit-edit-mode! ctx)
+          (is (= {:things {100 {:stuff "New Text"}}}
+                 @*data))))
 
       (testing "edit multi-select")
 

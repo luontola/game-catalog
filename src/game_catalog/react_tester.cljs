@@ -38,6 +38,11 @@
     (rtl/act (fn []
                (r/flush)))))
 
+(defn fire-event! [event node args]
+  ;; https://testing-library.com/docs/dom-testing-library/api-events/
+  (let [f (g/get rtl/fireEvent (name event))]
+    (f node (clj->js args))))
+
 
 (defn inner-text [rendered]
   (.-innerText (.-container rendered)))
