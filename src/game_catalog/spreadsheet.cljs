@@ -11,7 +11,50 @@
       (parse-uuid s)
       s))
 
-(defn data-cell [{:keys [*data data-type self-collection self-id self-field reference-collection reference-foreign-key]}]
+(defn update-back-references [data {:keys [old-value new-value self-id
+                                           reference-collection reference-foreign-key]}]
+  (let [old-value (set old-value)
+        new-value (set new-value)
+        added-ids (set/difference new-value old-value)
+        removed-ids (set/difference old-value new-value)
+        data (reduce (fn [data added-id]
+                       (update-in data [reference-collection :documents added-id]
+                                  (fn [record]
+                                    (let [new-values (-> (vec (get record reference-foreign-key))
+                                                         (conj self-id))]
+                                      (assoc record reference-foreign-key new-values)))))
+                     data
+                     added-ids)
+        data (reduce (fn [data removed-id]
+                       (update-in data [reference-collection :documents removed-id]
+                                  (fn [record]
+                                    (let [new-values (->> (get record reference-foreign-key)
+                                                          (remove #(= self-id %))
+                                                          (vec))]
+                                      (if (empty? new-values)
+                                        (dissoc record reference-foreign-key)
+                                        (assoc record reference-foreign-key new-values))))))
+                     data
+                     removed-ids)]
+    data))
+
+(defn update-field [data {:keys [new-value data-type
+                                 self-collection self-id self-field
+                                 reference-collection reference-foreign-key]
+                          :as context}]
+  (let [data-path [self-collection :documents self-id self-field]
+        old-value (get-in data data-path)
+        data (cond-> data
+               (= :reference data-type)
+               (update-back-references (assoc context
+                                         :old-value old-value)))
+        data (assoc-in data data-path new-value)]
+    data))
+
+(defn data-cell [*data {:keys [data-type
+                               self-collection self-id self-field
+                               reference-collection reference-foreign-key]
+                        :as context}]
   (r/with-let [*self (r/atom nil)
                *editing? (r/atom false)
                *form-value (r/atom nil)
@@ -33,30 +76,8 @@
                   :auto-focus true
                   :value @*form-value
                   :on-blur (fn [_event]
-                             (let [old-value (get-in @*data data-path)
-                                   new-value @*parsed-value]
-                               ;; TODO: extract updating the back references to a function
-                               (when (= :reference data-type)
-                                 (let [old-value (set old-value)
-                                       new-value (set new-value)
-                                       added-ids (set/difference new-value old-value)
-                                       removed-ids (set/difference old-value new-value)]
-                                   (doseq [added-id added-ids]
-                                     (swap! *data update-in [reference-collection :documents added-id]
-                                            (fn [record]
-                                              (let [new-values (-> (vec (get record reference-foreign-key))
-                                                                   (conj self-id))]
-                                                (assoc record reference-foreign-key new-values)))))
-                                   (doseq [removed-id removed-ids]
-                                     (swap! *data update-in [reference-collection :documents removed-id]
-                                            (fn [record]
-                                              (let [new-values (->> (get record reference-foreign-key)
-                                                                    (remove #(= self-id %))
-                                                                    (vec))]
-                                                (if (empty? new-values)
-                                                  (dissoc record reference-foreign-key)
-                                                  (assoc record reference-foreign-key new-values))))))))
-                               (swap! *data assoc-in data-path new-value))
+                             (swap! *data update-field (assoc context
+                                                         :new-value @*parsed-value))
                              (reset! *editing? false))
                   :on-change (fn [event]
                                (let [form-value (str (.. event -target -value))
@@ -109,10 +130,9 @@
       (for [[self-id _document] documents-by-id]
         (into [:tr {:key (str self-id)}]
               (for [column columns]
-                [data-cell {:*data *data
-                            :data-type (:data-type column)
-                            :self-collection self-collection
-                            :self-id self-id
-                            :self-field (:field column)
-                            :reference-collection (:reference-collection column)
-                            :reference-foreign-key (:reference-foreign-key column)}])))]]))
+                [data-cell *data {:data-type (:data-type column)
+                                  :self-collection self-collection
+                                  :self-id self-id
+                                  :self-field (:field column)
+                                  :reference-collection (:reference-collection column)
+                                  :reference-foreign-key (:reference-foreign-key column)}])))]]))
