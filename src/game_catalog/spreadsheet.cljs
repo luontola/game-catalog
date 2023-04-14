@@ -86,13 +86,13 @@
             :multi-select (format-multi-select-value data-value)
             :reference (->> data-value
                             (map (fn [id]
-                                   (if-some [record (get-in @*data [reference-collection id])]
+                                   (if-some [reference-record (get-in @*data [reference-collection id])]
                                      ;; FIXME: the record should determine itself that how to format it
                                      (case reference-collection
-                                       :stuffs (str (:name record))
-                                       :games (str (:name record))
-                                       :purchases (format-multi-select-value (:shop record))
-                                       (str record))
+                                       :stuffs (str (:name reference-record))
+                                       :games (str (:name reference-record))
+                                       :purchases (format-multi-select-value (:shop reference-record))
+                                       (str reference-record))
                                      (str id))))
                             (str/join "; "))
             (str data-value))])])))
