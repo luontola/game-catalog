@@ -40,15 +40,15 @@
                                        new-value (set new-value)
                                        added-ids (set/difference new-value old-value)
                                        removed-ids (set/difference old-value new-value)
-                                       self-id (second data-path)] ; TODO: a direct way of getting the current record's ID
+                                       [_ _ self-id] data-path] ; TODO: a direct way of getting the current record's ID
                                    (doseq [added-id added-ids]
-                                     (swap! *data update-in [reference-collection added-id]
+                                     (swap! *data update-in [reference-collection :documents added-id]
                                             (fn [record]
                                               (let [new-values (-> (vec (get record reference-foreign-key))
                                                                    (conj self-id))]
                                                 (assoc record reference-foreign-key new-values)))))
                                    (doseq [removed-id removed-ids]
-                                     (swap! *data update-in [reference-collection removed-id]
+                                     (swap! *data update-in [reference-collection :documents removed-id]
                                             (fn [record]
                                               (let [new-values (->> (get record reference-foreign-key)
                                                                     (remove #(= self-id %))
@@ -86,7 +86,7 @@
             :multi-select (format-multi-select-value data-value)
             :reference (->> data-value
                             (map (fn [id]
-                                   (if-some [reference-record (get-in @*data [reference-collection id])]
+                                   (if-some [reference-record (get-in @*data [reference-collection :documents id])]
                                      ;; FIXME: the record should determine itself that how to format it
                                      (case reference-collection
                                        :stuffs (str (:name reference-record))
@@ -112,7 +112,9 @@
                 (for [column columns]
                   [data-cell {:*data *data
                               ;; TODO: data-path is sometimes a vector and sometimes a keyword -> use two different names
-                              :data-path (conj data-path (:data-path column))
+                              :data-path (conj data-path
+                                               :documents
+                                               (:data-path column))
                               :data-type (:data-type column)
                               :reference-collection (:reference-collection column)
                               :reference-foreign-key (:reference-foreign-key column)}]))))]]))

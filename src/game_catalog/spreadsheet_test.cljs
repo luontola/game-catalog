@@ -29,29 +29,29 @@
   (async done
     (p/do
       (testing "view text"
-        (let [*data (r/atom {:things {100 {:stuff "Something"}}})
+        (let [*data (r/atom {:things {:documents {100 {:stuff "Something"}}}})
               ctx (rt/render [data-cell {:*data *data
-                                         :data-path [:things 100 :stuff]
+                                         :data-path [:things :documents 100 :stuff]
                                          :data-type :text}])]
           (is (= "Something"
                  (rt/inner-text ctx)))))
 
       (testing "view multi-select"
-        (let [*data (r/atom {:things {100 {:stuff ["Foo" "Bar"]}}})
+        (let [*data (r/atom {:things {:documents {100 {:stuff ["Foo" "Bar"]}}}})
               ctx (rt/render [data-cell {:*data *data
-                                         :data-path [:things 100 :stuff]
+                                         :data-path [:things :documents 100 :stuff]
                                          :data-type :multi-select}])]
           (is (= "Foo, Bar"
                  (rt/inner-text ctx)))))
 
       (testing "view reference"
-        (let [*data (r/atom {:things {100 {:stuff [200 300]}}
-                             :stuffs {200 {:name "Foo"
-                                           :thingies [100]}
-                                      300 {:name "Bar"
-                                           :thingies [100]}}})
+        (let [*data (r/atom {:things {:documents {100 {:stuff [200 300]}}}
+                             :stuffs {:documents {200 {:name "Foo"
+                                                       :thingies [100]}
+                                                  300 {:name "Bar"
+                                                       :thingies [100]}}}})
               ctx (rt/render [data-cell {:*data *data
-                                         :data-path [:things 100 :stuff]
+                                         :data-path [:things :documents 100 :stuff]
                                          :data-type :reference
                                          :reference-collection :stuffs
                                          :reference-foreign-key :thingies}])]
@@ -59,9 +59,9 @@
                  (rt/inner-text ctx)))))
 
       (testing "start editing: double-click"
-        (p/let [*data (r/atom {:things {100 {:stuff "Something"}}})
+        (p/let [*data (r/atom {:things {:documents {100 {:stuff "Something"}}}})
                 ctx (rt/render [data-cell {:*data *data
-                                           :data-path [:things 100 :stuff]
+                                           :data-path [:things :documents 100 :stuff]
                                            :data-type :text}])]
 
           (rt/simulate! :dblClick (rt/query-selector ctx "td"))
@@ -75,9 +75,9 @@
                 "input field is focused"))))
 
       (testing "stop editing: press tab"
-        (p/let [*data (r/atom {:things {100 {:stuff "Something"}}})
+        (p/let [*data (r/atom {:things {:documents {100 {:stuff "Something"}}}})
                 ctx (rt/render [data-cell {:*data *data
-                                           :data-path [:things 100 :stuff]
+                                           :data-path [:things :documents 100 :stuff]
                                            :data-type :text}])]
           (enter-edit-mode! ctx)
 
@@ -87,14 +87,14 @@
               "removes the input field")
           (is (= "Something123" (rt/inner-text ctx))
               "displays the updated value")
-          (is (= {:things {100 {:stuff "Something123"}}}
+          (is (= {:things {:documents {100 {:stuff "Something123"}}}}
                  @*data)
               "updates the database")))
 
       (testing "edit text"
-        (p/let [*data (r/atom {:things {100 {:stuff "Old Text"}}})
+        (p/let [*data (r/atom {:things {:documents {100 {:stuff "Old Text"}}}})
                 ctx (rt/render [data-cell {:*data *data
-                                           :data-path [:things 100 :stuff]
+                                           :data-path [:things :documents 100 :stuff]
                                            :data-type :text}])]
           (enter-edit-mode! ctx)
 
@@ -104,14 +104,14 @@
             (is (= "New Text" (.-value input))))
 
           (exit-edit-mode! ctx)
-          (is (= {:things {100 {:stuff "New Text"}}}
+          (is (= {:things {:documents {100 {:stuff "New Text"}}}}
                  @*data))))
 
       (testing "edit multi-select"
-        (p/let [*data (r/atom {:things {100 {:stuff ["Thing 1"
-                                                     "Thing 2"]}}})
+        (p/let [*data (r/atom {:things {:documents {100 {:stuff ["Thing 1"
+                                                                 "Thing 2"]}}}})
                 ctx (rt/render [data-cell {:*data *data
-                                           :data-path [:things 100 :stuff]
+                                           :data-path [:things :documents 100 :stuff]
                                            :data-type :multi-select}])]
           (enter-edit-mode! ctx)
 
@@ -121,19 +121,19 @@
             (is (= "Thing 2; Thing 3" (.-value input))))
 
           (exit-edit-mode! ctx)
-          (is (= {:things {100 {:stuff ["Thing 2"
-                                        "Thing 3"]}}}
+          (is (= {:things {:documents {100 {:stuff ["Thing 2"
+                                                    "Thing 3"]}}}}
                  @*data))))
 
       (testing "edit reference"
-        (p/let [*data (r/atom {:things {100 {:stuff [200 300]}}
-                               :stuffs {200 {:name "Foo"
-                                             :thingies [100]}
-                                        300 {:name "Bar"
-                                             :thingies [100]}
-                                        400 {:name "Gazonk"}}})
+        (p/let [*data (r/atom {:things {:documents {100 {:stuff [200 300]}}}
+                               :stuffs {:documents {200 {:name "Foo"
+                                                         :thingies [100]}
+                                                    300 {:name "Bar"
+                                                         :thingies [100]}
+                                                    400 {:name "Gazonk"}}}})
                 ctx (rt/render [data-cell {:*data *data
-                                           :data-path [:things 100 :stuff]
+                                           :data-path [:things :documents 100 :stuff]
                                            :data-type :reference
                                            :reference-collection :stuffs
                                            :reference-foreign-key :thingies}])]
@@ -146,12 +146,12 @@
             (is (= "300; 400" (.-value input))))
 
           (exit-edit-mode! ctx)
-          (is (= {:things {100 {:stuff [300 400]}}
-                  :stuffs {200 {:name "Foo"}
-                           300 {:name "Bar"
-                                :thingies [100]}
-                           400 {:name "Gazonk"
-                                :thingies [100]}}}
+          (is (= {:things {:documents {100 {:stuff [300 400]}}}
+                  :stuffs {:documents {200 {:name "Foo"}
+                                       300 {:name "Bar"
+                                            :thingies [100]}
+                                       400 {:name "Gazonk"
+                                            :thingies [100]}}}}
                  @*data))))
 
       (done))))
