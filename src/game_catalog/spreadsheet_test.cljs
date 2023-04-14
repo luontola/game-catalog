@@ -123,6 +123,28 @@
                                         "Thing 3"]}}}
                  @*data))))
 
-      (testing "edit reference")
+      (testing "edit reference"
+        (p/let [*data (r/atom {:things {100 {:stuff [200 300]}}
+                               ;; TODO: don't rely on the hard-coded support for rendering :games
+                               :games {200 {:name "Foo"}
+                                       300 {:name "Bar"}
+                                       400 {:name "Gazonk"}}})
+                ctx (rt/render [data-cell {:*data *data
+                                           :data-path [:things 100 :stuff]
+                                           :data-type :reference
+                                           :reference-path [:games]}])]
+          (enter-edit-mode! ctx)
+
+          (let [input (rt/query-selector ctx "input")]
+            (is (= "200; 300" (.-value input)))
+            (rt/fire-event! :change input {:target {:value "300; 400"}})
+            (is (= "300; 400" (.-value input))))
+
+          (exit-edit-mode! ctx)
+          (is (= {:things {100 {:stuff [300 400]}}
+                  :games {200 {:name "Foo"}
+                          300 {:name "Bar"}
+                          400 {:name "Gazonk"}}}
+                 @*data))))
 
       (done))))

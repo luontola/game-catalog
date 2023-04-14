@@ -5,34 +5,47 @@
 (defn- format-multi-select-value [value]
   (str/join ", " value))
 
+(defn- parse-id [s]
+  (or (parse-long s)
+      (parse-uuid s)
+      s))
+
 (defn data-cell [{:keys [*data data-path data-type reference-path]}]
   (r/with-let [*self (r/atom nil)
                *editing? (r/atom false)
-               *edited-value (r/atom nil)]
+               *form-value (r/atom nil)
+               *parsed-value (r/atom nil)]
     (let [data-value (get-in @*data data-path)]
       [:td {:tab-index (if @*editing? -1 0)
             :ref #(reset! *self %)
             :on-double-click (fn [_event]
-                               (reset! *edited-value data-value)
+                               ;; TODO: extract conversion between internal and UI representations
+                               (reset! *form-value (case data-type
+                                                     :multi-select (str/join "; " data-value)
+                                                     :reference (str/join "; " data-value)
+                                                     data-value))
+                               (reset! *parsed-value data-value)
                                (reset! *editing? true))}
        (if @*editing?
          [:input {:type "text"
                   :auto-focus true
-                  ;; TODO: extract conversion between internal and UI representations
-                  :value (case data-type
-                           :multi-select (str/join "; " @*edited-value)
-                           @*edited-value)
+                  :value @*form-value
                   :on-blur (fn [_event]
-                             (swap! *data assoc-in data-path @*edited-value)
+                             (swap! *data assoc-in data-path @*parsed-value)
                              (reset! *editing? false))
                   :on-change (fn [event]
                                (let [form-value (str (.. event -target -value))
                                      ;; TODO: extract conversion between internal and UI representations
-                                     data-value (case data-type
-                                                  :multi-select (->> (str/split form-value #";")
-                                                                     (mapv str/trim))
-                                                  form-value)]
-                                 (reset! *edited-value data-value)))
+                                     parsed-value (case data-type
+                                                    :multi-select (->> (str/split form-value #";")
+                                                                       (mapv str/trim))
+                                                    :reference (->> (str/split form-value #";")
+                                                                    (map str/trim)
+                                                                    (remove str/blank?)
+                                                                    (mapv parse-id))
+                                                    form-value)]
+                                 (reset! *form-value form-value)
+                                 (reset! *parsed-value parsed-value)))
                   :style {:width "100%"
                           :height "36px"
                           :border 0
