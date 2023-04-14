@@ -103,8 +103,6 @@
                                 :isClearable false
                                 :backspaceRemovesValue true
                                 :value @*form-value
-                                #_#_:defaultValue [{:value "foo"
-                                                    :label "Foo"}]
                                 :options (for [[id document] (get-in @*data [reference-collection :documents])]
                                            {:label (visualize-document document reference-collection)
                                             :value id})
@@ -122,15 +120,7 @@
                                                                        (first))]
                                               ; TODO: create new entity, set uuid in values
                                               (prn 'new-value new-value))
-                                            (reset! *form-value values))
-                                #_#_:onInputChange (fn [text]
-                                                     (js/console.log "onInputChange" text))
-                                #_#_:getNewOptionData (fn [text]
-                                                        ; TODO: create the entity here?
-                                                        (js/console.log "getNewOptionData" text)
-                                                        (clj->js {:label text
-                                                                  :value "xx"
-                                                                  :__isNew__ true}))}]
+                                            (reset! *form-value values))}]
            [:input {:type "text"
                     :auto-focus true
                     :value @*form-value
@@ -142,12 +132,9 @@
                                  (let [form-value (str (.. event -target -value))
                                        ;; TODO: extract conversion between internal and UI representations
                                        parsed-value (case data-type
+                                                      ;; TODO: use react-select also for :multi-select
                                                       :multi-select (->> (str/split form-value #";")
                                                                          (mapv str/trim))
-                                                      :reference (->> (str/split form-value #";")
-                                                                      (map str/trim)
-                                                                      (remove str/blank?)
-                                                                      (mapv parse-id))
                                                       form-value)]
                                    (reset! *form-value form-value)
                                    (reset! *parsed-value parsed-value)))
