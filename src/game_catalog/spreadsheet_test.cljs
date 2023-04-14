@@ -46,12 +46,15 @@
 
       (testing "view reference"
         (let [*data (r/atom {:things {100 {:stuff [200 300]}}
-                             :stuffs {200 {:name "Foo"}
-                                      300 {:name "Bar"}}})
+                             :stuffs {200 {:name "Foo"
+                                           :thingies [100]}
+                                      300 {:name "Bar"
+                                           :thingies [100]}}})
               ctx (rt/render [data-cell {:*data *data
                                          :data-path [:things 100 :stuff]
                                          :data-type :reference
-                                         :reference-path [:stuffs]}])]
+                                         :reference-collection :stuffs
+                                         :reference-foreign-key :thingies}])]
           (is (= "Foo; Bar"
                  (rt/inner-text ctx)))))
 
@@ -132,7 +135,8 @@
                 ctx (rt/render [data-cell {:*data *data
                                            :data-path [:things 100 :stuff]
                                            :data-type :reference
-                                           :reference-path [:stuffs]}])]
+                                           :reference-collection :stuffs
+                                           :reference-foreign-key :thingies}])]
           (enter-edit-mode! ctx)
 
           (let [input (rt/query-selector ctx "input")]

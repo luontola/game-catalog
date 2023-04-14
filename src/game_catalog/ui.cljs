@@ -56,7 +56,8 @@
    {:title "Purchases"
     :data-path :purchases
     :data-type :reference
-    :reference-path [:purchases]}
+    :reference-collection :purchases
+    :reference-foreign-key :base-games}
    {:title "Status"
     :data-path :status
     :data-type :text}
@@ -66,7 +67,8 @@
    {:title "DLCs"
     :data-path :dlcs
     :data-type :reference
-    :reference-path [:dlcs]}])
+    :reference-collection :dlcs
+    :reference-foreign-key :base-game}])
 
 (defn game-sort-key [{:keys [name series release]}]
   (-> (str (when-not (str/blank? series)
@@ -92,11 +94,13 @@
    {:title "Base Games"
     :data-path :base-games
     :data-type :reference
-    :reference-path [:games]}
+    :reference-collection :games
+    :reference-foreign-key :purchases}
    {:title "DLCs"
     :data-path :dlcs
     :data-type :reference
-    :reference-path [:dlcs]}
+    :reference-collection :dlcs
+    :reference-foreign-key :purchases}
    {:title "Bundle Name"
     :data-path :bundle-name
     :data-type :text}
@@ -119,6 +123,7 @@
    [:h2 "Games"]
    [games-table]
    [:h2 "DLCs"]
+   [:p "TODO"]
    [:h2 "Purchases"]
    [purchases-table]
    [pretty-print @*data]])
