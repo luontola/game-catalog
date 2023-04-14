@@ -1,5 +1,6 @@
 (ns game-catalog.spreadsheet
-  (:require [clojure.string :as str]
+  (:require [clojure.set :as set]
+            [clojure.string :as str]
             [reagent.core :as r]))
 
 (defn- format-multi-select-value [value]
@@ -31,8 +32,30 @@
                   :auto-focus true
                   :value @*form-value
                   :on-blur (fn [_event]
-                             ;; TODO: references need to be synced to both directions
-                             (swap! *data assoc-in data-path @*parsed-value)
+                             (let [old-value (get-in @*data data-path)
+                                   new-value @*parsed-value]
+                               ;; TODO: extract updating the back references to a function
+                               (when (and (= :reference data-type)
+                                          [:stuffs] reference-path) ; FIXME: remove hard-coded paths
+                                 (let [old-value (set old-value)
+                                       new-value (set new-value)
+                                       added-ids (set/difference new-value old-value)
+                                       removed-ids (set/difference old-value new-value)
+                                       self-id (second data-path)] ; TODO: a direct way of getting the current record's ID
+                                   (doseq [added-id added-ids]
+                                     (swap! *data update-in [:stuffs added-id] (fn [record]
+                                                                                 (let [new-values (-> (vec (:thingies record))
+                                                                                                      (conj self-id))]
+                                                                                   (assoc record :thingies new-values)))))
+                                   (doseq [removed-id removed-ids]
+                                     (swap! *data update-in [:stuffs removed-id] (fn [record]
+                                                                                   (let [new-values (->> (:thingies record)
+                                                                                                         (remove #(= self-id %))
+                                                                                                         (vec))]
+                                                                                     (if (empty? new-values)
+                                                                                       (dissoc record :thingies)
+                                                                                       (assoc record :thingies new-values))))))))
+                               (swap! *data assoc-in data-path new-value))
                              (reset! *editing? false))
                   :on-change (fn [event]
                                (let [form-value (str (.. event -target -value))
@@ -63,7 +86,7 @@
             :reference (->> data-value
                             (map (fn [id]
                                    (if-some [record (get-in @*data (conj reference-path id))]
-                                     ;; TODO: the record should determine itself that how to format it
+                                     ;; FIXME: the record should determine itself that how to format it
                                      (case (first reference-path)
                                        :stuffs (str (:name record))
                                        :games (str (:name record))

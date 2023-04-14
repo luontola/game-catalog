@@ -137,22 +137,17 @@
 
           (let [input (rt/query-selector ctx "input")]
             (is (= "200; 300" (.-value input)))
+            ;; changes to references: remove 1, keep 1, add 1
             (rt/fire-event! :change input {:target {:value "300; 400"}})
             (is (= "300; 400" (.-value input))))
 
           (exit-edit-mode! ctx)
           (is (= {:things {100 {:stuff [300 400]}}
-                  :stuffs {200 {:name "Foo"
-                                :thingies [100]}
+                  :stuffs {200 {:name "Foo"}
                            300 {:name "Bar"
                                 :thingies [100]}
-                           400 {:name "Gazonk"}}
-                  ;; TODO: update back-references
-                  #_#_:stuffs {200 {:name "Foo"}
-                               300 {:name "Bar"
-                                    :thingies [100]}
-                               400 {:name "Gazonk"
-                                    :thingies [100]}}}
+                           400 {:name "Gazonk"
+                                :thingies [100]}}}
                  @*data))))
 
       (done))))
