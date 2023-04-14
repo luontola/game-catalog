@@ -147,17 +147,17 @@
                                                  :reference-foreign-key :thingies}])]
           (enter-edit-mode! ctx)
 
-          (let [input (rt/query-selector ctx "input")]
-            (is (= "200; 300" (.-value input)))
-            ;; changes to references: remove 1, keep 1, add 1
-            (rt/fire-event! :change input {:target {:value "300; 400"}})
-            (is (= "300; 400" (.-value input))))
+          (p/let [input (rt/query-selector ctx "td")]
+            (is (re-find #"\nFoo\nBar$" (.-innerText input)))
+            ;; changes to references: keep 1, remove 1, add 1
+            (rt/simulate! :keyboard "{Backspace}gaz{Enter}")
+            (is (re-find #"\nFoo\nGazonk$" (.-innerText input))))
 
           (exit-edit-mode! ctx)
-          (is (= {:things {:documents {100 {:stuff [300 400]}}}
-                  :stuffs {:documents {200 {:name "Foo"}
-                                       300 {:name "Bar"
+          (is (= {:things {:documents {100 {:stuff [200 400]}}}
+                  :stuffs {:documents {200 {:name "Foo"
                                             :thingies [100]}
+                                       300 {:name "Bar"}
                                        400 {:name "Gazonk"
                                             :thingies [100]}}}}
                  @*data))))

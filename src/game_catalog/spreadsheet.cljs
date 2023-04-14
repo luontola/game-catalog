@@ -1,5 +1,6 @@
 (ns game-catalog.spreadsheet
-  (:require [clojure.set :as set]
+  (:require ["react-select/creatable$default" :as CreatableSelect]
+            [clojure.set :as set]
             [clojure.string :as str]
             [reagent.core :as r]))
 
@@ -51,6 +52,21 @@
         data (assoc-in data data-path new-value)]
     data))
 
+(defn visualize-document [document collection]
+  (case collection
+    :stuffs (str (:name document))
+    :games (str (:name document))
+    :purchases (format-multi-select-value (:shop document))
+    (str document)))
+
+(defn visualize-reference [data reference-collection id]
+  (if-some [reference-document (get-in data [reference-collection :documents id])]
+    ;; FIXME: the record should determine itself that how to format it
+    ;; TODO: field types as metadata
+    ;; TODO: primary display field as metadata
+    (visualize-document reference-document reference-collection)
+    (str id)))
+
 (defn data-cell [*data {:keys [data-type
                                self-collection self-id self-field
                                reference-collection reference-foreign-key]
@@ -63,60 +79,95 @@
           data-value (get-in @*data data-path)]
       [:td {:tab-index (if @*editing? -1 0)
             :ref #(reset! *self %)
+            ;; TODO: enter edit mode with F2
+            ;; TODO: enter edit mode with Enter
             :on-double-click (fn [_event]
                                ;; TODO: extract conversion between internal and UI representations
                                (reset! *form-value (case data-type
                                                      :multi-select (str/join "; " data-value)
-                                                     :reference (str/join "; " data-value)
+                                                     :reference (->> data-value
+                                                                     (map (fn [id]
+                                                                            {:label (visualize-reference @*data reference-collection id)
+                                                                             :value id}))
+                                                                     (clj->js))
                                                      data-value))
                                (reset! *parsed-value data-value)
                                (reset! *editing? true))}
        (if @*editing?
-         [:input {:type "text"
-                  :auto-focus true
-                  :value @*form-value
-                  :on-blur (fn [_event]
-                             (swap! *data update-field (assoc context
-                                                         :new-value @*parsed-value))
-                             (reset! *editing? false))
-                  :on-change (fn [event]
-                               (let [form-value (str (.. event -target -value))
-                                     ;; TODO: extract conversion between internal and UI representations
-                                     parsed-value (case data-type
-                                                    :multi-select (->> (str/split form-value #";")
-                                                                       (mapv str/trim))
-                                                    :reference (->> (str/split form-value #";")
-                                                                    (map str/trim)
-                                                                    (remove str/blank?)
-                                                                    (mapv parse-id))
-                                                    form-value)]
-                                 (reset! *form-value form-value)
-                                 (reset! *parsed-value parsed-value)))
-                  :style {:width "100%"
-                          :height "36px"
-                          :border 0
-                          :margin-right "-1px"
-                          :padding "6px 5px 6px 6px"
-                          :background-color "transparent"
-                          :outline "3px solid #4884f9"
-                          :outline-offset "-1px"}}]
+         ;; TODO: exit edit mode with Escape
+         ;; TODO: exit edit mode with Enter
+         (if (= :reference data-type)
+           [:> CreatableSelect {:autoFocus true
+                                :isMulti true
+                                :isSearchable true
+                                :isClearable false
+                                :backspaceRemovesValue true
+                                :value @*form-value
+                                #_#_:defaultValue [{:value "foo"
+                                                    :label "Foo"}]
+                                :options (for [[id document] (get-in @*data [reference-collection :documents])]
+                                           {:label (visualize-document document reference-collection)
+                                            :value id})
+                                :onBlur (fn [event]
+                                          #_(js/console.log "onBlur" event)
+                                          (let [new-value (->> (js->clj @*form-value :keywordize-keys true)
+                                                               (mapv :value))]
+                                            (swap! *data update-field (assoc context
+                                                                        :new-value new-value)))
+                                          (reset! *editing? false))
+                                :onChange (fn [values]
+                                            #_(js/console.log "onChange" values)
+                                            (when-some [new-value (->> (js->clj values :keywordize-keys true)
+                                                                       (filter :__isNew__)
+                                                                       (first))]
+                                              ; TODO: create new entity, set uuid in values
+                                              (prn 'new-value new-value))
+                                            (reset! *form-value values))
+                                #_#_:onInputChange (fn [text]
+                                                     (js/console.log "onInputChange" text))
+                                #_#_:getNewOptionData (fn [text]
+                                                        ; TODO: create the entity here?
+                                                        (js/console.log "getNewOptionData" text)
+                                                        (clj->js {:label text
+                                                                  :value "xx"
+                                                                  :__isNew__ true}))}]
+           [:input {:type "text"
+                    :auto-focus true
+                    :value @*form-value
+                    :on-blur (fn [_event]
+                               (swap! *data update-field (assoc context
+                                                           :new-value @*parsed-value))
+                               (reset! *editing? false))
+                    :on-change (fn [event]
+                                 (let [form-value (str (.. event -target -value))
+                                       ;; TODO: extract conversion between internal and UI representations
+                                       parsed-value (case data-type
+                                                      :multi-select (->> (str/split form-value #";")
+                                                                         (mapv str/trim))
+                                                      :reference (->> (str/split form-value #";")
+                                                                      (map str/trim)
+                                                                      (remove str/blank?)
+                                                                      (mapv parse-id))
+                                                      form-value)]
+                                   (reset! *form-value form-value)
+                                   (reset! *parsed-value parsed-value)))
+                    :style {:width "100%"
+                            :height "36px"
+                            :border 0
+                            :margin-right "-1px"
+                            :padding "6px 5px 6px 6px"
+                            :background-color "transparent"
+                            :outline "3px solid #4884f9"
+                            :outline-offset "-1px"}}])
 
+         ;; TODO: move cell focus with arrows
          [:div.data-cell {:style (when (= :money data-type)
                                    {:text-align "right"})}
           (case data-type
             :multi-select (format-multi-select-value data-value)
             :reference (->> data-value
                             (map (fn [id]
-                                   (if-some [reference-document (get-in @*data [reference-collection :documents id])]
-                                     ;; FIXME: the record should determine itself that how to format it
-                                     ;; TODO: field types as metadata
-                                     ;; TODO: primary display field as metadata
-                                     (case reference-collection
-                                       :stuffs (str (:name reference-document))
-                                       :games (str (:name reference-document))
-                                       :purchases (format-multi-select-value (:shop reference-document))
-                                       (str reference-document))
-                                     (str id))))
+                                   (visualize-reference @*data reference-collection id)))
                             (str/join "; "))
             (str data-value))])])))
 
