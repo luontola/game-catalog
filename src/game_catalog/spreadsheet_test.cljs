@@ -46,13 +46,12 @@
 
       (testing "view reference"
         (let [*data (r/atom {:things {100 {:stuff [200 300]}}
-                             ;; TODO: don't rely on the hard-coded support for rendering :games
-                             :games {200 {:name "Foo"}
-                                     300 {:name "Bar"}}})
+                             :stuffs {200 {:name "Foo"}
+                                      300 {:name "Bar"}}})
               ctx (rt/render [data-cell {:*data *data
                                          :data-path [:things 100 :stuff]
                                          :data-type :reference
-                                         :reference-path [:games]}])]
+                                         :reference-path [:stuffs]}])]
           (is (= "Foo; Bar"
                  (rt/inner-text ctx)))))
 
@@ -125,14 +124,15 @@
 
       (testing "edit reference"
         (p/let [*data (r/atom {:things {100 {:stuff [200 300]}}
-                               ;; TODO: don't rely on the hard-coded support for rendering :games
-                               :games {200 {:name "Foo"}
-                                       300 {:name "Bar"}
-                                       400 {:name "Gazonk"}}})
+                               :stuffs {200 {:name "Foo"
+                                             :thingies [100]}
+                                        300 {:name "Bar"
+                                             :thingies [100]}
+                                        400 {:name "Gazonk"}}})
                 ctx (rt/render [data-cell {:*data *data
                                            :data-path [:things 100 :stuff]
                                            :data-type :reference
-                                           :reference-path [:games]}])]
+                                           :reference-path [:stuffs]}])]
           (enter-edit-mode! ctx)
 
           (let [input (rt/query-selector ctx "input")]
@@ -142,9 +142,17 @@
 
           (exit-edit-mode! ctx)
           (is (= {:things {100 {:stuff [300 400]}}
-                  :games {200 {:name "Foo"}
-                          300 {:name "Bar"}
-                          400 {:name "Gazonk"}}}
+                  :stuffs {200 {:name "Foo"
+                                :thingies [100]}
+                           300 {:name "Bar"
+                                :thingies [100]}
+                           400 {:name "Gazonk"}}
+                  ;; TODO: update back-references
+                  #_#_:stuffs {200 {:name "Foo"}
+                               300 {:name "Bar"
+                                    :thingies [100]}
+                               400 {:name "Gazonk"
+                                    :thingies [100]}}}
                  @*data))))
 
       (done))))

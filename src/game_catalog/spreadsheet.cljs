@@ -65,6 +65,7 @@
                                    (if-some [record (get-in @*data (conj reference-path id))]
                                      ;; TODO: the record should determine itself that how to format it
                                      (case (first reference-path)
+                                       :stuffs (str (:name record))
                                        :games (str (:name record))
                                        :purchases (format-multi-select-value (:shop record))
                                        (str record))
