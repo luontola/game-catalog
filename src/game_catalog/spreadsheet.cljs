@@ -19,21 +19,21 @@
         removed-ids (set/difference old-value new-value)
         data (reduce (fn [data added-id]
                        (update-in data [reference-collection :documents added-id]
-                                  (fn [record]
-                                    (let [new-values (-> (vec (get record reference-foreign-key))
+                                  (fn [document]
+                                    (let [new-values (-> (vec (get document reference-foreign-key))
                                                          (conj self-id))]
-                                      (assoc record reference-foreign-key new-values)))))
+                                      (assoc document reference-foreign-key new-values)))))
                      data
                      added-ids)
         data (reduce (fn [data removed-id]
                        (update-in data [reference-collection :documents removed-id]
-                                  (fn [record]
-                                    (let [new-values (->> (get record reference-foreign-key)
+                                  (fn [document]
+                                    (let [new-values (->> (get document reference-foreign-key)
                                                           (remove #(= self-id %))
                                                           (vec))]
                                       (if (empty? new-values)
-                                        (dissoc record reference-foreign-key)
-                                        (assoc record reference-foreign-key new-values))))))
+                                        (dissoc document reference-foreign-key)
+                                        (assoc document reference-foreign-key new-values))))))
                      data
                      removed-ids)]
     data))
@@ -107,13 +107,15 @@
             :multi-select (format-multi-select-value data-value)
             :reference (->> data-value
                             (map (fn [id]
-                                   (if-some [reference-record (get-in @*data [reference-collection :documents id])]
+                                   (if-some [reference-document (get-in @*data [reference-collection :documents id])]
                                      ;; FIXME: the record should determine itself that how to format it
+                                     ;; TODO: field types as metadata
+                                     ;; TODO: primary display field as metadata
                                      (case reference-collection
-                                       :stuffs (str (:name reference-record))
-                                       :games (str (:name reference-record))
-                                       :purchases (format-multi-select-value (:shop reference-record))
-                                       (str reference-record))
+                                       :stuffs (str (:name reference-document))
+                                       :games (str (:name reference-document))
+                                       :purchases (format-multi-select-value (:shop reference-document))
+                                       (str reference-document))
                                      (str id))))
                             (str/join "; "))
             (str data-value))])])))
