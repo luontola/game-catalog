@@ -21,13 +21,20 @@
 
 (use-fixtures :each fixture)
 
+(defn sleep! [ms]
+  (p/create (fn [resolve _reject]
+              (js/setTimeout resolve ms))))
+
 (defn render [hiccup]
   (rtl/cleanup) ; needed when the same test renders a component multiple times
   (rtl/render (r/as-element hiccup)))
 
 (defn simulate! [event target]
   (p/do
-    ((g/get *user-event* (name event)) target)
+    (when (= :keyboard event)
+      (sleep! 10)) ; XXX: typing is flaky - sometimes the first character isn't typed into the just focused input field
+    (let [f (g/get *user-event* (name event))]
+      (f target))
     (rtl/act (fn []
                (r/flush)))))
 
