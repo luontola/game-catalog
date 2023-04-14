@@ -105,7 +105,23 @@
           (is (= {:things {100 {:stuff "New Text"}}}
                  @*data))))
 
-      (testing "edit multi-select")
+      (testing "edit multi-select"
+        (p/let [*data (r/atom {:things {100 {:stuff ["Thing 1"
+                                                     "Thing 2"]}}})
+                ctx (rt/render [data-cell {:*data *data
+                                           :data-path [:things 100 :stuff]
+                                           :data-type :multi-select}])]
+          (enter-edit-mode! ctx)
+
+          (let [input (rt/query-selector ctx "input")]
+            (is (= "Thing 1; Thing 2" (.-value input)))
+            (rt/fire-event! :change input {:target {:value "Thing 2; Thing 3"}})
+            (is (= "Thing 2; Thing 3" (.-value input))))
+
+          (exit-edit-mode! ctx)
+          (is (= {:things {100 {:stuff ["Thing 2"
+                                        "Thing 3"]}}}
+                 @*data))))
 
       (testing "edit reference")
 

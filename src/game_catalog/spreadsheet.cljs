@@ -9,21 +9,30 @@
   (r/with-let [*self (r/atom nil)
                *editing? (r/atom false)
                *edited-value (r/atom nil)]
-    (let [value (get-in @*data data-path)]
+    (let [data-value (get-in @*data data-path)]
       [:td {:tab-index (if @*editing? -1 0)
             :ref #(reset! *self %)
             :on-double-click (fn [_event]
-                               (reset! *edited-value value)
+                               (reset! *edited-value data-value)
                                (reset! *editing? true))}
        (if @*editing?
          [:input {:type "text"
                   :auto-focus true
-                  :value @*edited-value
+                  ;; TODO: extract conversion between internal and UI representations
+                  :value (case data-type
+                           :multi-select (str/join "; " @*edited-value)
+                           @*edited-value)
                   :on-blur (fn [_event]
                              (swap! *data assoc-in data-path @*edited-value)
                              (reset! *editing? false))
                   :on-change (fn [event]
-                               (reset! *edited-value (str (.. event -target -value))))
+                               (let [form-value (str (.. event -target -value))
+                                     ;; TODO: extract conversion between internal and UI representations
+                                     data-value (case data-type
+                                                  :multi-select (->> (str/split form-value #";")
+                                                                     (mapv str/trim))
+                                                  form-value)]
+                                 (reset! *edited-value data-value)))
                   :style {:width "100%"
                           :height "36px"
                           :border 0
@@ -36,8 +45,8 @@
          [:div.data-cell {:style (when (= :money data-type)
                                    {:text-align "right"})}
           (case data-type
-            :multi-select (format-multi-select-value value)
-            :reference (->> value
+            :multi-select (format-multi-select-value data-value)
+            :reference (->> data-value
                             (map (fn [id]
                                    (if-some [record (get-in @*data (conj reference-path id))]
                                      ;; TODO: the record should determine itself that how to format it
@@ -47,7 +56,7 @@
                                        (str record))
                                      (str id))))
                             (str/join "; "))
-            (str value))])])))
+            (str data-value))])])))
 
 (defn table [{:keys [*data data-path sort-key columns]}]
   (let [records (->> (get-in @*data data-path)
