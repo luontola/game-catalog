@@ -10,6 +10,15 @@
 (defn data-cell [opts]
   [:table [:tbody [:tr [spreadsheet/data-cell opts]]]])
 
+(defn- enter-edit-mode! [ctx]
+  (p/do
+    (rt/simulate! :dblClick (rt/query-selector ctx "td"))
+    (let [input (rt/query-selector ctx "input")]
+      (is (some? input)
+          "assume field is editable")
+      (is (= js/document.activeElement input)
+          "assume field is focused"))))
+
 (deftest data-cell-test
   (async done
     (p/do
@@ -62,12 +71,7 @@
                 ctx (rt/render [data-cell {:*data *data
                                            :data-path [:things 100 :stuff]
                                            :data-type :text}])]
-          (rt/simulate! :dblClick (rt/query-selector ctx "td"))
-          (let [input (rt/query-selector ctx "input")]
-            (is (some? input)
-                "assume field is editable")
-            (is (= js/document.activeElement input)
-                "assume field is focused"))
+          (enter-edit-mode! ctx)
 
           (rt/simulate! :keyboard "123{Tab}")
 
