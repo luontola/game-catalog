@@ -20,7 +20,7 @@
                      {:title "Series"
                       :field :series
                       :data-type :text}
-                     {:title "Purchases"
+                     {:title "Purchases" ; TODO: should not be editable from this direction - the current select component makes choosing the right purchase impossible
                       :field :purchases
                       :data-type :reference
                       :reference-collection :purchases

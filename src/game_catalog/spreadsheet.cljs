@@ -88,7 +88,7 @@
                                                      :reference (->> data-value
                                                                      (map (fn [id]
                                                                             {:label (visualize-reference @*data reference-collection id)
-                                                                             :value id}))
+                                                                             :value (str id)}))
                                                                      (clj->js))
                                                      data-value))
                                (reset! *parsed-value data-value)
@@ -105,11 +105,11 @@
                                 :value @*form-value
                                 :options (for [[id document] (get-in @*data [reference-collection :documents])]
                                            {:label (visualize-document document reference-collection)
-                                            :value id})
+                                            :value (str id)})
                                 :onBlur (fn [event]
                                           #_(js/console.log "onBlur" event)
                                           (let [new-value (->> (js->clj @*form-value :keywordize-keys true)
-                                                               (mapv :value))]
+                                                               (mapv (comp parse-id :value)))]
                                             (swap! *data update-field (assoc context
                                                                         :new-value new-value)))
                                           (reset! *editing? false))
