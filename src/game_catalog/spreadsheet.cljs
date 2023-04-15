@@ -89,6 +89,35 @@
                   :value (str id)}))
       form-item)))
 
+(defn reference-editor [*data {:keys [on-exit-editing data-type
+                                      self-collection self-id self-field
+                                      reference-collection reference-foreign-key]
+                               :as context}]
+  (r/with-let [data-path [self-collection :documents self-id self-field]
+               *form-value (r/atom (->> (get-in @*data data-path)
+                                        (map (fn [id]
+                                               {:label (visualize-reference @*data reference-collection id)
+                                                :value (str id)}))
+                                        (clj->js)))]
+    [:> CreatableSelect {:autoFocus true
+                         :isMulti true
+                         :isSearchable true
+                         :isClearable false
+                         :backspaceRemovesValue true
+                         :value @*form-value
+                         :options (for [[id document] (get-in @*data [reference-collection :documents])]
+                                    {:label (visualize-document document reference-collection)
+                                     :value (str id)})
+                         :onBlur (fn [_event]
+                                   (let [new-value (->> (js->clj @*form-value :keywordize-keys true)
+                                                        (mapv (comp parse-id :value)))]
+                                     (swap! *data update-field (assoc context
+                                                                 :new-value new-value)))
+                                   (on-exit-editing))
+                         :onChange (fn [values]
+                                     (reset! *form-value (mapv #(init-reference-document! *data reference-collection %)
+                                                               values)))}]))
+
 (defn data-cell [*data {:keys [data-type
                                self-collection self-id self-field
                                reference-collection reference-foreign-key]
@@ -96,7 +125,8 @@
   (r/with-let [*self (r/atom nil)
                *editing? (r/atom false)
                *form-value (r/atom nil)
-               *parsed-value (r/atom nil)]
+               *parsed-value (r/atom nil)
+               on-exit-editing #(reset! *editing? false)]
     (let [data-path [self-collection :documents self-id self-field]
           data-value (get-in @*data data-path)]
       [:td {:tab-index (if @*editing? -1 0)
@@ -119,24 +149,8 @@
          ;; TODO: exit edit mode with Escape
          ;; TODO: exit edit mode with Enter
          (if (= :reference data-type)
-           [:> CreatableSelect {:autoFocus true
-                                :isMulti true
-                                :isSearchable true
-                                :isClearable false
-                                :backspaceRemovesValue true
-                                :value @*form-value
-                                :options (for [[id document] (get-in @*data [reference-collection :documents])]
-                                           {:label (visualize-document document reference-collection)
-                                            :value (str id)})
-                                :onBlur (fn [_event]
-                                          (let [new-value (->> (js->clj @*form-value :keywordize-keys true)
-                                                               (mapv (comp parse-id :value)))]
-                                            (swap! *data update-field (assoc context
-                                                                        :new-value new-value)))
-                                          (reset! *editing? false))
-                                :onChange (fn [values]
-                                            (reset! *form-value (mapv #(init-reference-document! *data reference-collection %)
-                                                                      values)))}]
+           [reference-editor *data (assoc context
+                                     :on-exit-editing on-exit-editing)]
            [:input {:type "text"
                     :auto-focus true
                     :value @*form-value
@@ -183,6 +197,7 @@
             (for [column columns]
               [:th (str (:title column))]))]
      [:tbody
+      ;; TODO: an empty pseudo row at the bottom for adding new documents
       (for [[self-id _document] documents-by-id]
         (into [:tr {:key (str self-id)}]
               (for [column columns]
