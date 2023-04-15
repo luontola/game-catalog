@@ -63,23 +63,31 @@
     :purchases (format-multi-select-value (:shop document))
     (str document)))
 
-(defn init-reference-document! [*data reference-collection form-item]
-  (let [{:keys [__isNew__ label]} (js->clj form-item :keywordize-keys true)]
-    (if __isNew__
-      (let [id (new-id)
-            reference-field (case reference-collection ; TODO: move knowledge about primary field to metadata
-                              :stuffs :name
-                              :games :name)]
-        (swap! *data assoc-in [reference-collection :documents id reference-field] label)
-        ;; TODO: calculate label from the canonical document in *data
-        (clj->js {:label label
-                  :value (str id)}))
-      form-item)))
-
 (defn visualize-reference [data reference-collection id]
   (if-some [reference-document (get-in data [reference-collection :documents id])]
     (visualize-document reference-document reference-collection)
     (str id)))
+
+(defn create-document [data {:keys [collection id primary-value]}]
+  (let [primary-field (case collection ; TODO: move knowledge about primary field to metadata
+                        :stuffs :name
+                        :games :name)
+        document {primary-field primary-value}
+        document-path [collection :documents id]]
+    (assert (nil? (get-in data document-path))
+            (str document-path " already exists"))
+    (assoc-in data document-path document)))
+
+(defn init-reference-document! [*data reference-collection form-item]
+  (let [{:keys [__isNew__ label]} (js->clj form-item :keywordize-keys true)]
+    (if __isNew__
+      (let [id (new-id)]
+        (swap! *data create-document {:collection reference-collection
+                                      :id id
+                                      :primary-value label})
+        (clj->js {:label (visualize-reference @*data reference-collection id)
+                  :value (str id)}))
+      form-item)))
 
 (defn data-cell [*data {:keys [data-type
                                self-collection self-id self-field
