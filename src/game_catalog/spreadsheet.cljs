@@ -94,7 +94,8 @@
                                       reference-collection reference-foreign-key]
                                :as context}]
   (r/with-let [data-path [self-collection :documents self-id self-field]
-               *form-value (r/atom (->> (get-in @*data data-path)
+               data-value (get-in @*data data-path)
+               *form-value (r/atom (->> data-value
                                         (map (fn [id]
                                                {:label (visualize-reference @*data reference-collection id)
                                                 :value (str id)}))
@@ -108,15 +109,56 @@
                          :options (for [[id document] (get-in @*data [reference-collection :documents])]
                                     {:label (visualize-document document reference-collection)
                                      :value (str id)})
+                         ;; TODO: exit edit mode with Escape
+                         ;; TODO: exit edit mode with Enter
                          :onBlur (fn [_event]
                                    (let [new-value (->> (js->clj @*form-value :keywordize-keys true)
                                                         (mapv (comp parse-id :value)))]
+                                     ;; TODO: move update-field call inside on-exit-editing
                                      (swap! *data update-field (assoc context
                                                                  :new-value new-value)))
                                    (on-exit-editing))
                          :onChange (fn [values]
                                      (reset! *form-value (mapv #(init-reference-document! *data reference-collection %)
                                                                values)))}]))
+
+(defn default-editor [*data {:keys [on-exit-editing data-type
+                                    self-collection self-id self-field]
+                             :as context}]
+  (r/with-let [data-path [self-collection :documents self-id self-field]
+               data-value (get-in @*data data-path)
+               *form-value (r/atom (case data-type
+                                     :multi-select (str/join "; " data-value)
+                                     data-value))
+               *parsed-value (r/atom data-value)]
+    [:input {:type "text"
+             :auto-focus true
+             :value @*form-value
+             ;; TODO: exit edit mode with Escape
+             ;; TODO: exit edit mode with Enter
+             :on-blur (fn [_event]
+                        ;; TODO: move update-field call inside on-exit-editing
+                        (swap! *data update-field (assoc context
+                                                    :new-value @*parsed-value))
+                        (on-exit-editing))
+             :on-change (fn [event]
+                          (let [form-value (str (.. event -target -value))
+                                ;; TODO: extract conversion between internal and UI representations
+                                parsed-value (case data-type
+                                               ;; TODO: use react-select also for :multi-select
+                                               :multi-select (->> (str/split form-value #";")
+                                                                  (mapv str/trim))
+                                               form-value)]
+                            (reset! *form-value form-value)
+                            (reset! *parsed-value parsed-value)))
+             :style {:width "100%"
+                     :height "36px"
+                     :border 0
+                     :margin-right "-1px"
+                     :padding "6px 5px 6px 6px"
+                     :background-color "transparent"
+                     :outline "3px solid #4884f9"
+                     :outline-offset "-1px"}}]))
 
 (defn data-cell [*data {:keys [data-type
                                self-collection self-id self-field
@@ -146,36 +188,11 @@
                                (reset! *parsed-value data-value)
                                (reset! *editing? true))}
        (if @*editing?
-         ;; TODO: exit edit mode with Escape
-         ;; TODO: exit edit mode with Enter
-         (if (= :reference data-type)
-           [reference-editor *data (assoc context
-                                     :on-exit-editing on-exit-editing)]
-           [:input {:type "text"
-                    :auto-focus true
-                    :value @*form-value
-                    :on-blur (fn [_event]
-                               (swap! *data update-field (assoc context
-                                                           :new-value @*parsed-value))
-                               (reset! *editing? false))
-                    :on-change (fn [event]
-                                 (let [form-value (str (.. event -target -value))
-                                       ;; TODO: extract conversion between internal and UI representations
-                                       parsed-value (case data-type
-                                                      ;; TODO: use react-select also for :multi-select
-                                                      :multi-select (->> (str/split form-value #";")
-                                                                         (mapv str/trim))
-                                                      form-value)]
-                                   (reset! *form-value form-value)
-                                   (reset! *parsed-value parsed-value)))
-                    :style {:width "100%"
-                            :height "36px"
-                            :border 0
-                            :margin-right "-1px"
-                            :padding "6px 5px 6px 6px"
-                            :background-color "transparent"
-                            :outline "3px solid #4884f9"
-                            :outline-offset "-1px"}}])
+         (let [context (assoc context
+                         :on-exit-editing on-exit-editing)]
+           (case data-type
+             :reference [reference-editor *data context]
+             [default-editor *data context]))
 
          ;; TODO: move cell focus with arrows
          [:div.data-cell {:style (when (= :money data-type)
