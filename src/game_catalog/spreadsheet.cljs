@@ -128,18 +128,25 @@
   (r/with-let [data-path [self-collection :documents self-id self-field]
                data-value (get-in @*data data-path)
                *form-value (r/atom (case data-type
+                                     ;; TODO: use react-select also for :multi-select
                                      :multi-select (str/join "; " data-value)
-                                     data-value))
-               *parsed-value (r/atom data-value)]
+                                     data-value))]
     [:input {:type "text"
              :auto-focus true
              :value @*form-value
              ;; TODO: exit edit mode with Escape
              ;; TODO: exit edit mode with Enter
              :on-blur (fn [_event]
-                        ;; TODO: move update-field call inside on-exit-editing
-                        (swap! *data update-field (assoc context
-                                                    :new-value @*parsed-value))
+                        (let [form-value @*form-value
+                              ;; TODO: extract conversion between internal and UI representations
+                              parsed-value (case data-type
+                                             ;; TODO: use react-select also for :multi-select
+                                             :multi-select (->> (str/split form-value #";")
+                                                                (mapv str/trim))
+                                             form-value)]
+                          ;; TODO: move update-field call inside on-exit-editing
+                          (swap! *data update-field (assoc context
+                                                      :new-value parsed-value)))
                         (on-exit-editing))
              :on-change (fn [event]
                           (let [form-value (str (.. event -target -value))
@@ -149,8 +156,7 @@
                                                :multi-select (->> (str/split form-value #";")
                                                                   (mapv str/trim))
                                                form-value)]
-                            (reset! *form-value form-value)
-                            (reset! *parsed-value parsed-value)))
+                            (reset! *form-value form-value)))
              :style {:width "100%"
                      :height "36px"
                      :border 0
