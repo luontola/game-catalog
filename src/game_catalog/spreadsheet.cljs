@@ -4,6 +4,8 @@
             [clojure.string :as str]
             [reagent.core :as r]))
 
+(def ^:dynamic new-id random-uuid)
+
 (defn- format-multi-select-value [value]
   (str/join ", " value))
 
@@ -53,17 +55,29 @@
     data))
 
 (defn visualize-document [document collection]
-  (case collection
+  ;; FIXME: the record should determine itself that how to format it
+  ;; TODO: field types as metadata
+  (case collection ; TODO: move knowledge about primary field to metadata
     :stuffs (str (:name document))
     :games (str (:name document))
     :purchases (format-multi-select-value (:shop document))
     (str document)))
 
+(defn init-reference-document! [*data reference-collection form-item]
+  (let [{:keys [__isNew__ label]} (js->clj form-item :keywordize-keys true)]
+    (if __isNew__
+      (let [id (new-id)
+            reference-field (case reference-collection ; TODO: move knowledge about primary field to metadata
+                              :stuffs :name
+                              :games :name)]
+        (swap! *data assoc-in [reference-collection :documents id reference-field] label)
+        ;; TODO: calculate label from the canonical document in *data
+        (clj->js {:label label
+                  :value (str id)}))
+      form-item)))
+
 (defn visualize-reference [data reference-collection id]
   (if-some [reference-document (get-in data [reference-collection :documents id])]
-    ;; FIXME: the record should determine itself that how to format it
-    ;; TODO: field types as metadata
-    ;; TODO: primary display field as metadata
     (visualize-document reference-document reference-collection)
     (str id)))
 
@@ -106,21 +120,15 @@
                                 :options (for [[id document] (get-in @*data [reference-collection :documents])]
                                            {:label (visualize-document document reference-collection)
                                             :value (str id)})
-                                :onBlur (fn [event]
-                                          #_(js/console.log "onBlur" event)
+                                :onBlur (fn [_event]
                                           (let [new-value (->> (js->clj @*form-value :keywordize-keys true)
                                                                (mapv (comp parse-id :value)))]
                                             (swap! *data update-field (assoc context
                                                                         :new-value new-value)))
                                           (reset! *editing? false))
                                 :onChange (fn [values]
-                                            #_(js/console.log "onChange" values)
-                                            (when-some [new-value (->> (js->clj values :keywordize-keys true)
-                                                                       (filter :__isNew__)
-                                                                       (first))]
-                                              ; TODO: create new entity, set uuid in values
-                                              (prn 'new-value new-value))
-                                            (reset! *form-value values))}]
+                                            (reset! *form-value (mapv #(init-reference-document! *data reference-collection %)
+                                                                      values)))}]
            [:input {:type "text"
                     :auto-focus true
                     :value @*form-value

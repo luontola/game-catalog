@@ -27,7 +27,10 @@
 
 (deftest data-cell-test
   (async done
-    (p/do
+    (p/let [original-new-id spreadsheet/new-id]
+      (set! spreadsheet/new-id (let [*counter (atom 1000)]
+                                 #(swap! *counter inc)))
+
       (testing "view text"
         (let [*data (r/atom {:things {:documents {100 {:stuff "Something"}}}})
               ctx (rt/render [data-cell *data {:data-type :text
@@ -134,11 +137,11 @@
 
       (testing "edit reference"
         (p/let [*data (r/atom {:things {:documents {100 {:stuff [200 300]}}}
-                               :stuffs {:documents {200 {:name "Foo"
+                               :stuffs {:documents {200 {:name "Keep"
                                                          :thingies [100]}
-                                                    300 {:name "Bar"
+                                                    300 {:name "Remove"
                                                          :thingies [100]}
-                                                    400 {:name "Gazonk"}}}})
+                                                    400 {:name "Add Existing"}}}})
                 ctx (rt/render [data-cell *data {:data-type :reference
                                                  :self-collection :things
                                                  :self-id 100
@@ -148,18 +151,21 @@
           (enter-edit-mode! ctx)
 
           (p/let [input (rt/query-selector ctx "td")]
-            (is (re-find #"\nFoo\nBar$" (.-innerText input)))
-            ;; changes to references: keep 1, remove 1, add 1
-            (rt/simulate! :keyboard "{Backspace}gaz{Enter}")
-            (is (re-find #"\nFoo\nGazonk$" (.-innerText input))))
+            (is (re-find #"\nKeep\nRemove$" (.-innerText input)))
+            ;; changes to references: keep 1, remove 1, add 1, create 1
+            (rt/simulate! :keyboard "{Backspace}exist{Enter}Create New{Enter}")
+            (is (re-find #"\nKeep\nAdd Existing\nCreate New$" (.-innerText input))))
 
           (exit-edit-mode! ctx)
-          (is (= {:things {:documents {100 {:stuff [200 400]}}}
-                  :stuffs {:documents {200 {:name "Foo"
+          (is (= {:things {:documents {100 {:stuff [200 400 1001]}}}
+                  :stuffs {:documents {200 {:name "Keep"
                                             :thingies [100]}
-                                       300 {:name "Bar"}
-                                       400 {:name "Gazonk"
-                                            :thingies [100]}}}}
+                                       300 {:name "Remove"}
+                                       400 {:name "Add Existing"
+                                            :thingies [100]}
+                                       1001 {:name "Create New"
+                                             :thingies [100]}}}}
                  @*data))))
 
+      (set! spreadsheet/new-id original-new-id)
       (done))))
