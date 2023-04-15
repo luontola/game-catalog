@@ -170,28 +170,16 @@
                                self-collection self-id self-field
                                reference-collection reference-foreign-key]
                         :as context}]
-  (r/with-let [*self (r/atom nil)
+  (r/with-let [*td-element (r/atom nil) ; TODO: dead code (could perhaps be used for table navigation)
                *editing? (r/atom false)
-               *form-value (r/atom nil)
-               *parsed-value (r/atom nil)
                on-exit-editing #(reset! *editing? false)]
     (let [data-path [self-collection :documents self-id self-field]
           data-value (get-in @*data data-path)]
       [:td {:tab-index (if @*editing? -1 0)
-            :ref #(reset! *self %)
+            :ref #(reset! *td-element %)
             ;; TODO: enter edit mode with F2
             ;; TODO: enter edit mode with Enter
             :on-double-click (fn [_event]
-                               ;; TODO: extract conversion between internal and UI representations
-                               (reset! *form-value (case data-type
-                                                     :multi-select (str/join "; " data-value)
-                                                     :reference (->> data-value
-                                                                     (map (fn [id]
-                                                                            {:label (visualize-reference @*data reference-collection id)
-                                                                             :value (str id)}))
-                                                                     (clj->js))
-                                                     data-value))
-                               (reset! *parsed-value data-value)
                                (reset! *editing? true))}
        (if @*editing?
          (let [context (assoc context
@@ -201,6 +189,7 @@
              [default-editor *data context]))
 
          ;; TODO: move cell focus with arrows
+         ;; TODO: extract viewer components for the various data types
          [:div.data-cell {:style (when (= :money data-type)
                                    {:text-align "right"})}
           (case data-type
