@@ -64,6 +64,7 @@
     (str document)))
 
 (defn visualize-reference [data reference-collection id]
+  ;; TODO: use reagent.core/cursor to avoid refreshing the whole table on edit
   (if-some [reference-document (get-in data [reference-collection :documents id])]
     (visualize-document reference-document reference-collection)
     (str id)))
@@ -174,6 +175,7 @@
                *editing? (r/atom false)
                on-exit-editing #(reset! *editing? false)]
     (let [data-path [self-collection :documents self-id self-field]
+          ;; TODO: use reagent.core/cursor to avoid refreshing the whole table on edit
           data-value (get-in @*data data-path)]
       [:td {:tab-index (if @*editing? -1 0)
             :ref #(reset! *td-element %)
@@ -201,6 +203,7 @@
             (str data-value))])])))
 
 (defn table [{:keys [*data self-collection sort-key columns]}]
+  ;; TODO: use reagent.core/track for the sorted list of documents (or just list of IDs) to avoid refreshing the whole table on edit
   (let [documents-by-id (->> (get-in @*data [self-collection :documents])
                              (sort-by (comp sort-key val)))]
     [:table.spreadsheet
