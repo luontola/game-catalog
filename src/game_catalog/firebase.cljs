@@ -20,10 +20,10 @@
 (def analytics (analytics/getAnalytics app))
 (def db (firestore/getFirestore app))
 
-(prn 'app app)
-(prn 'auth auth)
-(prn 'analytics analytics)
-(prn 'db db)
+(js/console.log "app" app)
+(js/console.log "auth" auth)
+(js/console.log "analytics" analytics)
+(js/console.log "db" db)
 
 (def *user (r/atom :loading))
 
@@ -32,7 +32,7 @@
                                 (js/console.log "xxx" auth)
                                 (reset! *user user)))
 (def auth-provider (auth/GoogleAuthProvider.))
-(prn 'auth-provider auth-provider)
+(js/console.log "auth-provider" auth-provider)
 
 (p/catch
   (p/let [result (auth/getRedirectResult auth)]
@@ -50,14 +50,17 @@
           data (.json response)]
     (prn 'xxx data))
 
-#_(p/let [collectionRef (firestore/collection db "test")
-          docRef (firestore/addDoc collectionRef #js {:first "Alan",
-                                                      :middle "Mathison",
-                                                      :last "Turing",
-                                                      :born 1912})]
-    (prn 'collectionRef collectionRef)
-    (js/console.log collectionRef)
-    (prn 'docRef docRef)
-    (js/console.log docRef))
+(p/let [collectionRef (firestore/collection db "test")
+        _ (js/console.log "collectionRef" collectionRef)
+        docs-snapshot (firestore/getDocs collectionRef)
+        #_#_docRef (firestore/addDoc collectionRef #js {:first "Alan2",
+                                                        :middle "Mathison",
+                                                        :last "Turing",
+                                                        :born 1912})]
+  #_(js/console.log "docs" docs-snapshot)
+  (doseq [doc (.-docs docs-snapshot)]
+    (js/console.log "doc" (.-id doc) (.data doc)))
+  #_(prn 'docRef docRef)
+  #_(js/console.log docRef))
 
 ;; TODO: Firebase Local Emulator Suite https://firebase.google.com/docs/auth/web/start
