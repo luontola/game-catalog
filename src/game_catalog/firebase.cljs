@@ -63,5 +63,4 @@
   #_(prn 'docRef docRef)
   #_(js/console.log docRef))
 
-;; TODO: store Firestore rules in this project, write a deploy script https://firebase.google.com/docs/rules/manage-deploy
 ;; TODO: Firebase Local Emulator Suite https://firebase.google.com/docs/auth/web/start
