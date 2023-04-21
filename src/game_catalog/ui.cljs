@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [fipp.edn :as fipp.edn]
             [game-catalog.db :as db]
+            [game-catalog.firebase :as firebase]
             [game-catalog.spreadsheet :as spreadsheet]
             [reagent.core :as r]
             [reagent.dom :as dom]))
@@ -117,6 +118,17 @@
 (defn app []
   [:<>
    [:h1 "Game Catalog"]
+   (let [user @firebase/*user]
+     (case user
+       :loading [:p "⏳"]
+
+       nil [:button {:type "button"
+                     :on-click #(firebase/sign-in!)}
+            "Sign in"]
+       [:p (str "Signed in as " (.-displayName user) " ")
+        [:button {:type "button"
+                  :on-click #(firebase/sign-out!)}
+         "Sign out"]]))
    [:h2 "Games"]
    [games-table]
    [:h2 "DLCs"]
