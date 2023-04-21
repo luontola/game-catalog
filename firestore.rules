@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+  	function isEditor() {
+    	return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.editor == true;
+    }
+  
+  //  match /{document=**} {
+  //    allow read, write: if false;
+  //       // request.time < timestamp.date(2022, 8, 20);
+  //  }
+    match /test/{doc} {
+    	allow read: if true;
+      allow write: if isEditor();
+    }
+  }
+}
