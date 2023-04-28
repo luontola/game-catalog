@@ -205,7 +205,9 @@
 (defn table [{:keys [*data self-collection sort-key columns]}]
   ;; TODO: use reagent.core/track for the sorted list of documents (or just list of IDs) to avoid refreshing the whole table on edit
   (let [documents-by-id (->> (get-in @*data [self-collection :documents])
-                             (sort-by (comp sort-key val)))]
+                             ;; TODO: store new row's ID separately for sorting, until the row is unfocused
+                             (sort-by (juxt (comp empty? val)
+                                            (comp sort-key val))))]
     [:<>
      [:table.spreadsheet
       [:thead
