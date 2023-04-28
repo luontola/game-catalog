@@ -206,19 +206,24 @@
   ;; TODO: use reagent.core/track for the sorted list of documents (or just list of IDs) to avoid refreshing the whole table on edit
   (let [documents-by-id (->> (get-in @*data [self-collection :documents])
                              (sort-by (comp sort-key val)))]
-    [:table.spreadsheet
-     [:thead
-      (into [:tr]
-            (for [column columns]
-              [:th (str (:title column))]))]
-     [:tbody
-      ;; TODO: an empty pseudo row at the bottom for adding new documents
-      (for [[self-id _document] documents-by-id]
-        (into [:tr {:key (str self-id)}]
-              (for [column columns]
-                [data-cell *data {:data-type (:data-type column)
-                                  :self-collection self-collection
-                                  :self-id self-id
-                                  :self-field (:field column)
-                                  :reference-collection (:reference-collection column)
-                                  :reference-foreign-key (:reference-foreign-key column)}])))]]))
+    [:<>
+     [:table.spreadsheet
+      [:thead
+       (into [:tr]
+             (for [column columns]
+               [:th (str (:title column))]))]
+      [:tbody
+       ;; TODO: an empty pseudo row at the bottom for adding new documents
+       (for [[self-id _document] documents-by-id]
+         (into [:tr {:key (str self-id)}]
+               (for [column columns]
+                 [data-cell *data {:data-type (:data-type column)
+                                   :self-collection self-collection
+                                   :self-id self-id
+                                   :self-field (:field column)
+                                   :reference-collection (:reference-collection column)
+                                   :reference-foreign-key (:reference-foreign-key column)}])))]]
+     [:p [:button {:type "button"
+                   :on-click (fn []
+                               (swap! *data assoc-in [self-collection :documents (new-id)] {}))}
+          "Add row"]]]))

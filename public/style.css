@@ -38,5 +38,6 @@ table.spreadsheet td:focus {
 }
 
 .data-cell {
+    min-height: calc(1lh + 2 * 6px);
     padding: 6px 12px;
 }
