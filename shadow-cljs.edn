@@ -1,7 +1,7 @@
 {:source-paths ["src"]
  :dependencies [[fipp "0.6.26"]
-                [funcool/promesa "10.0.594"]
-                [reagent "1.1.1"]]
+                [funcool/promesa "11.0.678"]
+                [reagent "1.2.0"]]
  :dev-http {8080 "public"}
 
  :builds
