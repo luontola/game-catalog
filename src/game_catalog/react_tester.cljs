@@ -7,16 +7,16 @@
             [promesa.core :as p]
             [reagent.core :as r]))
 
-(def ^:dynamic *user-event*)
+(def ^:dynamic *user*)
 
 (def user-event-options
-  {:delay 1}) ; increase delay between inputs to reduce test fragility
+  {:delay 10}) ; increase delay between inputs to reduce test fragility
 
 (def fixture
   {:before (fn []
-             (set! *user-event* (.setup user-event (clj->js user-event-options))))
+             (set! *user* (.setup user-event (clj->js user-event-options))))
    :after (fn []
-            (set! *user-event* nil)
+            (set! *user* nil)
             (rtl/cleanup))})
 
 (use-fixtures :each fixture)
@@ -29,11 +29,17 @@
   (rtl/cleanup) ; needed when the same test renders a component multiple times
   (rtl/render (r/as-element hiccup)))
 
+(defn wait-for! [pred]
+  (rtl/waitFor (fn []
+                 (when-not (pred)
+                   (throw (js/AssertionError.))))))
+
+(defn wait-for-element-to-be-removed! [element-or-callback]
+  (rtl/waitForElementToBeRemoved element-or-callback))
+
 (defn simulate! [event target]
   (p/do
-    (when (= :keyboard event)
-      (sleep! 10)) ; XXX: typing is flaky - sometimes the first character isn't typed into the just focused input field
-    (let [f (g/get *user-event* (name event))]
+    (let [f (g/get *user* (name event))]
       (f target))
     (rtl/act (fn []
                (r/flush)))))
