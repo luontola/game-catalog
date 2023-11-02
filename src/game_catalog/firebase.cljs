@@ -18,7 +18,7 @@
 (def app (app/initializeApp (clj->js firebase-config)))
 (def auth (auth/getAuth app))
 (def analytics (analytics/getAnalytics app))
-(def db (firestore/getFirestore app))
+(def firestore (firestore/getFirestore app))
 
 (defn set-firebase-emulator! [enabled?]
   (js/localStorage.setItem "firebase-emulator?" (str (boolean enabled?)))
@@ -28,12 +28,13 @@
 
 (when firebase-emulator?
   (js/console.warn "USING FIREBASE EMULATOR")
-  (auth/connectAuthEmulator auth "http://127.0.0.1:9099"))
+  (auth/connectAuthEmulator auth "http://127.0.0.1:9099")
+  (firestore/connectFirestoreEmulator firestore "127.0.0.1" 9098))
 
 (js/console.log "app" app)
 (js/console.log "auth" auth)
 (js/console.log "analytics" analytics)
-(js/console.log "db" db)
+(js/console.log "firestore" firestore)
 
 (def *user (r/atom :loading))
 
@@ -60,7 +61,7 @@
           data (.json response)]
     (prn 'xxx data))
 
-(p/let [collectionRef (firestore/collection db "test")
+(p/let [collectionRef (firestore/collection firestore "test")
         _ (js/console.log "collectionRef" collectionRef)
         docs-snapshot (firestore/getDocs collectionRef)
         #_#_docRef (firestore/addDoc collectionRef #js {:first "Alan2",
