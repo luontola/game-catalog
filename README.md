@@ -20,7 +20,12 @@ Start Firebase Local Emulator Suite
     firebase emulators:start
     open http://localhost:4000
 
-Run tests
+Run tests in the browser
+
+    npm run start
+    open http://localhost:8081
+
+Run tests on the command line
 
     npm run autobuild:karma
     npm run autotest:karma
