@@ -20,6 +20,16 @@
 (def analytics (analytics/getAnalytics app))
 (def db (firestore/getFirestore app))
 
+(defn set-firebase-emulator! [enabled?]
+  (js/localStorage.setItem "firebase-emulator?" (str (boolean enabled?)))
+  (js/location.reload))
+
+(def firebase-emulator? (= "true" (js/localStorage.getItem "firebase-emulator?")))
+
+(when firebase-emulator?
+  (js/console.warn "USING FIREBASE EMULATOR")
+  (auth/connectAuthEmulator auth "http://127.0.0.1:9099"))
+
 (js/console.log "app" app)
 (js/console.log "auth" auth)
 (js/console.log "analytics" analytics)
@@ -29,7 +39,7 @@
 
 (auth/onAuthStateChanged auth (fn [user]
                                 (js/console.log "onAuthStateChanged" user)
-                                (js/console.log "xxx" auth)
+                                (js/console.log "auth" auth)
                                 (reset! *user user)))
 (def auth-provider (auth/GoogleAuthProvider.))
 (js/console.log "auth-provider" auth-provider)

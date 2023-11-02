@@ -115,20 +115,32 @@
 (defn pretty-print [data]
   [:pre (with-out-str (fipp.edn/pprint data))])
 
+(defn login-button []
+  (let [user @firebase/*user]
+    (case user
+      :loading "⏳"
+
+      nil [:button {:type "button"
+                    :on-click #(firebase/sign-in!)}
+           "Sign in"]
+      [:span (str "Signed in as " (.-displayName user) " ")
+       [:button {:type "button"
+                 :on-click #(firebase/sign-out!)}
+        "Sign out"]])))
+
+(defn firebase-emulator-toggle []
+  [:label
+   [:input {:type "checkbox"
+            :default-checked firebase/firebase-emulator?
+            :on-click (fn [event]
+                        (firebase/set-firebase-emulator! (.. event -target -checked)))}]
+   " Firebase Local Emulator Suite"])
+
 (defn app []
   [:<>
    [:h1 "Game Catalog"]
-   (let [user @firebase/*user]
-     (case user
-       :loading [:p "⏳"]
-
-       nil [:button {:type "button"
-                     :on-click #(firebase/sign-in!)}
-            "Sign in"]
-       [:p (str "Signed in as " (.-displayName user) " ")
-        [:button {:type "button"
-                  :on-click #(firebase/sign-out!)}
-         "Sign out"]]))
+   [:p [login-button]]
+   [:p [firebase-emulator-toggle]]
    [:h2 "Games"]
    [games-table]
    [:h2 "DLCs"]

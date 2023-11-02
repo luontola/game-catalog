@@ -1,6 +1,7 @@
 .DS_Store
 .lein-*
 .nrepl-*
+/*.log
 /.idea/
 /.shadow-cljs/
 /node_modules/
