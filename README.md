@@ -13,6 +13,7 @@ Prepare dependencies
 Start dev server
 
     npm run start
+    open http://localhost:8080
 
 Run tests
 
