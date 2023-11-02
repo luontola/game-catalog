@@ -6,7 +6,7 @@
             [game-catalog.firebase :as firebase]
             [game-catalog.spreadsheet :as spreadsheet]
             [reagent.core :as r]
-            [reagent.dom :as dom]))
+            [reagent.dom.client :as dom]))
 
 (def sample-collections
   {:games {:columns [{:title "Name"
@@ -152,7 +152,8 @@
 (defonce root (.getElementById js/document "root"))
 
 (defn init! []
-  (dom/render [app] root))
+  (let [root (dom/create-root root)]
+    (dom/render root [app])))
 
 (defn ^:dev/after-load re-render []
   #_(pp/pprint (db/diff sample-collections @*collections))
