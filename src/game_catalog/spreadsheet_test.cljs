@@ -94,7 +94,7 @@
               (enter-edit-mode! ctx)
 
               ;; XXX: typing is flaky - sometimes the first character isn't typed into the just focused input field
-              (rt/sleep! 20)
+              #_(rt/sleep! 50)
               (rt/simulate! :keyboard "123{Tab}")
 
               (is (nil? (rt/query-selector ctx "input"))

@@ -10,7 +10,7 @@
 (def ^:dynamic *user*)
 
 (def user-event-options
-  {:delay 10}) ; increase delay between inputs to reduce test fragility
+  {:delay 20}) ; increase delay between inputs to reduce test fragility
 
 (def fixture
   {:before (fn []
