@@ -33,11 +33,14 @@
      :analytics (analytics/getAnalytics app)
      :firestore (firestore/getFirestore app)}))
 
-(defn init-emulator []
-  (let [ctx (init-prod)]
-    (auth/connectAuthEmulator (:auth ctx) "http://127.0.0.1:9099")
-    (firestore/connectFirestoreEmulator (:firestore ctx) "127.0.0.1" 9098)
-    (assoc ctx :emulator? true)))
+(defn init-emulator
+  ([]
+   (init-emulator nil))
+  ([mock-user-token]
+   (let [ctx (init-prod)]
+     (auth/connectAuthEmulator (:auth ctx) "http://127.0.0.1:9099")
+     (firestore/connectFirestoreEmulator (:firestore ctx) "127.0.0.1" 9098 #js {"mockUserToken" mock-user-token})
+     (assoc ctx :emulator? true))))
 
 (defn init! []
   (set! *ctx* (if firebase-emulator?

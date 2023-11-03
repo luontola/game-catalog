@@ -12,12 +12,12 @@ service cloud.firestore {
 
     match /games/{doc} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isEditor();
     }
 
     match /purchases/{doc} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isEditor();
     }
   }
 }

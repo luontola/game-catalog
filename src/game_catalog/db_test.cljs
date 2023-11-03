@@ -20,32 +20,32 @@
 
 (deftest firestore-test
   (testing/async
-    (let [ctx (firebase/init-emulator)
-          db (:firestore ctx)]
+    (p/let [ctx (firebase/init-emulator "owner")
+            db (:firestore ctx)]
       (p/do
         (firebase/empty-firestore-test-database!)
 
-        (p/let [data (db/read-collections! db [:games :purchases])]
-          (is (= {:games {}
-                  :purchases {}}
+        (p/let [data (db/read-collections! db [:foo :bar])]
+          (is (= {:foo {}
+                  :bar {}}
                  data)
               "collections start empty"))
 
-        (db/update-collections! db [[:games "id1" {:dummy "foo 1"}]
-                                    [:games "id2" {:dummy "foo 2"}]
-                                    [:purchases "id1" {:dummy "bar 1"}]])
-        (p/let [data (db/read-collections! db [:games :purchases])]
-          (is (= {:games {"id1" {:dummy "foo 1"}
-                          "id2" {:dummy "foo 2"}}
-                  :purchases {"id1" {:dummy "bar 1"}}}
+        (db/update-collections! db [[:foo "id1" {:dummy "foo 1"}]
+                                    [:foo "id2" {:dummy "foo 2"}]
+                                    [:bar "id1" {:dummy "bar 1"}]])
+        (p/let [data (db/read-collections! db [:foo :bar])]
+          (is (= {:foo {"id1" {:dummy "foo 1"}
+                        "id2" {:dummy "foo 2"}}
+                  :bar {"id1" {:dummy "bar 1"}}}
                  data)
               "create documents"))
 
-        (db/update-collections! db [[:games "id1" nil]
-                                    [:purchases "id1" {:dummy "bar 1 v2"}]])
-        (p/let [data (db/read-collections! db [:games :purchases])]
-          (is (= {:games {"id2" {:dummy "foo 2"}}
-                  :purchases {"id1" {:dummy "bar 1 v2"}}}
+        (db/update-collections! db [[:foo "id1" nil]
+                                    [:bar "id1" {:dummy "bar 1 v2"}]])
+        (p/let [data (db/read-collections! db [:foo :bar])]
+          (is (= {:foo {"id2" {:dummy "foo 2"}}
+                  :bar {"id1" {:dummy "bar 1 v2"}}}
                  data)
               "update/delete documents"))
 
