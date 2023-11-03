@@ -96,7 +96,7 @@
                                                        :base-games ["e5da0728-35f3-4330-9432-9199142166ef"]
                                                        :shop ["Epic Games"]}}})
 
-(defonce *collections (r/atom schema))
+(defonce *data (r/atom schema))
 
 (defn game-sort-key [{:keys [name series release]}]
   (-> (str (when-not (str/blank? series)
@@ -107,14 +107,14 @@
       (str/trim)))
 
 (defn games-table []
-  [spreadsheet/table {:columns (-> @*collections :games :columns)
-                      :*data *collections
+  [spreadsheet/table {:columns (-> @*data :games :columns)
+                      :*data *data
                       :self-collection :games
                       :sort-key game-sort-key}])
 
 (defn purchases-table []
-  [spreadsheet/table {:columns (-> @*collections :purchases :columns)
-                      :*data *collections
+  [spreadsheet/table {:columns (-> @*data :purchases :columns)
+                      :*data *data
                       :self-collection :purchases
                       :sort-key :date}])
 
@@ -143,18 +143,19 @@
    " Firebase Local Emulator Suite"])
 
 
-(defn load-data [data]
-  (swap! *collections (fn [collections]
-                        (-> collections
-                            (assoc-in [:games :documents] (:games data))
-                            (assoc-in [:purchases :documents] (:purchases data)))))
+(defn load-data [new-data]
+  (swap! *data (fn [data]
+                 (-> data
+                     (assoc-in [:games :documents] (:games new-data))
+                     (assoc-in [:purchases :documents] (:purchases new-data)))))
   nil)
 
 (defn pending-changes []
-  (let [collections @*collections
-        data {:games (get-in collections [:games :documents])
-              :purchases (get-in collections [:purchases :documents])}]
-    (db/diff {} data)))
+  (let [data @*data
+        previous {} ; TODO: use the snapshot of last load
+        current {:games (get-in data [:games :documents])
+                 :purchases (get-in data [:purchases :documents])}]
+    (db/diff previous current)))
 
 (defn load-samples-button []
   [:button {:type "button"
@@ -183,7 +184,7 @@
 
    [:hr]
    [:h2 "Current state"]
-   [pretty-print @*collections]
+   [pretty-print @*data]
    [:h2 "Pending changes"]
    [pretty-print (pending-changes)]
    [:p [load-samples-button] " " [save-button]]])
@@ -211,7 +212,7 @@
   (dom/render root [app]))
 
 (defn ^:dev/after-load re-render []
-  #_(pp/pprint (db/diff sample-data @*collections))
+  #_(pp/pprint (db/diff sample-data @*data))
   (p/do
     (firebase/close!)
     (init!)))
