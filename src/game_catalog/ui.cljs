@@ -150,9 +150,25 @@
    [purchases-table]
    [pretty-print @*collections]])
 
+
+(defn install-js-error-reporter! []
+  ;; TODO: send errors to some monitoring server
+  (.addEventListener js/window "error"
+                     (fn [event]
+                       (prn {:message (.-message event)
+                             :source (.-message event)
+                             :error (.-error event)})))
+  (.addEventListener js/window "unhandledrejection"
+                     (fn [event]
+                       (prn {:message "Uncaught exception in a promise"
+                             :error (.-reason event)}))))
+
+(defonce one-time-setup (delay (install-js-error-reporter!)))
+
 (defonce root (dom/create-root (.getElementById js/document "root")))
 
 (defn init! []
+  (force one-time-setup)
   (firebase/init!)
   (dom/render root [app]))
 
