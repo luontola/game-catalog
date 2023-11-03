@@ -29,9 +29,8 @@
   },
   "scripts": {
     "pom": "rm -f pom.xml && shadow-cljs pom",
-    "start": "shadow-cljs watch frontend test",
+    "start": "shadow-cljs watch frontend test karma",
     "build": "shadow-cljs release frontend",
-    "autobuild:karma": "shadow-cljs watch karma",
-    "autotest:karma": "karma start"
+    "autotest": "karma start"
   }
 }

@@ -27,5 +27,5 @@ Run tests in the browser
 
 Run tests on the command line
 
-    npm run autobuild:karma
-    npm run autotest:karma
+    npm run start
+    npm run autotest
