@@ -5,6 +5,7 @@
             [game-catalog.db :as db]
             [game-catalog.firebase :as firebase]
             [game-catalog.spreadsheet :as spreadsheet]
+            [promesa.core :as p]
             [reagent.core :as r]
             [reagent.dom.client :as dom]))
 
@@ -157,4 +158,6 @@
 
 (defn ^:dev/after-load re-render []
   #_(pp/pprint (db/diff sample-collections @*collections))
-  (init!))
+  (p/do
+    (firebase/close!)
+    (init!)))
