@@ -4,15 +4,10 @@
             [clojure.string :as str]
             [reagent.core :as r]))
 
-(def ^:dynamic new-id random-uuid)
+(def ^:dynamic new-id (comp str random-uuid))
 
 (defn- format-multi-select-value [value]
   (str/join ", " value))
-
-(defn- parse-id [s]
-  (or (parse-long s)
-      (parse-uuid s)
-      s))
 
 (defn update-back-references [data {:keys [old-value new-value self-id
                                            reference-collection reference-foreign-key]}]
@@ -114,7 +109,7 @@
                          ;; TODO: exit edit mode with Enter
                          :onBlur (fn [_event]
                                    (let [new-value (->> (js->clj @*form-value :keywordize-keys true)
-                                                        (mapv (comp parse-id :value)))]
+                                                        (mapv :value))]
                                      ;; TODO: move update-field call inside on-exit-editing
                                      (swap! *data update-field (assoc context
                                                                  :new-value new-value)))
