@@ -30,10 +30,14 @@
                       (p/all))]
     (into {} result)))
 
+(defn write-doc! [db collection id doc]
+  (let [doc-ref (firestore/doc db (name collection) id)]
+    (if (some? doc)
+      (firestore/setDoc doc-ref (clj->js doc))
+      (firestore/deleteDoc doc-ref))))
+
 (defn update-collections! [db updates]
+  ;; TODO: batch write
   (p/doseq [update updates]
-    (let [[collection id doc] update
-          doc-ref (firestore/doc db (name collection) id)]
-      (if (some? doc)
-        (firestore/setDoc doc-ref (clj->js doc))
-        (firestore/deleteDoc doc-ref)))))
+    (let [[collection id doc] update]
+      (write-doc! db collection id doc))))

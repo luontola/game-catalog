@@ -30,7 +30,7 @@
   (let [app (app/initializeApp (clj->js firebase-config))]
     {:app app
      :auth (auth/getAuth app)
-     :analytics (analytics/getAnalytics app)
+     #_#_:analytics (analytics/getAnalytics app)
      :firestore (firestore/getFirestore app)}))
 
 (defn init-emulator
@@ -43,6 +43,7 @@
      (assoc ctx :emulator? true))))
 
 (defn init! []
+  (assert (nil? *ctx*))
   (set! *ctx* (if firebase-emulator?
                 (init-emulator)
                 (init-prod)))
@@ -50,15 +51,39 @@
                            (fn [user]
                              (reset! *user user))))
 
-(defn terminate! [ctx]
-  (p/do
-    (firestore/terminate (:firestore ctx))))
+(defn close!
+  ([]
+   (assert (some? *ctx*))
+   (close! *ctx*)
+   (set! *ctx* nil))
+  ([ctx]
+   (p/do
+     (app/deleteApp (:app ctx)))))
 
 (defn sign-in! []
   (auth/signInWithRedirect (:auth *ctx*) auth-provider))
 
-(defn sign-out! []
-  (.signOut (:auth *ctx*)))
+(defn sign-out!
+  ([]
+   (assert (some? *ctx*))
+   (sign-out! *ctx*))
+  ([ctx]
+   (.signOut (:auth ctx))))
+
+(defn sign-in-as! [ctx id-token]
+  (p/let [cred (.credential auth/GoogleAuthProvider (js/JSON.stringify (clj->js id-token)))
+          user (auth/signInWithCredential (:auth ctx) cred)]
+    (.. user -user -uid)))
+
+(defn sign-in-as-regular-user! [ctx]
+  (sign-in-as! ctx {:sub "regular-user"
+                    :email "regular-user@example.com"
+                    :email_verified true}))
+
+(defn sign-in-as-editor! [ctx]
+  (sign-in-as! ctx {:sub "editor"
+                    :email "editor@example.com"
+                    :email_verified true}))
 
 (defn empty-firestore-test-database! []
   (p/let [resp (fetch/delete (str "http://localhost:9098/emulator/v1/projects/" (:projectId firebase-config) "/databases/(default)/documents"))]

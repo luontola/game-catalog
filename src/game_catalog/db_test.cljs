@@ -1,5 +1,7 @@
 (ns game-catalog.db-test
-  (:require [cljs.test :refer [deftest is testing]]
+  (:require ["@firebase/util" :refer [FirebaseError]]
+            [cljs.test :refer [deftest is testing]]
+            [clojure.string :as str]
             [game-catalog.db :as db]
             [game-catalog.firebase :as firebase]
             [game-catalog.testing :as testing]
@@ -49,4 +51,95 @@
                  data)
               "update/delete documents"))
 
-        (firebase/terminate! ctx)))))
+        (firebase/close! ctx)))))
+
+(defn- assert-permission-denied [error]
+  (is (some? error))
+  (is (instance? FirebaseError error))
+  (when (some? error)
+    (is (str/starts-with? (.-message error) "PERMISSION_DENIED"))))
+
+(def regular-user-id "g8iouBcWVTGiPPEnuFMxOFzGdxHn")
+(def editor-user-id "4JzwotZinlrCdNMa454nebDKSPVI")
+
+(deftest firestore-security-rules-test
+  (testing/async
+    (p/do
+      (let [admin-ctx (firebase/init-emulator "owner")
+            admin-db (:firestore admin-ctx)]
+        (p/do
+          (firebase/empty-firestore-test-database!)
+          (db/update-collections! admin-db [[:users editor-user-id {:editor true}]
+                                            [:games "id1" {:dummy "game 1"}]
+                                            [:purchases "id1" {:dummy "purchase 1"}]])
+          (firebase/close! admin-ctx)))
+
+      (let [ctx (firebase/init-emulator)
+            db (:firestore ctx)]
+        (p/do
+
+          ;;; Anonymous Users
+
+          (firebase/sign-out! ctx)
+
+          (testing "anonymous users cannot write games"
+            (p/let [error (-> (db/update-collections! db [[:games "id1" {:dummy "updated by anonymous user"}]])
+                              (p/catch p/resolved))]
+              (assert-permission-denied error)))
+
+          (testing "anonymous users cannot write purchases"
+            (p/let [error (-> (db/update-collections! db [[:purchases "id1" {:dummy "updated by anonymous user"}]])
+                              (p/catch p/resolved))]
+              (assert-permission-denied error)))
+
+          (testing "anonymous users can read games and purchases"
+            (p/let [data (db/read-collections! db [:games :purchases])]
+              (is (= {:games {"id1" {:dummy "game 1"}}
+                      :purchases {"id1" {:dummy "purchase 1"}}}
+                     data))))
+
+
+          ;;; Regular Users
+
+          (p/let [user-id (firebase/sign-in-as-regular-user! ctx)]
+            (is (= regular-user-id user-id)))
+
+          (testing "regular users cannot write games"
+            (p/let [error (-> (db/update-collections! db [[:games "id1" {:dummy "updated by regular user"}]])
+                              (p/catch p/resolved))]
+              (assert-permission-denied error)))
+
+          (testing "regular users cannot write purchases"
+            (p/let [error (-> (db/update-collections! db [[:purchases "id1" {:dummy "updated by regular user"}]])
+                              (p/catch p/resolved))]
+              (assert-permission-denied error)))
+
+          (testing "regular users can read games and purchases"
+            (p/let [data (db/read-collections! db [:games :purchases])]
+              (is (= {:games {"id1" {:dummy "game 1"}}
+                      :purchases {"id1" {:dummy "purchase 1"}}}
+                     data))))
+
+
+          ;;; Editors
+
+          (p/let [user-id (firebase/sign-in-as-editor! ctx)]
+            (is (= editor-user-id user-id)))
+
+          (testing "editors can write games"
+            (p/let [error (-> (db/update-collections! db [[:games "id1" {:dummy "updated by editor"}]])
+                              (p/catch p/resolved))]
+              (is (nil? error))))
+
+          (testing "editors can write purchases"
+            (p/let [error (-> (db/update-collections! db [[:purchases "id1" {:dummy "updated by editor"}]])
+                              (p/catch p/resolved))]
+              (is (nil? error))))
+
+          (testing "editors can read games and purchases"
+            (p/let [data (db/read-collections! db [:games :purchases])]
+              (is (= {:games {"id1" {:dummy "updated by editor"}}
+                      :purchases {"id1" {:dummy "updated by editor"}}}
+                     data))))
+
+          (firebase/close! ctx))))))
