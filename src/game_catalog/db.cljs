@@ -1,6 +1,8 @@
 (ns game-catalog.db
-  (:require [clojure.data :as data]
-            [clojure.set :as set]))
+  (:require ["firebase/firestore" :as firestore]
+            [clojure.data :as data]
+            [clojure.set :as set]
+            [promesa.core :as p]))
 
 (defn- keys2 [m]
   (set (for [[k1 m] m
@@ -12,3 +14,26 @@
     (doall (for [ks (sort (set/union (keys2 only-after)
                                      (keys2 only-before)))]
              (conj ks (get-in after ks))))))
+
+(defn read-collection! [db collection]
+  (p/let [response (firestore/getDocs (firestore/collection db (name collection)))]
+    (->> (.-docs response)
+         (map (fn [doc]
+                [(.-id doc) (js->clj (.data doc) :keywordize-keys true)]))
+         (into {}))))
+
+(defn read-collections! [db collections]
+  (p/let [result (->> collections
+                      (map (fn [collection]
+                             (p/let [docs (read-collection! db collection)]
+                               [collection docs])))
+                      (p/all))]
+    (into {} result)))
+
+(defn update-collections! [db updates]
+  (p/doseq [update updates]
+    (let [[collection id doc] update
+          doc-ref (firestore/doc db (name collection) id)]
+      (if (some? doc)
+        (firestore/setDoc doc-ref (clj->js doc))
+        (firestore/deleteDoc doc-ref)))))

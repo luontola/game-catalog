@@ -3,6 +3,7 @@
             ["firebase/app" :as app]
             ["firebase/auth" :as auth]
             ["firebase/firestore" :as firestore]
+            [lambdaisland.fetch :as fetch]
             [promesa.core :as p]
             [reagent.core :as r]))
 
@@ -46,21 +47,17 @@
                            (fn [user]
                              (reset! *user user))))
 
+(defn terminate! [ctx]
+  (p/do
+    (firestore/terminate (:firestore ctx))))
+
 (defn sign-in! []
   (auth/signInWithRedirect (:auth *ctx*) auth-provider))
 
 (defn sign-out! []
   (.signOut (:auth *ctx*)))
 
-#_(p/let [collectionRef (firestore/collection (:firestore *ctx*) "test")
-          _ (js/console.log "collectionRef" collectionRef)
-          docs-snapshot (firestore/getDocs collectionRef)
-          #_#_docRef (firestore/addDoc collectionRef #js {:first "Alan2",
-                                                          :middle "Mathison",
-                                                          :last "Turing",
-                                                          :born 1912})]
-    #_(js/console.log "docs" docs-snapshot)
-    (doseq [doc (.-docs docs-snapshot)]
-      (js/console.log "doc" (.-id doc) (.data doc)))
-    #_(prn 'docRef docRef)
-    #_(js/console.log docRef))
+(defn empty-firestore-test-database! []
+  (p/let [resp (fetch/delete (str "http://localhost:9098/emulator/v1/projects/" (:projectId firebase-config) "/databases/(default)/documents"))]
+    (when-not (= 200 (:status resp))
+      (throw (ex-info "Failed to empty the Firestore test database" resp)))))

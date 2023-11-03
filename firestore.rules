@@ -9,5 +9,15 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isEditor();
     }
+
+    match /games/{doc} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /purchases/{doc} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }
