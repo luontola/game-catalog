@@ -59,8 +59,8 @@
   (when (some? error)
     (is (str/starts-with? (.-message error) "PERMISSION_DENIED"))))
 
-(def regular-user-id "g8iouBcWVTGiPPEnuFMxOFzGdxHn")
-(def editor-user-id "4JzwotZinlrCdNMa454nebDKSPVI")
+(def regular-user-id "4cwvdKFkbjKqW91UkQHyYyHlG5cK")
+(def editor-user-id "irPVL4SRSRx965mKQC2tjL0EmM5j")
 
 (deftest firestore-security-rules-test
   (testing/async

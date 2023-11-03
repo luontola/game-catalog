@@ -17,7 +17,7 @@ Start dev server
 
 Start Firebase Local Emulator Suite
 
-    firebase emulators:start
+    npm run emulators
     open http://localhost:4000
 
 Run tests in the browser

@@ -29,6 +29,7 @@
   },
   "scripts": {
     "pom": "rm -f pom.xml && shadow-cljs pom",
+    "emulators": "firebase emulators:start --import=./test-db",
     "start": "shadow-cljs watch frontend test karma",
     "build": "shadow-cljs release frontend",
     "autotest": "karma start"
