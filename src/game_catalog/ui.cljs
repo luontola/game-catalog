@@ -142,24 +142,31 @@
                         (firebase/set-firebase-emulator! (.. event -target -checked)))}]
    " Firebase Local Emulator Suite"])
 
+
+(defn load-data [data]
+  (swap! *collections (fn [collections]
+                        (-> collections
+                            (assoc-in [:games :documents] (:games data))
+                            (assoc-in [:purchases :documents] (:purchases data)))))
+  nil)
+
+(defn pending-changes []
+  (let [collections @*collections
+        data {:games (get-in collections [:games :documents])
+              :purchases (get-in collections [:purchases :documents])}]
+    (db/diff {} data)))
+
 (defn load-samples-button []
   [:button {:type "button"
             :on-click (fn []
-                        (swap! *collections (fn [collections]
-                                              (-> collections
-                                                  (assoc-in [:games :documents] (:games sample-data))
-                                                  (assoc-in [:purchases :documents] (:purchases sample-data))))))}
+                        (load-data sample-data))}
    "Load samples"])
 
 (defn save-button []
   [:button {:type "button"
             :on-click (fn []
-                        (let [collections @*collections
-                              data {:games (get-in collections [:games :documents])
-                                    :purchases (get-in collections [:purchases :documents])}
-                              updates (db/diff {} data)
-                              db (:firestore firebase/*ctx*)]
-                          (db/update-collections! db updates)))}
+                        (let [db (:firestore firebase/*ctx*)]
+                          (db/update-collections! db (pending-changes))))}
    "Save to Firestore"])
 
 (defn app []
@@ -173,8 +180,13 @@
    [:p "TODO"]
    [:h2 "Purchases"]
    [purchases-table]
-   [:p [load-samples-button] " " [save-button]]
-   [pretty-print @*collections]])
+
+   [:hr]
+   [:h2 "Current state"]
+   [pretty-print @*collections]
+   [:h2 "Pending changes"]
+   [pretty-print (pending-changes)]
+   [:p [load-samples-button] " " [save-button]]])
 
 
 (defn install-js-error-reporter! []
