@@ -15,63 +15,52 @@
    :appId "1:844386070676:web:2c591e49c1311abab94481",
    :measurementId "G-NSTHFXQB4N"})
 
-(def app (app/initializeApp (clj->js firebase-config)))
-(def auth (auth/getAuth app))
-(def analytics (analytics/getAnalytics app))
-(def firestore (firestore/getFirestore app))
+(def ^:dynamic *ctx*)
+(def *user (r/atom :loading))
+(def auth-provider (auth/GoogleAuthProvider.))
+
+(def firebase-emulator? (= "true" (js/localStorage.getItem "firebase-emulator?")))
 
 (defn set-firebase-emulator! [enabled?]
   (js/localStorage.setItem "firebase-emulator?" (str (boolean enabled?)))
   (js/location.reload))
 
-(def firebase-emulator? (= "true" (js/localStorage.getItem "firebase-emulator?")))
+(defn init-prod []
+  (let [app (app/initializeApp (clj->js firebase-config))]
+    {:app app
+     :auth (auth/getAuth app)
+     :analytics (analytics/getAnalytics app)
+     :firestore (firestore/getFirestore app)}))
 
-(when firebase-emulator?
-  (js/console.warn "USING FIREBASE EMULATOR")
-  (auth/connectAuthEmulator auth "http://127.0.0.1:9099")
-  (firestore/connectFirestoreEmulator firestore "127.0.0.1" 9098))
+(defn init-emulator []
+  (let [ctx (init-prod)]
+    (auth/connectAuthEmulator (:auth ctx) "http://127.0.0.1:9099")
+    (firestore/connectFirestoreEmulator (:firestore ctx) "127.0.0.1" 9098)
+    (assoc ctx :emulator? true)))
 
-(js/console.log "app" app)
-(js/console.log "auth" auth)
-(js/console.log "analytics" analytics)
-(js/console.log "firestore" firestore)
-
-(def *user (r/atom :loading))
-
-(auth/onAuthStateChanged auth (fn [user]
-                                (js/console.log "onAuthStateChanged" user)
-                                (js/console.log "auth" auth)
-                                (reset! *user user)))
-(def auth-provider (auth/GoogleAuthProvider.))
-(js/console.log "auth-provider" auth-provider)
-
-(p/catch
-  (p/let [result (auth/getRedirectResult auth)]
-    (js/console.log "getRedirectResult" result))
-  (fn [error]
-    (js/console.log "getRedirectResult-error" error)))
+(defn init! []
+  (set! *ctx* (if firebase-emulator?
+                (init-emulator)
+                (init-prod)))
+  (auth/onAuthStateChanged (:auth *ctx*)
+                           (fn [user]
+                             (reset! *user user))))
 
 (defn sign-in! []
-  (auth/signInWithRedirect auth auth-provider))
+  (auth/signInWithRedirect (:auth *ctx*) auth-provider))
 
 (defn sign-out! []
-  (.signOut auth))
+  (.signOut (:auth *ctx*)))
 
-#_(p/let [response (js/fetch "https://httpbin.org/uuid")
-          data (.json response)]
-    (prn 'xxx data))
-
-(p/let [collectionRef (firestore/collection firestore "test")
-        _ (js/console.log "collectionRef" collectionRef)
-        docs-snapshot (firestore/getDocs collectionRef)
-        #_#_docRef (firestore/addDoc collectionRef #js {:first "Alan2",
-                                                        :middle "Mathison",
-                                                        :last "Turing",
-                                                        :born 1912})]
-  #_(js/console.log "docs" docs-snapshot)
-  (doseq [doc (.-docs docs-snapshot)]
-    (js/console.log "doc" (.-id doc) (.data doc)))
-  #_(prn 'docRef docRef)
-  #_(js/console.log docRef))
-
-;; TODO: Firebase Local Emulator Suite https://firebase.google.com/docs/auth/web/start
+#_(p/let [collectionRef (firestore/collection (:firestore *ctx*) "test")
+          _ (js/console.log "collectionRef" collectionRef)
+          docs-snapshot (firestore/getDocs collectionRef)
+          #_#_docRef (firestore/addDoc collectionRef #js {:first "Alan2",
+                                                          :middle "Mathison",
+                                                          :last "Turing",
+                                                          :born 1912})]
+    #_(js/console.log "docs" docs-snapshot)
+    (doseq [doc (.-docs docs-snapshot)]
+      (js/console.log "doc" (.-id doc) (.data doc)))
+    #_(prn 'docRef docRef)
+    #_(js/console.log docRef))

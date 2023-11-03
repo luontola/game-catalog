@@ -149,11 +149,11 @@
    [purchases-table]
    [pretty-print @*collections]])
 
-(defonce root (.getElementById js/document "root"))
+(defonce root (dom/create-root (.getElementById js/document "root")))
 
 (defn init! []
-  (let [root (dom/create-root root)]
-    (dom/render root [app])))
+  (firebase/init!)
+  (dom/render root [app]))
 
 (defn ^:dev/after-load re-render []
   #_(pp/pprint (db/diff sample-collections @*collections))
