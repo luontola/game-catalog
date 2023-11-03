@@ -3,8 +3,8 @@
             ["firebase/app" :as app]
             ["firebase/auth" :as auth]
             ["firebase/firestore" :as firestore]
+            [kitchen-async.promise :as p]
             [lambdaisland.fetch :as fetch]
-            [promesa.core :as p]
             [reagent.core :as r]))
 
 (def firebase-config

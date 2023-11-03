@@ -5,7 +5,7 @@
             [game-catalog.db :as db]
             [game-catalog.firebase :as firebase]
             [game-catalog.spreadsheet :as spreadsheet]
-            [promesa.core :as p]
+            [kitchen-async.promise :as p]
             [reagent.core :as r]
             [reagent.dom.client :as dom]))
 

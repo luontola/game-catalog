@@ -5,7 +5,7 @@
             [game-catalog.db :as db]
             [game-catalog.firebase :as firebase]
             [game-catalog.testing :as testing]
-            [promesa.core :as p]))
+            [kitchen-async.promise :as p]))
 
 (deftest diff-test
   (let [before {:stuff {"id1" {:description "v1, should stay as is"}
@@ -83,14 +83,18 @@
           (firebase/sign-out! ctx)
 
           (testing "anonymous users cannot write games"
-            (p/let [error (-> (db/update-collections! db [[:games "id1" {:dummy "updated by anonymous user"}]])
-                              (p/catch p/resolved))]
-              (assert-permission-denied error)))
+            (p/try
+              (db/update-collections! db [[:games "id1" {:dummy "updated by anonymous user"}]])
+              (is false "should have thrown an exception")
+              (p/catch :default error
+                (assert-permission-denied error))))
 
           (testing "anonymous users cannot write purchases"
-            (p/let [error (-> (db/update-collections! db [[:purchases "id1" {:dummy "updated by anonymous user"}]])
-                              (p/catch p/resolved))]
-              (assert-permission-denied error)))
+            (p/try
+              (db/update-collections! db [[:purchases "id1" {:dummy "updated by anonymous user"}]])
+              (is false "should have thrown an exception")
+              (p/catch :default error
+                (assert-permission-denied error))))
 
           (testing "anonymous users can read games and purchases"
             (p/let [data (db/read-collections! db [:games :purchases])]
@@ -105,14 +109,18 @@
             (is (= regular-user-id user-id)))
 
           (testing "regular users cannot write games"
-            (p/let [error (-> (db/update-collections! db [[:games "id1" {:dummy "updated by regular user"}]])
-                              (p/catch p/resolved))]
-              (assert-permission-denied error)))
+            (p/try
+              (db/update-collections! db [[:games "id1" {:dummy "updated by regular user"}]])
+              (is false "should have thrown an exception")
+              (p/catch :default error
+                (assert-permission-denied error))))
 
           (testing "regular users cannot write purchases"
-            (p/let [error (-> (db/update-collections! db [[:purchases "id1" {:dummy "updated by regular user"}]])
-                              (p/catch p/resolved))]
-              (assert-permission-denied error)))
+            (p/try
+              (db/update-collections! db [[:purchases "id1" {:dummy "updated by regular user"}]])
+              (is false "should have thrown an exception")
+              (p/catch :default error
+                (assert-permission-denied error))))
 
           (testing "regular users can read games and purchases"
             (p/let [data (db/read-collections! db [:games :purchases])]
@@ -127,14 +135,12 @@
             (is (= editor-user-id user-id)))
 
           (testing "editors can write games"
-            (p/let [error (-> (db/update-collections! db [[:games "id1" {:dummy "updated by editor"}]])
-                              (p/catch p/resolved))]
-              (is (nil? error))))
+            (p/do
+              (db/update-collections! db [[:games "id1" {:dummy "updated by editor"}]])))
 
           (testing "editors can write purchases"
-            (p/let [error (-> (db/update-collections! db [[:purchases "id1" {:dummy "updated by editor"}]])
-                              (p/catch p/resolved))]
-              (is (nil? error))))
+            (p/do
+              (db/update-collections! db [[:purchases "id1" {:dummy "updated by editor"}]])))
 
           (testing "editors can read games and purchases"
             (p/let [data (db/read-collections! db [:games :purchases])]

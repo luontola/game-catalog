@@ -3,7 +3,7 @@
             [game-catalog.react-tester :as rt]
             [game-catalog.spreadsheet :as spreadsheet]
             [game-catalog.testing :as testing]
-            [promesa.core :as p]
+            [kitchen-async.promise :as p]
             [reagent.core :as r]))
 
 (use-fixtures :each rt/fixture)

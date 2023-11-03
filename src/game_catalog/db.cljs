@@ -2,7 +2,7 @@
   (:require ["firebase/firestore" :as firestore]
             [clojure.data :as data]
             [clojure.set :as set]
-            [promesa.core :as p]))
+            [kitchen-async.promise :as p]))
 
 (defn- keys2 [m]
   (set (for [[k1 m] m
@@ -23,12 +23,12 @@
          (into {}))))
 
 (defn read-collections! [db collections]
-  (p/let [result (->> collections
-                      (map (fn [collection]
-                             (p/let [docs (read-collection! db collection)]
-                               [collection docs])))
-                      (p/all))]
-    (into {} result)))
+  (p/let [results (->> collections
+                       (map (fn [collection]
+                              (p/let [docs (read-collection! db collection)]
+                                [collection docs])))
+                       (p/all))]
+    (into {} (js->clj results))))
 
 (defn write-doc! [db collection id doc]
   (let [doc-ref (firestore/doc db (name collection) id)]
@@ -38,6 +38,7 @@
 
 (defn update-collections! [db updates]
   ;; TODO: batch write
-  (p/doseq [update updates]
-    (let [[collection id doc] update]
-      (write-doc! db collection id doc))))
+  (p/do
+    (p/all (for [[collection id doc] updates]
+             (write-doc! db collection id doc)))
+    nil))

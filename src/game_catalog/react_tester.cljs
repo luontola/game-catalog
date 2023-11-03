@@ -4,7 +4,7 @@
             [cljs.test :refer [deftest is testing use-fixtures]]
             [clojure.string :as str]
             [goog.object :as g]
-            [promesa.core :as p]
+            [kitchen-async.promise :as p]
             [reagent.core :as r]))
 
 (def ^:dynamic *user*)
@@ -22,8 +22,8 @@
 (use-fixtures :each fixture)
 
 (defn sleep! [ms]
-  (p/create (fn [resolve _reject]
-              (js/setTimeout resolve ms))))
+  (p/promise [resolve _reject]
+    (js/setTimeout resolve ms)))
 
 (defn render [hiccup]
   (rtl/cleanup) ; needed when the same test renders a component multiple times
