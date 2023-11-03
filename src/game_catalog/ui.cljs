@@ -137,6 +137,16 @@
                         (firebase/set-firebase-emulator! (.. event -target -checked)))}]
    " Firebase Local Emulator Suite"])
 
+(defn save-button [collections]
+  [:button {:type "button"
+            :on-click (fn []
+                        (let [data {:games (get-in collections [:games :documents])
+                                    :purchases (get-in collections [:purchases :documents])}
+                              updates (db/diff {} data)
+                              db (:firestore firebase/*ctx*)]
+                          (db/update-collections! db updates)))}
+   "Save to Firestore"])
+
 (defn app []
   [:<>
    [:h1 "Game Catalog"]
@@ -148,6 +158,7 @@
    [:p "TODO"]
    [:h2 "Purchases"]
    [purchases-table]
+   [save-button @*collections]
    [pretty-print @*collections]])
 
 
