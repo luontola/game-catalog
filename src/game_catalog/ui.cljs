@@ -93,7 +93,8 @@
                                                        :base-games ["e5da0728-35f3-4330-9432-9199142166ef"]
                                                        :shop ["Epic Games"]}}})
 
-(defonce *data (r/atom nil))
+(defonce *current-data (r/atom nil))
+(defonce *loaded-data (r/atom nil))
 
 (defn game-sort-key [{:keys [name series release]}]
   (-> (str (when-not (str/blank? series)
@@ -105,13 +106,13 @@
 
 (defn games-table []
   [spreadsheet/table {:columns (-> schemas :games :columns)
-                      :*data *data
+                      :*data *current-data
                       :self-collection :games
                       :sort-key game-sort-key}])
 
 (defn purchases-table []
   [spreadsheet/table {:columns (-> schemas :purchases :columns)
-                      :*data *data
+                      :*data *current-data
                       :self-collection :purchases
                       :sort-key :date}])
 
@@ -140,26 +141,39 @@
    " Firebase Local Emulator Suite"])
 
 
-(defn load-data [new-data]
-  (reset! *data new-data)
-  nil)
-
 (defn pending-changes []
-  (let [previous {} ; TODO: use the snapshot of last load
-        current @*data]
-    (db/diff previous current)))
+  (db/diff @*loaded-data @*current-data))
+
+(defn load-samples []
+  ;; We leave *loaded-data empty, so that if it contains Firestore data,
+  ;; it will be easy to delete from Firestore documents that are not in sample data.
+  (reset! *current-data sample-data))
+
+(defn load-from-firestore! []
+  (p/let [db (:firestore firebase/*ctx*)
+          data (db/read-collections! db (keys schemas))]
+    (reset! *current-data data)
+    (reset! *loaded-data data)))
+
+(defn save-to-firestore! []
+  (let [db (:firestore firebase/*ctx*)]
+    (p/do
+      (db/update-collections! db (pending-changes))
+      (load-from-firestore!))))
 
 (defn load-samples-button []
   [:button {:type "button"
-            :on-click (fn []
-                        (load-data sample-data))}
+            :on-click load-samples}
    "Load samples"])
 
-(defn save-button []
+(defn load-firestore-button []
   [:button {:type "button"
-            :on-click (fn []
-                        (let [db (:firestore firebase/*ctx*)]
-                          (db/update-collections! db (pending-changes))))}
+            :on-click load-from-firestore!}
+   "Load from Firestore"])
+
+(defn save-firestore-button []
+  [:button {:type "button"
+            :on-click save-to-firestore!}
    "Save to Firestore"])
 
 (defn app []
@@ -176,10 +190,13 @@
 
    [:hr]
    [:h2 "Current state"]
-   [pretty-print @*data]
+   [pretty-print @*current-data]
    [:h2 "Pending changes"]
    [pretty-print (pending-changes)]
-   [:p [load-samples-button] " " [save-button]]])
+   [:p
+    [load-samples-button] " "
+    [load-firestore-button] " "
+    [save-firestore-button]]])
 
 
 (defn install-js-error-reporter! []
