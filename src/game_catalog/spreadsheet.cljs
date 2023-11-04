@@ -16,7 +16,7 @@
         added-ids (set/difference new-value old-value)
         removed-ids (set/difference old-value new-value)
         data (reduce (fn [data added-id]
-                       (update-in data [reference-collection :documents added-id]
+                       (update-in data [reference-collection added-id]
                                   (fn [document]
                                     (let [new-values (-> (vec (get document reference-foreign-key))
                                                          (conj self-id))]
@@ -24,7 +24,7 @@
                      data
                      added-ids)
         data (reduce (fn [data removed-id]
-                       (update-in data [reference-collection :documents removed-id]
+                       (update-in data [reference-collection removed-id]
                                   (fn [document]
                                     (let [new-values (->> (get document reference-foreign-key)
                                                           (remove #(= self-id %))
@@ -40,7 +40,7 @@
                                  self-collection self-id self-field
                                  reference-collection reference-foreign-key]
                           :as context}]
-  (let [data-path [self-collection :documents self-id self-field]
+  (let [data-path [self-collection self-id self-field]
         old-value (get-in data data-path)
         data (cond-> data
                (= :reference data-type)
@@ -60,7 +60,7 @@
 
 (defn visualize-reference [data reference-collection id]
   ;; TODO: use reagent.core/cursor to avoid refreshing the whole table on edit
-  (if-some [reference-document (get-in data [reference-collection :documents id])]
+  (if-some [reference-document (get-in data [reference-collection id])]
     (visualize-document reference-document reference-collection)
     (str id)))
 
@@ -69,7 +69,7 @@
                         :stuffs :name
                         :games :name)
         document {primary-field primary-value}
-        document-path [collection :documents id]]
+        document-path [collection id]]
     (assert (nil? (get-in data document-path))
             (str document-path " already exists"))
     (assoc-in data document-path document)))
@@ -89,7 +89,7 @@
                                       self-collection self-id self-field
                                       reference-collection reference-foreign-key]
                                :as context}]
-  (r/with-let [data-path [self-collection :documents self-id self-field]
+  (r/with-let [data-path [self-collection self-id self-field]
                data-value (get-in @*data data-path)
                *form-value (r/atom (->> data-value
                                         (map (fn [id]
@@ -102,7 +102,7 @@
                          :isClearable false
                          :backspaceRemovesValue true
                          :value @*form-value
-                         :options (for [[id document] (get-in @*data [reference-collection :documents])]
+                         :options (for [[id document] (get @*data reference-collection)]
                                     {:label (visualize-document document reference-collection)
                                      :value (str id)})
                          ;; TODO: exit edit mode with Escape
@@ -121,7 +121,7 @@
 (defn default-editor [*data {:keys [on-exit-editing data-type
                                     self-collection self-id self-field]
                              :as context}]
-  (r/with-let [data-path [self-collection :documents self-id self-field]
+  (r/with-let [data-path [self-collection self-id self-field]
                data-value (get-in @*data data-path)
                *form-value (r/atom (case data-type
                                      ;; TODO: use react-select also for :multi-select
@@ -169,7 +169,7 @@
   (r/with-let [*td-element (r/atom nil) ; TODO: dead code (could perhaps be used for table navigation)
                *editing? (r/atom false)
                on-exit-editing #(reset! *editing? false)]
-    (let [data-path [self-collection :documents self-id self-field]
+    (let [data-path [self-collection self-id self-field]
           ;; TODO: use reagent.core/cursor to avoid refreshing the whole table on edit
           data-value (get-in @*data data-path)]
       [:td {:tab-index (if @*editing? -1 0)
@@ -199,7 +199,7 @@
 
 (defn table [{:keys [*data self-collection sort-key columns]}]
   ;; TODO: use reagent.core/track for the sorted list of documents (or just list of IDs) to avoid refreshing the whole table on edit
-  (let [documents-by-id (->> (get-in @*data [self-collection :documents])
+  (let [documents-by-id (->> (get @*data self-collection)
                              ;; TODO: store new row's ID separately for sorting, until the row is unfocused
                              (sort-by (juxt (comp empty? val)
                                             (comp sort-key val))))]
@@ -222,5 +222,5 @@
                                    :reference-foreign-key (:reference-foreign-key column)}])))]]
      [:p [:button {:type "button"
                    :on-click (fn []
-                               (swap! *data assoc-in [self-collection :documents (new-id)] {}))}
+                               (swap! *data assoc-in [self-collection (new-id)] {}))}
           "Add row"]]]))

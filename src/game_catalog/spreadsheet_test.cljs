@@ -34,7 +34,7 @@
                                    #(str (swap! *counter inc))))
 
         (testing "view text"
-          (let [*data (r/atom {:things {:documents {"100" {:stuff "Something"}}}})
+          (let [*data (r/atom {:things {"100" {:stuff "Something"}}})
                 ctx (rt/render [data-cell *data {:data-type :text
                                                  :self-collection :things
                                                  :self-id "100"
@@ -43,7 +43,7 @@
                    (rt/inner-text ctx)))))
 
         (testing "view multi-select"
-          (let [*data (r/atom {:things {:documents {"100" {:stuff ["Foo" "Bar"]}}}})
+          (let [*data (r/atom {:things {"100" {:stuff ["Foo" "Bar"]}}})
                 ctx (rt/render [data-cell *data {:data-type :multi-select
                                                  :self-collection :things
                                                  :self-id "100"
@@ -52,11 +52,11 @@
                    (rt/inner-text ctx)))))
 
         (testing "view reference"
-          (let [*data (r/atom {:things {:documents {"100" {:stuff ["200" "300"]}}}
-                               :stuffs {:documents {"200" {:name "Foo"
-                                                           :thingies ["100"]}
-                                                    "300" {:name "Bar"
-                                                           :thingies ["100"]}}}})
+          (let [*data (r/atom {:things {"100" {:stuff ["200" "300"]}}
+                               :stuffs {"200" {:name "Foo"
+                                               :thingies ["100"]}
+                                        "300" {:name "Bar"
+                                               :thingies ["100"]}}})
                 ctx (rt/render [data-cell *data {:data-type :reference
                                                  :self-collection :things
                                                  :self-id "100"
@@ -67,7 +67,7 @@
                    (rt/inner-text ctx)))))
 
         (testing "start editing: double-click"
-          (let [*data (r/atom {:things {:documents {"100" {:stuff "Something"}}}})
+          (let [*data (r/atom {:things {"100" {:stuff "Something"}}})
                 ctx (rt/render [data-cell *data {:data-type :text
                                                  :self-collection :things
                                                  :self-id "100"
@@ -85,7 +85,7 @@
                     "input field is focused")))))
 
         (testing "stop editing: press tab"
-          (let [*data (r/atom {:things {:documents {"100" {:stuff "Something"}}}})
+          (let [*data (r/atom {:things {"100" {:stuff "Something"}}})
                 ctx (rt/render [data-cell *data {:data-type :text
                                                  :self-collection :things
                                                  :self-id "100"
@@ -101,12 +101,12 @@
                   "removes the input field")
               (is (= "Something123" (rt/inner-text ctx))
                   "displays the updated value")
-              (is (= {:things {:documents {"100" {:stuff "Something123"}}}}
+              (is (= {:things {"100" {:stuff "Something123"}}}
                      @*data)
                   "updates the database"))))
 
         (testing "edit text"
-          (let [*data (r/atom {:things {:documents {"100" {:stuff "Old Text"}}}})
+          (let [*data (r/atom {:things {"100" {:stuff "Old Text"}}})
                 ctx (rt/render [data-cell *data {:data-type :text
                                                  :self-collection :things
                                                  :self-id "100"
@@ -120,12 +120,12 @@
                 (is (= "New Text" (.-value input))))
 
               (exit-edit-mode! ctx)
-              (is (= {:things {:documents {"100" {:stuff "New Text"}}}}
+              (is (= {:things {"100" {:stuff "New Text"}}}
                      @*data)))))
 
         (testing "edit multi-select"
-          (let [*data (r/atom {:things {:documents {"100" {:stuff ["Thing 1"
-                                                                   "Thing 2"]}}}})
+          (let [*data (r/atom {:things {"100" {:stuff ["Thing 1"
+                                                       "Thing 2"]}}})
                 ctx (rt/render [data-cell *data {:data-type :multi-select
                                                  :self-collection :things
                                                  :self-id "100"
@@ -139,17 +139,17 @@
                 (is (= "Thing 2; Thing 3" (.-value input))))
 
               (exit-edit-mode! ctx)
-              (is (= {:things {:documents {"100" {:stuff ["Thing 2"
-                                                          "Thing 3"]}}}}
+              (is (= {:things {"100" {:stuff ["Thing 2"
+                                              "Thing 3"]}}}
                      @*data)))))
 
         (testing "edit reference"
-          (let [*data (r/atom {:things {:documents {"100" {:stuff ["200" "300"]}}}
-                               :stuffs {:documents {"200" {:name "Keep"
-                                                           :thingies ["100"]}
-                                                    "300" {:name "Remove"
-                                                           :thingies ["100"]}
-                                                    "400" {:name "Add Existing"}}}})
+          (let [*data (r/atom {:things {"100" {:stuff ["200" "300"]}}
+                               :stuffs {"200" {:name "Keep"
+                                               :thingies ["100"]}
+                                        "300" {:name "Remove"
+                                               :thingies ["100"]}
+                                        "400" {:name "Add Existing"}}})
                 ctx (rt/render [data-cell *data {:data-type :reference
                                                  :self-collection :things
                                                  :self-id "100"
@@ -167,14 +167,14 @@
                   (is (re-find #"\nKeep\nAdd Existing\nCreate New$" (.-innerText input)))))
 
               (exit-edit-mode! ctx)
-              (is (= {:things {:documents {"100" {:stuff ["200" "400" "1001"]}}}
-                      :stuffs {:documents {"200" {:name "Keep"
-                                                  :thingies ["100"]}
-                                           "300" {:name "Remove"}
-                                           "400" {:name "Add Existing"
-                                                  :thingies ["100"]}
-                                           "1001" {:name "Create New"
-                                                   :thingies ["100"]}}}}
+              (is (= {:things {"100" {:stuff ["200" "400" "1001"]}}
+                      :stuffs {"200" {:name "Keep"
+                                      :thingies ["100"]}
+                               "300" {:name "Remove"}
+                               "400" {:name "Add Existing"
+                                      :thingies ["100"]}
+                               "1001" {:name "Create New"
+                                       :thingies ["100"]}}}
                      @*data)))))
 
         (set! spreadsheet/new-id original-new-id)))))

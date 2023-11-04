@@ -1,6 +1,5 @@
 (ns game-catalog.ui
-  (:require [clojure.pprint :as pp]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [fipp.edn :as fipp.edn]
             [game-catalog.db :as db]
             [game-catalog.firebase :as firebase]
@@ -9,7 +8,7 @@
             [reagent.core :as r]
             [reagent.dom.client :as dom]))
 
-(def schema
+(def schemas
   {:games {:columns [{:title "Name"
                       :field :name
                       :data-type :text}
@@ -37,8 +36,7 @@
                       :field :dlcs
                       :data-type :reference
                       :reference-collection :dlcs
-                      :reference-foreign-key :base-game}]
-           :documents {}}
+                      :reference-foreign-key :base-game}]}
 
    :purchases {:columns [{:title "Date"
                           :field :date
@@ -61,8 +59,7 @@
                           :data-type :text}
                          {:title "Shop"
                           :field :shop
-                          :data-type :multi-select}]
-               :documents {}}})
+                          :data-type :multi-select}]}})
 
 (def sample-data
   {:games {"e5da0728-35f3-4330-9432-9199142166ef" {:name "Amnesia: Rebirth"
@@ -96,7 +93,7 @@
                                                        :base-games ["e5da0728-35f3-4330-9432-9199142166ef"]
                                                        :shop ["Epic Games"]}}})
 
-(defonce *data (r/atom schema))
+(defonce *data (r/atom nil))
 
 (defn game-sort-key [{:keys [name series release]}]
   (-> (str (when-not (str/blank? series)
@@ -107,13 +104,13 @@
       (str/trim)))
 
 (defn games-table []
-  [spreadsheet/table {:columns (-> @*data :games :columns)
+  [spreadsheet/table {:columns (-> schemas :games :columns)
                       :*data *data
                       :self-collection :games
                       :sort-key game-sort-key}])
 
 (defn purchases-table []
-  [spreadsheet/table {:columns (-> @*data :purchases :columns)
+  [spreadsheet/table {:columns (-> schemas :purchases :columns)
                       :*data *data
                       :self-collection :purchases
                       :sort-key :date}])
@@ -144,17 +141,12 @@
 
 
 (defn load-data [new-data]
-  (swap! *data (fn [data]
-                 (-> data
-                     (assoc-in [:games :documents] (:games new-data))
-                     (assoc-in [:purchases :documents] (:purchases new-data)))))
+  (reset! *data new-data)
   nil)
 
 (defn pending-changes []
-  (let [data @*data
-        previous {} ; TODO: use the snapshot of last load
-        current {:games (get-in data [:games :documents])
-                 :purchases (get-in data [:purchases :documents])}]
+  (let [previous {} ; TODO: use the snapshot of last load
+        current @*data]
     (db/diff previous current)))
 
 (defn load-samples-button []
@@ -212,7 +204,6 @@
   (dom/render root [app]))
 
 (defn ^:dev/after-load re-render []
-  #_(pp/pprint (db/diff sample-data @*data))
   (p/do
     (firebase/close!)
     (init!)))
