@@ -168,12 +168,22 @@
 
 (defn load-firestore-button []
   [:button {:type "button"
-            :on-click load-from-firestore!}
+            :on-click (fn []
+                        (p/try
+                          (load-from-firestore!)
+                          (p/catch :default e
+                            (js/console.error "Load from Firestore failed:" e)
+                            (js/alert (str "Load failed:\n" e)))))}
    "Load from Firestore"])
 
 (defn save-firestore-button []
   [:button {:type "button"
-            :on-click save-to-firestore!}
+            :on-click (fn []
+                        (p/try
+                          (save-to-firestore!)
+                          (p/catch :default e
+                            (js/console.error "Save to Firestore failed:" e)
+                            (js/alert (str "Save failed:\n" e)))))}
    "Save to Firestore"])
 
 (defn app []

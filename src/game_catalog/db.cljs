@@ -16,7 +16,7 @@
              (conj ks (get-in after ks))))))
 
 (defn read-collection! [db collection]
-  (p/let [response (firestore/getDocs (firestore/collection db (name collection)))]
+  (p/let [response (firestore/getDocsFromServer (firestore/collection db (name collection)))]
     (->> (.-docs response)
          (map (fn [doc]
                 [(.-id doc) (js->clj (.data doc) :keywordize-keys true)]))
