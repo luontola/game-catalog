@@ -82,7 +82,51 @@
                 (is (= "Something" (.-value input))
                     "input field contains the value")
                 (is (= js/document.activeElement input)
-                    "input field is focused")))))
+                    "input field is focused"))
+
+              (exit-edit-mode! ctx))))
+
+        (testing "start editing: press F2"
+          (let [*data (r/atom {:things {"100" {:stuff "Something"}}})
+                ctx (rt/render [data-cell *data {:data-type :text
+                                                 :self-collection :things
+                                                 :self-id "100"
+                                                 :self-field :stuff}])]
+            (p/do
+              (.focus (rt/query-selector ctx "td"))
+              (rt/simulate! :keyboard "{F2}")
+              (rt/wait-for! #(some? (rt/query-selector ctx "input")))
+
+              (let [input (rt/query-selector ctx "input")]
+                (is (some? input)
+                    "displays an input field")
+                (is (= "Something" (.-value input))
+                    "input field contains the value")
+                (is (= js/document.activeElement input)
+                    "input field is focused"))
+
+              (exit-edit-mode! ctx))))
+
+        (testing "start editing: press Enter"
+          (let [*data (r/atom {:things {"100" {:stuff "Something"}}})
+                ctx (rt/render [data-cell *data {:data-type :text
+                                                 :self-collection :things
+                                                 :self-id "100"
+                                                 :self-field :stuff}])]
+            (p/do
+              (.focus (rt/query-selector ctx "td"))
+              (rt/simulate! :keyboard "{Enter}")
+              (rt/wait-for! #(some? (rt/query-selector ctx "input")))
+
+              (let [input (rt/query-selector ctx "input")]
+                (is (some? input)
+                    "displays an input field")
+                (is (= "Something" (.-value input))
+                    "input field contains the value")
+                (is (= js/document.activeElement input)
+                    "input field is focused"))
+
+              (exit-edit-mode! ctx))))
 
         (testing "stop editing: press tab"
           (let [*data (r/atom {:things {"100" {:stuff "Something"}}})

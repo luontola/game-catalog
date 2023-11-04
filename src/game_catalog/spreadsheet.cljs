@@ -174,8 +174,10 @@
           data-value (get-in @*data data-path)]
       [:td {:tab-index (if @*editing? -1 0)
             :ref #(reset! *td-element %)
-            ;; TODO: enter edit mode with F2
-            ;; TODO: enter edit mode with Enter
+            :on-key-down (fn [event]
+                           (when (or (= "F2" (.-key event))
+                                     (= "Enter" (.-key event)))
+                             (reset! *editing? true)))
             :on-double-click (fn [_event]
                                (reset! *editing? true))}
        (if @*editing?
