@@ -5,6 +5,7 @@
       "localId": "4cwvdKFkbjKqW91UkQHyYyHlG5cK",
       "email": "regular-user@example.com",
       "emailVerified": true,
+      "displayName": "Regular User",
       "createdAt": "1699028855059",
       "lastLoginAt": "1699028888493",
       "providerUserInfo": [
@@ -12,7 +13,8 @@
           "providerId": "google.com",
           "rawId": "regular-user",
           "federatedId": "regular-user",
-          "email": "regular-user@example.com"
+          "email": "regular-user@example.com",
+          "displayName": "Regular User"
         }
       ],
       "lastRefreshAt": "2023-11-03T16:28:08.493Z"
@@ -21,6 +23,7 @@
       "localId": "irPVL4SRSRx965mKQC2tjL0EmM5j",
       "email": "editor@example.com",
       "emailVerified": true,
+      "displayName": "Editor",
       "createdAt": "1699028855231",
       "lastLoginAt": "1699028888609",
       "providerUserInfo": [
@@ -28,7 +31,8 @@
           "providerId": "google.com",
           "rawId": "editor",
           "federatedId": "editor",
-          "email": "editor@example.com"
+          "email": "editor@example.com",
+          "displayName": "Editor"
         }
       ],
       "lastRefreshAt": "2023-11-03T16:28:08.609Z"
