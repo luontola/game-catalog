@@ -9,13 +9,20 @@
 ;; defonce to avoid forgetting sessions every time the code is reloaded in development mode
 (defonce session-store (ttl-session/ttl-memory-store (.toSeconds (Duration/ofHours 4))))
 
+(defn wrap-cache-control [handler]
+  (fn [request]
+    (let [response (handler request)]
+      ;; TODO: enable cache for static resources in prod
+      (assoc-in response [:headers "cache-control"] "no-cache"))))
+
 (defn wrap-base [handler]
   (-> handler
       (reload/wrap-reload {:dirs ["src" "resources"]})
       (defaults/wrap-defaults (-> defaults/site-defaults
                                   (assoc :proxy true)
                                   (assoc-in [:session :store] session-store)
-                                  (assoc-in [:session :flash] false)))))
+                                  (assoc-in [:session :flash] false)))
+      (wrap-cache-control)))
 
 (mount/defstate app
   :start
