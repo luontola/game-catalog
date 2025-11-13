@@ -5,32 +5,55 @@
             [game-catalog.infra.html :as html]
             [game-catalog.ui.layout :as layout]))
 
+(def columns
+  {:game/id {:column/name "#"}
+   :game/name {:column/name "Name"}
+   :game/release {:column/name "Release"}
+   :game/remake {:column/name "Remake"}
+   :game/series {:column/name "Series"}
+   :game/tags {:column/name "Tags"}
+   :game/purchases {:column/name "Purchases"}
+   :game/status {:column/name "Status"}
+   :game/content {:column/name "Content"}
+   :game/dlcs {:column/name "DLCs"}})
+
+(def csv-column-keys
+  [:game/id
+   :game/name
+   :game/release
+   :game/remake
+   :game/series
+   :game/tags
+   :game/purchases
+   :game/status
+   :game/content
+   :game/dlcs])
+
 (defn read-games []
   (with-open [reader (io/reader "data/Games.csv")]
     (let [csv-data (doall (csv/read-csv reader))
-          headers (first csv-data)
           rows (rest csv-data)]
-      {:headers headers
-       :rows (doall rows)})))
+      (mapv #(zipmap csv-column-keys %) rows))))
 
-(defn games-table [{:keys [headers rows]}]
-  [:table
-   [:thead
-    [:tr
-     (for [header headers]
-       [:th header])]]
-   [:tbody
-    (for [row rows]
+(defn games-table [games]
+  (h/html
+    [:table
+     [:thead
       [:tr
-       (for [cell row]
-         [:td cell])])]])
+       (for [col-key csv-column-keys]
+         [:th (get-in columns [col-key :column/name])])]]
+     [:tbody
+      (for [game games]
+        [:tr
+         (for [col-key csv-column-keys]
+           [:td (get game col-key)])])]]))
 
 (defn games-page-handler [request]
-  (let [games-data (read-games)]
+  (let [games (read-games)]
     (->
       (h/html
         [:h2 "Games"]
-        (games-table games-data))
+        (games-table games))
       (layout/page)
       (html/response))))
 
