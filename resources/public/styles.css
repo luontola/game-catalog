@@ -3,6 +3,10 @@ main {
 }
 
 .spreadsheet {
+    td, th {
+        vertical-align: top;
+        text-align: left;
+    }
 
     /* Focusable table cells */
 
