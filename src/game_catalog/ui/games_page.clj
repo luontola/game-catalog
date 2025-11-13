@@ -59,7 +59,8 @@
            [:input {:type "text"
                     :name (name col-key)
                     :value (get game col-key)
-                    :autofocus (= idx focus-index)}]])
+                    :autofocus (= idx focus-index)
+                    :data-1p-ignore true}]]) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
         csv-column-keys)])))
 
 (defn games-table [games]
