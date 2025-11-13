@@ -48,7 +48,8 @@
         (view-game-row game))]]))
 
 (defn games-page-handler [request]
-  (let [all-games (games/get-all-games)]
+  (let [all-games (->> (games/get-all-games)
+                       (sort-by (comp clojure.string/lower-case :game/name)))]
     (->
       (h/html
         [:h2 "Games"]
