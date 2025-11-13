@@ -91,6 +91,12 @@ document.addEventListener('keydown', (e) => {
 // Avoid multiple autofocus attributes in the DOM after htmx swaps.
 // Otherwise, the first autofocus in the DOM always grabs the focus.
 document.addEventListener('focusin', e => {
+    if (e.target.matches('input') && e.target.hasAttribute('autofocus')) {
+        // When autofocus focuses a text input element, the cursor will be
+        // in the front of any existing text. We want to select all the text.
+        // Then the user can easily replace it or press the right arrow to append text.
+        e.target.select()
+    }
     e.target.removeAttribute('autofocus')
 })
 
