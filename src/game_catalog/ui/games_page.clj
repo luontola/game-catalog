@@ -37,7 +37,7 @@
 
 (defn games-table [games]
   (h/html
-    [:table
+    [:table.spreadsheet
      [:thead
       [:tr
        (for [col-key csv-column-keys]
@@ -46,7 +46,8 @@
       (for [game games]
         [:tr
          (for [col-key csv-column-keys]
-           [:td (get game col-key)])])]]))
+           [:td {:tabindex 0}
+            (get game col-key)])])]]))
 
 (defn games-page-handler [request]
   (let [games (read-games)]
