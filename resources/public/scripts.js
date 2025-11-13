@@ -1,20 +1,40 @@
 htmx.config.transitions = false
 
+function getCellIndex(row, cell) {
+    return Array.from(row.children).indexOf(cell);
+}
+
 function enterEditMode(row, cell) {
-    const cellIndex = Array.from(row.children).indexOf(cell)
     const gameId = row.dataset.gameId
-    const url = `/games/${gameId}/edit?focusIndex=${cellIndex}`
-    htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
+    const cellIndex = getCellIndex(row, cell)
+    htmx.ajax('POST', `/games/${gameId}/edit`, {
+        target: row,
+        swap: 'outerHTML',
+        values: {focusIndex: cellIndex}
+    })
 }
 
 function exitEditMode(row, cell = null) {
-    const gameId = row.dataset.gameId
-    let url = `/games/${gameId}/view`
-    if (cell) {
-        const cellIndex = Array.from(row.children).indexOf(cell)
-        url += `?focusIndex=${cellIndex}`
+    // This function can be called twice for the same row,
+    // by the Enter/F2 keyboard handler and the focus-loss click handler,
+    // so we must guard against duplicate form submit attempts.
+    if (row.dataset.exiting === 'true') {
+        return
     }
-    htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
+    row.dataset.exiting = 'true'
+
+    const gameId = row.dataset.gameId
+    const form = row.querySelector('form')
+    const formData = new FormData(form)
+    if (cell) {
+        const cellIndex = getCellIndex(row, cell)
+        formData.append('focusIndex', `${cellIndex}`)
+    }
+    htmx.ajax('POST', `/games/${gameId}/save`, {
+        target: row,
+        swap: 'outerHTML',
+        values: Object.fromEntries(formData)
+    })
 }
 
 // Spreadsheet arrow key navigation
