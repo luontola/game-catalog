@@ -6,6 +6,7 @@ main {
     td, th {
         vertical-align: top;
         text-align: left;
+        white-space: pre-wrap;
     }
 
     /* Focusable table cells */
