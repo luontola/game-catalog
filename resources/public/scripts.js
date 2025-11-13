@@ -12,7 +12,11 @@ document.addEventListener('keydown', (e) => {
         && e.key === 'Enter') {
         // Exit edit mode for this row
         const row = e.target.closest('tr')
-        htmx.trigger(row, 'view')
+        const cell = e.target.closest('td');
+        const cellIndex = Array.from(row.children).indexOf(cell)
+        const gameId = row.dataset.gameId
+        const url = `/games/${gameId}/view?focusIndex=${cellIndex}`
+        htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
         e.preventDefault()
         return
     }
@@ -26,7 +30,10 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         // Enter edit mode for this row
         const row = cell.parentElement
-        htmx.trigger(row, 'edit')
+        const cellIndex = Array.from(row.children).indexOf(cell)
+        const gameId = row.dataset.gameId
+        const url = `/games/${gameId}/edit?focusIndex=${cellIndex}`
+        htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
         e.preventDefault()
         return
     }

@@ -36,25 +36,31 @@
           rows (rest csv-data)]
       (mapv #(zipmap csv-column-keys %) rows))))
 
-(defn view-game-row [game]
-  (h/html
-    [:tr {:hx-post (str "/games/" (:game/id game) "/edit")
-          :hx-trigger "edit"
-          :hx-swap "outerHTML"}
-     (for [col-key csv-column-keys]
-       [:td {:tabindex 0}
-        (get game col-key)])]))
+(defn view-game-row
+  ([game] (view-game-row game nil))
+  ([game focus-index]
+   (h/html
+     [:tr.viewing {:data-game-id (:game/id game)}
+      (map-indexed
+        (fn [idx col-key]
+          [:td {:tabindex 0
+                :autofocus (= idx focus-index)}
+           (get game col-key)])
+        csv-column-keys)])))
 
-(defn edit-game-row [game]
-  (h/html
-    [:tr {:hx-post (str "/games/" (:game/id game) "/view")
-          :hx-trigger "view"
-          :hx-swap "outerHTML"}
-     (for [col-key csv-column-keys]
-       [:td
-        [:input {:type "text"
-                 :name (name col-key)
-                 :value (get game col-key)}]])]))
+(defn edit-game-row
+  ([game] (edit-game-row game nil))
+  ([game focus-index]
+   (h/html
+     [:tr.editing {:data-game-id (:game/id game)}
+      (map-indexed
+        (fn [idx col-key]
+          [:td
+           [:input {:type "text"
+                    :name (name col-key)
+                    :value (get game col-key)
+                    :autofocus (= idx focus-index)}]])
+        csv-column-keys)])))
 
 (defn games-table [games]
   (h/html
@@ -78,23 +84,25 @@
 
 (defn edit-game-row-handler [request]
   (let [game-id (get-in request [:path-params :game-id])
+        focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
         games (read-games)
         game (->> games
                   (filter #(= (:game/id %) game-id))
                   (first))]
     (if game
-      (html/response (edit-game-row game))
+      (html/response (edit-game-row game focus-index))
       (-> (html/response "Game not found")
           (response/status 404)))))
 
 (defn view-game-row-handler [request]
   (let [game-id (get-in request [:path-params :game-id])
+        focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
         games (read-games)
         game (->> games
                   (filter #(= (:game/id %) game-id))
                   (first))]
     (if game
-      (html/response (view-game-row game))
+      (html/response (view-game-row game focus-index))
       (-> (html/response "Game not found")
           (response/status 404)))))
 
