@@ -14,7 +14,7 @@ function enterEditMode(row, cell) {
     })
 }
 
-function exitEditMode(row, cell = null) {
+function saveAndExitEditMode(row, cell = null) {
     // This function can be called twice for the same row,
     // by the Enter/F2 keyboard handler and the focus-loss click handler,
     // so we must guard against duplicate form submit attempts.
@@ -37,6 +37,25 @@ function exitEditMode(row, cell = null) {
     })
 }
 
+function cancelEditMode(row, cell = null) {
+    if (row.dataset.exiting === 'true') {
+        return
+    }
+    row.dataset.exiting = 'true'
+
+    const gameId = row.dataset.gameId
+    const values = {}
+    if (cell) {
+        const cellIndex = getCellIndex(row, cell)
+        values.focusIndex = cellIndex
+    }
+    htmx.ajax('POST', `/games/${gameId}/view`, {
+        target: row,
+        swap: 'outerHTML',
+        values: values
+    })
+}
+
 // Spreadsheet arrow key navigation
 document.addEventListener('keydown', (e) => {
     // Don't intercept if any modifier keys are held down
@@ -45,14 +64,22 @@ document.addEventListener('keydown', (e) => {
     }
 
     // Check if we're in an input field within a spreadsheet row (edit mode)
-    if (e.target.matches('.spreadsheet input')
-        && (e.key === 'Enter' || e.key === 'F2')) {
-        // Exit edit mode for this row
-        const row = e.target.closest('tr')
-        const cell = e.target.closest('td')
-        exitEditMode(row, cell)
-        e.preventDefault()
-        return
+    if (e.target.matches('.spreadsheet input')) {
+        if (e.key === 'Enter' || e.key === 'F2') {
+            // Exit edit mode for this row and save changes
+            const row = e.target.closest('tr')
+            const cell = e.target.closest('td')
+            saveAndExitEditMode(row, cell)
+            e.preventDefault()
+            return
+        } else if (e.key === 'Escape') {
+            // Cancel edit mode for this row without saving
+            const row = e.target.closest('tr')
+            const cell = e.target.closest('td')
+            cancelEditMode(row, cell)
+            e.preventDefault()
+            return
+        }
     }
 
     // Intercept only when a spreadsheet cell has the focus
@@ -110,7 +137,7 @@ document.addEventListener('focusout', (e) => {
     setTimeout(() => {
         const newFocus = document.activeElement
         if (!row.contains(newFocus)) {
-            exitEditMode(row)
+            saveAndExitEditMode(row)
         }
     }, 0)
 })

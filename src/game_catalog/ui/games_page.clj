@@ -57,6 +57,15 @@
       (layout/page)
       (html/response))))
 
+(defn view-game-row-handler [request]
+  (let [game-id (get-in request [:path-params :game-id])
+        focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
+        game (games/get-game-by-id game-id)]
+    (if game
+      (html/response (view-game-row game focus-index))
+      (-> (html/response "Game not found")
+          (response/status 404)))))
+
 (defn edit-game-row-handler [request]
   (let [game-id (get-in request [:path-params :game-id])
         focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
@@ -80,6 +89,8 @@
 (def routes
   [["/games"
     {:get {:handler games-page-handler}}]
+   ["/games/:game-id/view"
+    {:post {:handler view-game-row-handler}}]
    ["/games/:game-id/edit"
     {:post {:handler edit-game-row-handler}}]
    ["/games/:game-id/save"
