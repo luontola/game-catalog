@@ -2,10 +2,16 @@ htmx.config.transitions = false
 
 // Spreadsheet arrow key navigation
 document.addEventListener('keydown', (e) => {
+    // Don't intercept if any modifier keys are held down
+    if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) {
+        return
+    }
+    // Intercept only when a spreadsheet cell has the focus
     const cell = e.target
     if (!cell.matches('.spreadsheet td')) {
         return
     }
+
     let targetCell = null
     if (e.key === 'ArrowLeft') {
         targetCell = cell.previousElementSibling
