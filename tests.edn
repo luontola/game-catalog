@@ -1,0 +1,10 @@
+#kaocha/v1
+{:tests [{:id :default
+          :source-paths ["src" "resources"]
+          :test-paths ["src"]
+          :ns-patterns ["^game-catalog"]}]
+
+ :reporter [kaocha.report.progress/report]
+ :plugins [:kaocha.plugin/profiling]
+ :kaocha.plugin.profiling/count 3
+ :capture-output? true}
