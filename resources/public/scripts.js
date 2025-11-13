@@ -9,7 +9,7 @@ document.addEventListener('keydown', (e) => {
 
     // Check if we're in an input field within a spreadsheet row (edit mode)
     if (e.target.matches('.spreadsheet input')
-        && e.key === 'Enter') {
+        && (e.key === 'Enter' || e.key === 'F2')) {
         // Exit edit mode for this row
         const row = e.target.closest('tr')
         const cell = e.target.closest('td');
@@ -27,7 +27,7 @@ document.addEventListener('keydown', (e) => {
         return
     }
 
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' || e.key === 'F2') {
         // Enter edit mode for this row
         const row = cell.parentElement
         const cellIndex = Array.from(row.children).indexOf(cell)
@@ -80,4 +80,23 @@ document.addEventListener('focusout', (e) => {
             htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
         }
     }, 0)
+})
+
+// Enter edit mode on double-click
+document.addEventListener('dblclick', (e) => {
+    const cell = e.target.closest('.spreadsheet td')
+    if (!cell) {
+        return
+    }
+
+    const row = cell.closest('tr')
+    if (row.classList.contains('editing')) {
+        // Already in edit mode
+        return
+    }
+
+    const cellIndex = Array.from(row.children).indexOf(cell)
+    const gameId = row.dataset.gameId
+    const url = `/games/${gameId}/edit?focusIndex=${cellIndex}`
+    htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
 })
