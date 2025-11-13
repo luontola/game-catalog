@@ -12,6 +12,14 @@ document.addEventListener('keydown', (e) => {
         return
     }
 
+    if (e.key === 'Enter') {
+        // Enter edit mode for this row
+        const row = cell.parentElement
+        htmx.trigger(row, 'edit')
+        e.preventDefault()
+        return
+    }
+
     let targetCell = null
     if (e.key === 'ArrowLeft') {
         targetCell = cell.previousElementSibling
