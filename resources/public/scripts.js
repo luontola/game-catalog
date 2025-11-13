@@ -6,6 +6,17 @@ document.addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) {
         return
     }
+
+    // Check if we're in an input field within a spreadsheet row (edit mode)
+    if (e.target.matches('.spreadsheet input')
+        && e.key === 'Enter') {
+        // Exit edit mode for this row
+        const row = e.target.closest('tr')
+        htmx.trigger(row, 'view')
+        e.preventDefault()
+        return
+    }
+
     // Intercept only when a spreadsheet cell has the focus
     const cell = e.target
     if (!cell.matches('.spreadsheet td')) {
