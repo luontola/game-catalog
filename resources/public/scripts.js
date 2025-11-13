@@ -56,3 +56,9 @@ document.addEventListener('keydown', (e) => {
         targetCell.focus()
     }
 })
+
+// Avoid multiple autofocus attributes in the DOM after htmx swaps.
+// Otherwise, the first autofocus in the DOM always grabs the focus.
+document.addEventListener('focusin', e => {
+    e.target.removeAttribute('autofocus')
+})
