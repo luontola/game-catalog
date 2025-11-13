@@ -35,6 +35,13 @@
           rows (rest csv-data)]
       (mapv #(zipmap csv-column-keys %) rows))))
 
+(defn view-game-row [game]
+  (h/html
+    [:tr
+     (for [col-key csv-column-keys]
+       [:td {:tabindex 0}
+        (get game col-key)])]))
+
 (defn games-table [games]
   (h/html
     [:table.spreadsheet
@@ -44,10 +51,7 @@
          [:th (get-in columns [col-key :column/name])])]]
      [:tbody
       (for [game games]
-        [:tr
-         (for [col-key csv-column-keys]
-           [:td {:tabindex 0}
-            (get game col-key)])])]]))
+        (view-game-row game))]]))
 
 (defn games-page-handler [request]
   (let [games (read-games)]
