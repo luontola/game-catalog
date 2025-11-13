@@ -62,3 +62,22 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('focusin', e => {
     e.target.removeAttribute('autofocus')
 })
+
+// Exit edit mode when focus leaves the row
+document.addEventListener('focusout', (e) => {
+    const row = e.target.closest('.spreadsheet tr.editing')
+    if (!row) {
+        return
+    }
+
+    // Check if the new focus target is outside the row
+    setTimeout(() => {
+        const newFocus = document.activeElement
+        if (!row.contains(newFocus)) {
+            // Focus has left the row, exit edit mode
+            const gameId = row.dataset.gameId
+            const url = `/games/${gameId}/view`
+            htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
+        }
+    }, 0)
+})
