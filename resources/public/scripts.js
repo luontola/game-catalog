@@ -1,5 +1,22 @@
 htmx.config.transitions = false
 
+function enterEditMode(row, cell) {
+    const cellIndex = Array.from(row.children).indexOf(cell)
+    const gameId = row.dataset.gameId
+    const url = `/games/${gameId}/edit?focusIndex=${cellIndex}`
+    htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
+}
+
+function exitEditMode(row, cell = null) {
+    const gameId = row.dataset.gameId
+    let url = `/games/${gameId}/view`
+    if (cell) {
+        const cellIndex = Array.from(row.children).indexOf(cell)
+        url += `?focusIndex=${cellIndex}`
+    }
+    htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
+}
+
 // Spreadsheet arrow key navigation
 document.addEventListener('keydown', (e) => {
     // Don't intercept if any modifier keys are held down
@@ -12,11 +29,8 @@ document.addEventListener('keydown', (e) => {
         && (e.key === 'Enter' || e.key === 'F2')) {
         // Exit edit mode for this row
         const row = e.target.closest('tr')
-        const cell = e.target.closest('td');
-        const cellIndex = Array.from(row.children).indexOf(cell)
-        const gameId = row.dataset.gameId
-        const url = `/games/${gameId}/view?focusIndex=${cellIndex}`
-        htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
+        const cell = e.target.closest('td')
+        exitEditMode(row, cell)
         e.preventDefault()
         return
     }
@@ -30,10 +44,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === 'F2') {
         // Enter edit mode for this row
         const row = cell.parentElement
-        const cellIndex = Array.from(row.children).indexOf(cell)
-        const gameId = row.dataset.gameId
-        const url = `/games/${gameId}/edit?focusIndex=${cellIndex}`
-        htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
+        enterEditMode(row, cell)
         e.preventDefault()
         return
     }
@@ -69,15 +80,11 @@ document.addEventListener('focusout', (e) => {
     if (!row) {
         return
     }
-
     // Check if the new focus target is outside the row
     setTimeout(() => {
         const newFocus = document.activeElement
         if (!row.contains(newFocus)) {
-            // Focus has left the row, exit edit mode
-            const gameId = row.dataset.gameId
-            const url = `/games/${gameId}/view`
-            htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
+            exitEditMode(row)
         }
     }, 0)
 })
@@ -88,15 +95,10 @@ document.addEventListener('dblclick', (e) => {
     if (!cell) {
         return
     }
-
     const row = cell.closest('tr')
     if (row.classList.contains('editing')) {
         // Already in edit mode
         return
     }
-
-    const cellIndex = Array.from(row.children).indexOf(cell)
-    const gameId = row.dataset.gameId
-    const url = `/games/${gameId}/edit?focusIndex=${cellIndex}`
-    htmx.ajax('POST', url, {target: row, swap: 'outerHTML'})
+    enterEditMode(row, cell)
 })
