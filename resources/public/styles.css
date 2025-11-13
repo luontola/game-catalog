@@ -3,6 +3,17 @@ main {
 }
 
 .spreadsheet {
+
+    /* Default styling */
+
+    thead {
+        position: sticky;
+        /* Workaround to the header's cell borders disappearing when scrolled */
+        outline: var(--border-width) solid var(--border);
+        outline-offset: calc(-0.5 * var(--border-width));
+        top: calc(0.5 * var(--border-width));
+    }
+
     td, th {
         vertical-align: top;
         text-align: left;
