@@ -1,0 +1,8 @@
+.DS_Store
+.lein-*
+.nrepl-*
+/*.log
+/.idea/
+/node_modules/
+/pom.xml
+/target/
