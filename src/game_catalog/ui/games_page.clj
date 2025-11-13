@@ -30,7 +30,7 @@
                        [:form {:id form-id}])
                      [:input {:type "text"
                               :form form-id
-                              :name (name col-key)
+                              :name (subs (str col-key) 1) ; namespaced keyword without the ":" prefix
                               :value (get game col-key)
                               :autofocus (= idx focus-index)
                               :data-1p-ignore true}]])) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
@@ -68,15 +68,13 @@
 (defn save-game-row-handler [request]
   (let [game-id (get-in request [:path-params :game-id])
         focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
-        form-data (select-keys (:params request)
-                               (map #(keyword (name %)) games/csv-column-keys))
-        game (games/get-game-by-id game-id)]
-    (println (str "Form data submitted for game " game-id ":")
-             (pr-str form-data))
-    (if game
-      (html/response (view-game-row game focus-index))
-      (-> (html/response "Game not found")
-          (response/status 404)))))
+        new-game (-> (:params request)
+                     (update-keys keyword)
+                     (select-keys games/csv-column-keys))]
+    (games/update-game! game-id new-game)
+    (println (str "Saved game " game-id ":")
+             (pr-str new-game))
+    (html/response (view-game-row new-game focus-index))))
 
 (def routes
   [["/games"
