@@ -4,14 +4,17 @@
             [mount.core :as mount]
             [ring.adapter.jetty :as httpd]
             [unilog.config :refer [start-logging!]])
-  (:import (org.eclipse.jetty.server Server))
+  (:import (org.eclipse.jetty.server Server)
+           (org.eclipse.jetty.server.handler.gzip GzipHandler))
   (:gen-class))
 
 (mount/defstate ^{:tag Server, :on-reload :noop} http-server
   :start
   (httpd/run-jetty #'webapp/app
                    {:port 8080
-                    :join? false})
+                    :join? false
+                    :configurator (fn [^Server server]
+                                    (.insertHandler server (GzipHandler.)))})
   :stop
   (.stop ^Server http-server))
 
