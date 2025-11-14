@@ -2,6 +2,7 @@
   (:require [game-catalog.data.db :as db]
             [game-catalog.infra.hiccup :as h]
             [game-catalog.infra.html :as html]
+            [ring.util.http-response :as http-response]
             [ring.util.response :as response]))
 
 (defn- entity-type [config]
@@ -26,26 +27,30 @@
    (edit-row config entity nil))
   ([config entity focus-index]
    (let [entity-type (entity-type config)
-         entity-id (:entity/id entity)
+         adding? (nil? entity)
+         entity-id (if adding? "new" (:entity/id entity))
          form-id (str entity-type "-form-" entity-id)]
      (h/html
        [:tr.editing {:data-entity-type entity-type
-                     :data-entity-id entity-id}
+                     :data-entity-id entity-id
+                     :class (when adding?
+                              "adding")}
         (map-indexed
           (fn [idx column]
             (let [col-key (:column/entity-key column)
-                  read-only? (:column/read-only? column)]
+                  read-only? (:column/read-only? column)
+                  value (get entity col-key)]
               (h/html [:td (when read-only?
                              {:tabindex 0
                               :autofocus (= idx focus-index)})
                        (when (zero? idx)
                          [:form {:id form-id}])
                        (if read-only?
-                         (get entity col-key)
+                         value
                          [:input {:type "text"
                                   :form form-id
                                   :name (subs (str col-key) 1) ; namespaced keyword without the ":" prefix
-                                  :value (get entity col-key)
+                                  :value value
                                   :autofocus (= idx focus-index)
                                   :data-1p-ignore true}])]))) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
           (:columns config))]))))
@@ -54,30 +59,7 @@
   ([config]
    (add-row config nil))
   ([config focus-index]
-   (let [entity-type (entity-type config)
-         entity-id "new"
-         form-id (str entity-type "-form-" entity-id)]
-     (h/html
-       [:tr.editing.adding {:data-entity-type entity-type
-                            :data-entity-id entity-id}
-        (map-indexed
-          (fn [idx column]
-            (let [col-key (:column/entity-key column)
-                  read-only? (:column/read-only? column)]
-              (h/html [:td (when read-only?
-                             {:tabindex 0
-                              :autofocus (= idx focus-index)})
-                       (when (zero? idx)
-                         [:form {:id form-id}])
-                       (if read-only?
-                         ""
-                         [:input {:type "text"
-                                  :form form-id
-                                  :name (subs (str col-key) 1) ; namespaced keyword without the ":" prefix
-                                  :value ""
-                                  :autofocus (= idx focus-index)
-                                  :data-1p-ignore true}])]))) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
-          (:columns config))]))))
+   (edit-row config nil focus-index)))
 
 (defn table [config]
   (let [entities (->> (db/get-all (:collection-key config))
@@ -91,7 +73,7 @@
        [:tbody
         (for [entity entities]
           (view-row config entity))
-        (add-row config)]])))
+        (add-row config nil)]])))
 
 (defn view-row-handler [config]
   (fn [request]
@@ -130,21 +112,24 @@
     (let [collection-key (:collection-key config)
           entity-id (get-in request [:path-params :entity-id])
           focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
-          entity-keys-whitelist (map :column/entity-key (:columns config))
+          writeable-entity-keys (->> (:columns config)
+                                     (remove :column/read-only?)
+                                     (map :column/entity-key))
           updates (-> (:params request)
                       (update-keys keyword)
-                      (select-keys entity-keys-whitelist))
+                      (select-keys writeable-entity-keys))
+          adding? (= "new" entity-id)
           old-entity (db/get-by-id collection-key entity-id)
           new-entity (cond
-                       (some? old-entity) (merge old-entity updates)
-                       (= "new" entity-id) (assoc updates :entity/id (generate-new-id collection-key))
-                       :else (assert false "entity not found"))]
+                       adding? (assoc updates :entity/id (generate-new-id collection-key))
+                       old-entity (merge old-entity updates)
+                       :else (http-response/not-found! "Row not found"))]
       (db/save! collection-key new-entity)
       (println (str "Saved " (name collection-key) " " (:entity/id new-entity) ":")
                (pr-str new-entity))
       (html/response (h/html
                        (view-row config new-entity focus-index)
-                       (when (= "new" entity-id)
+                       (when adding?
                          (add-row config)))))))
 
 (defn make-routes [config]
