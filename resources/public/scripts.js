@@ -13,7 +13,7 @@ function getEntityInfo(row) {
 function enterEditMode(row, cell) {
     const {entityType, entityId} = getEntityInfo(row)
     const cellIndex = getCellIndex(row, cell)
-    htmx.ajax('POST', `/${entityType}/${entityId}/edit`, {
+    htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/edit`, {
         target: row,
         swap: 'outerHTML',
         values: {focusIndex: cellIndex}
@@ -36,7 +36,7 @@ function saveAndExitEditMode(row, cell = null) {
         const cellIndex = getCellIndex(row, cell)
         formData.append('focusIndex', `${cellIndex}`)
     }
-    htmx.ajax('POST', `/${entityType}/${entityId}/save`, {
+    htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/save`, {
         target: row,
         swap: 'outerHTML',
         values: Object.fromEntries(formData)
@@ -55,7 +55,7 @@ function cancelEditMode(row, cell = null) {
         const cellIndex = getCellIndex(row, cell)
         values.focusIndex = cellIndex
     }
-    htmx.ajax('POST', `/${entityType}/${entityId}/view`, {
+    htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/view`, {
         target: row,
         swap: 'outerHTML',
         values: values
