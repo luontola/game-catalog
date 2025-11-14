@@ -8,26 +8,26 @@
   {:collection-key :games
    :sort-by (comp clojure.string/lower-case :game/name)
    :columns [{:column/name "#"
-              :entity/key :entity/id
+              :column/entity-key :entity/id
               :column/read-only? true}
              {:column/name "Name"
-              :entity/key :game/name}
+              :column/entity-key :game/name}
              {:column/name "Release"
-              :entity/key :game/release}
+              :column/entity-key :game/release}
              {:column/name "Remake"
-              :entity/key :game/remake}
+              :column/entity-key :game/remake}
              {:column/name "Series"
-              :entity/key :game/series}
+              :column/entity-key :game/series}
              {:column/name "Tags"
-              :entity/key :game/tags}
+              :column/entity-key :game/tags}
              {:column/name "Purchases"
-              :entity/key :game/purchases}
+              :column/entity-key :game/purchases}
              {:column/name "Status"
-              :entity/key :game/status}
+              :column/entity-key :game/status}
              {:column/name "Content"
-              :entity/key :game/content}
+              :column/entity-key :game/content}
              {:column/name "DLCs"
-              :entity/key :game/dlcs}]})
+              :column/entity-key :game/dlcs}]})
 
 (def csv-column-keys
   [:entity/id

@@ -18,7 +18,7 @@
         (fn [idx column]
           [:td {:tabindex 0
                 :autofocus (= idx focus-index)}
-           (get entity (:entity/key column))])
+           (get entity (:column/entity-key column))])
         (:columns config))])))
 
 (defn edit-row
@@ -32,7 +32,7 @@
                      :data-entity-id (:entity/id entity)}
         (map-indexed
           (fn [idx column]
-            (let [col-key (:entity/key column)
+            (let [col-key (:column/entity-key column)
                   read-only? (:column/read-only? column)]
               (h/html [:td (when read-only?
                              {:tabindex 0
@@ -91,7 +91,7 @@
           focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
           old-entity (db/get-by-id collection-key entity-id)
           _ (assert old-entity) ; TODO: support adding new entities
-          entity-keys-whitelist (map :entity/key (:columns config))
+          entity-keys-whitelist (map :column/entity-key (:columns config))
           updates (-> (:params request)
                       (update-keys keyword)
                       (select-keys entity-keys-whitelist))

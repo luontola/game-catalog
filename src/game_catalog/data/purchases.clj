@@ -8,20 +8,20 @@
   {:collection-key :purchases
    :sort-by :purchase/date
    :columns [{:column/name "#"
-              :entity/key :entity/id
+              :column/entity-key :entity/id
               :column/read-only? true}
              {:column/name "Shop"
-              :entity/key :purchase/shop}
+              :column/entity-key :purchase/shop}
              {:column/name "Date"
-              :entity/key :purchase/date}
+              :column/entity-key :purchase/date}
              {:column/name "Cost"
-              :entity/key :purchase/cost}
+              :column/entity-key :purchase/cost}
              {:column/name "Base Games"
-              :entity/key :purchase/base-games}
+              :column/entity-key :purchase/base-games}
              {:column/name "DLCs"
-              :entity/key :purchase/dlcs}
+              :column/entity-key :purchase/dlcs}
              {:column/name "Bundle Name"
-              :entity/key :purchase/bundle-name}]})
+              :column/entity-key :purchase/bundle-name}]})
 
 (def csv-column-keys
   [:entity/id

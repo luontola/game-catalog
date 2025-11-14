@@ -8,16 +8,16 @@
   {:collection-key :dlcs
    :sort-by (comp clojure.string/lower-case :dlc/name)
    :columns [{:column/name "#"
-              :entity/key :entity/id
+              :column/entity-key :entity/id
               :column/read-only? true}
              {:column/name "Name"
-              :entity/key :dlc/name}
+              :column/entity-key :dlc/name}
              {:column/name "Base Game"
-              :entity/key :dlc/base-game}
+              :column/entity-key :dlc/base-game}
              {:column/name "Year"
-              :entity/key :dlc/year}
+              :column/entity-key :dlc/year}
              {:column/name "Purchases"
-              :entity/key :dlc/purchases}]})
+              :column/entity-key :dlc/purchases}]})
 
 (def csv-column-keys
   [:entity/id
