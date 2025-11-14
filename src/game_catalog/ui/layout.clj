@@ -24,6 +24,7 @@
              [:ul
               [:li [:a {:href "/"} "Home"]]
               [:li [:a {:href "/games"} "Games"]]
+              [:li [:a {:href "/dlcs"} "DLCs"]]
               [:li [:a {:href "/purchases"} "Purchases"]]]]]
            [:main
             view]]])))
