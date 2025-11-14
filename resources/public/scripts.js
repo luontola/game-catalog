@@ -51,6 +51,20 @@ function saveAndExitEditMode(row, cell = null) {
         formData.append('focusIndex', `${cellIndex}`)
     }
 
+    if (entityId === 'new') {
+        // If adding a new row, store the add-row's position to restore it after swap,
+        // so that the adding row won't scroll down off the screen.
+        const addRowTop = row.getBoundingClientRect().top
+        document.addEventListener('htmx:after:swap', () => {
+            const newAddRow = document.querySelector(`tr[data-entity-type="${entityType}"][data-entity-id="new"]`)
+            if (newAddRow) {
+                const newAddRowTop = newAddRow.getBoundingClientRect().top
+                const scrollDelta = newAddRowTop - addRowTop
+                window.scrollBy(0, scrollDelta)
+            }
+        }, {once: true})
+    }
+
     htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/save`, {
         target: row,
         swap: 'outerHTML',
