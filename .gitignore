@@ -1,9 +1,10 @@
 .DS_Store
-.lein-*
-.nrepl-*
+/*.iml
 /*.log
 /.idea/
+/.lein-*
+/.nrepl-*
+/data/
 /node_modules/
 /pom.xml
 /target/
-/data/
