@@ -94,9 +94,25 @@ document.addEventListener('keydown', (e) => {
         return
     }
 
+    const row = cell.parentElement
+
+    // Check if we're in a read-only cell in edit mode
+    if (row.classList.contains('editing')) {
+        if (e.key === 'Enter' || e.key === 'F2') {
+            // Exit edit mode for this row and save changes
+            saveAndExitEditMode(row, cell)
+            e.preventDefault()
+            return
+        } else if (e.key === 'Escape') {
+            // Cancel edit mode for this row without saving
+            cancelEditMode(row, cell)
+            e.preventDefault()
+            return
+        }
+    }
+
     if (e.key === 'Enter' || e.key === 'F2') {
         // Enter edit mode for this row
-        const row = cell.parentElement
         enterEditMode(row, cell)
         e.preventDefault()
         return

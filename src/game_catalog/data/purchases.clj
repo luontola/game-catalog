@@ -8,7 +8,8 @@
   {:collection-key :purchases
    :sort-by :purchase/date
    :columns [{:column/name "#"
-              :entity/key :entity/id}
+              :entity/key :entity/id
+              :column/read-only? true}
              {:column/name "Shop"
               :entity/key :purchase/shop}
              {:column/name "Date"

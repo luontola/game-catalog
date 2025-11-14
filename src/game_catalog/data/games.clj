@@ -8,7 +8,8 @@
   {:collection-key :games
    :sort-by (comp clojure.string/lower-case :game/name)
    :columns [{:column/name "#"
-              :entity/key :entity/id}
+              :entity/key :entity/id
+              :column/read-only? true}
              {:column/name "Name"
               :entity/key :game/name}
              {:column/name "Release"

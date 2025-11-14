@@ -32,16 +32,21 @@
                      :data-entity-id (:entity/id entity)}
         (map-indexed
           (fn [idx column]
-            (let [col-key (:entity/key column)]
-              (h/html [:td
+            (let [col-key (:entity/key column)
+                  read-only? (:column/read-only? column)]
+              (h/html [:td (when read-only?
+                             {:tabindex 0
+                              :autofocus (= idx focus-index)})
                        (when (zero? idx)
                          [:form {:id form-id}])
-                       [:input {:type "text"
-                                :form form-id
-                                :name (subs (str col-key) 1)
-                                :value (get entity col-key)
-                                :autofocus (= idx focus-index)
-                                :data-1p-ignore true}]])))
+                       (if read-only?
+                         (get entity col-key)
+                         [:input {:type "text"
+                                  :form form-id
+                                  :name (subs (str col-key) 1)
+                                  :value (get entity col-key)
+                                  :autofocus (= idx focus-index)
+                                  :data-1p-ignore true}])])))
           (:columns config))]))))
 
 (defn table [config]
@@ -84,10 +89,13 @@
     (let [collection-key (:collection-key config)
           entity-id (get-in request [:path-params :entity-id])
           focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
+          old-entity (db/get-by-id collection-key entity-id)
+          _ (assert old-entity) ; TODO: support adding new entities
           entity-keys-whitelist (map :entity/key (:columns config))
-          new-entity (-> (:params request)
-                         (update-keys keyword)
-                         (select-keys entity-keys-whitelist))]
+          updates (-> (:params request)
+                      (update-keys keyword)
+                      (select-keys entity-keys-whitelist))
+          new-entity (merge old-entity updates)]
       (db/save! collection-key new-entity)
       (println (str "Saved " (name collection-key) " " entity-id ":")
                (pr-str new-entity))
