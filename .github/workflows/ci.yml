@@ -35,7 +35,7 @@ jobs:
         run: |
           VERSION=$(date +%Y-%m-%d).${{ github.run_number }}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Generated version: $VERSION"
+          echo "::notice title=Version::$VERSION"
 
       - name: Set up Java
         uses: actions/setup-java@v4
