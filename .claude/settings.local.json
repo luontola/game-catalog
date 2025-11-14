@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(lein test:*)",
+      "WebFetch(domain:code.claude.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
