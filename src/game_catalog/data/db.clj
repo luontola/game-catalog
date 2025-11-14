@@ -10,11 +10,12 @@
 (defn get-by-id [collection-key entity-id]
   (get-in @*collections [collection-key entity-id]))
 
-(defn update! [collection-key entity-id updated-entity]
-  (swap! *collections assoc-in [collection-key entity-id] updated-entity))
+(defn save! [collection-key entity]
+  (let [entity-id (:entity/id entity)]
+    (swap! *collections assoc-in [collection-key entity-id] entity)))
 
 (defn init-collection! [collection-key entities]
-  (let [data-map (->> entities
-                      (map (fn [entity] [(:entity/id entity) entity]))
-                      (into {}))]
-    (swap! *collections assoc collection-key data-map)))
+  (let [entities-by-id (->> entities
+                            (map (fn [entity] [(:entity/id entity) entity]))
+                            (into {}))]
+    (swap! *collections assoc collection-key entities-by-id)))

@@ -82,7 +82,7 @@
         new-game (-> (:params request)
                      (update-keys keyword)
                      (select-keys games/csv-column-keys))]
-    (db/update! :games game-id new-game)
+    (db/save! :games new-game)
     (println (str "Saved game " game-id ":")
              (pr-str new-game))
     (html/response (view-game-row new-game focus-index))))
