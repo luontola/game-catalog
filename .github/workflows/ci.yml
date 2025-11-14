@@ -22,9 +22,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup data directory
-        run: git worktree add data data
+        run: |
+          git fetch origin data:data
+          git worktree add data data
 
       - name: Generate version number
         id: version
