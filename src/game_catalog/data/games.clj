@@ -1,10 +1,11 @@
 (ns game-catalog.data.games
   (:require [clojure.data.csv :as csv]
             [clojure.java.io :as io]
+            [game-catalog.data.db :as db]
             [mount.core :as mount]))
 
 (def columns
-  {:game/id {:column/name "#"}
+  {:entity/id {:column/name "#"}
    :game/name {:column/name "Name"}
    :game/release {:column/name "Release"}
    :game/remake {:column/name "Remake"}
@@ -16,7 +17,7 @@
    :game/dlcs {:column/name "DLCs"}})
 
 (def csv-column-keys
-  [:game/id
+  [:entity/id
    :game/name
    :game/release
    :game/remake
@@ -33,17 +34,8 @@
           rows (rest csv-data)]
       (->> rows
            (map #(zipmap csv-column-keys %))
-           (map (fn [game] [(:game/id game) game]))
+           (map (fn [game] [(:entity/id game) game]))
            (into {})))))
 
-(mount/defstate *games-db
-  :start (atom (read-games-from-csv)))
-
-(defn get-all-games []
-  (vals @*games-db))
-
-(defn get-game-by-id [game-id]
-  (get @*games-db game-id))
-
-(defn update-game! [game-id updated-game]
-  (swap! *games-db assoc game-id updated-game))
+(mount/defstate games-loader
+  :start (db/init-collection! :games (read-games-from-csv)))

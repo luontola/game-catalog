@@ -1,5 +1,6 @@
 (ns game-catalog.ui.games-page
-  (:require [game-catalog.data.games :as games]
+  (:require [game-catalog.data.db :as db]
+            [game-catalog.data.games :as games]
             [game-catalog.infra.hiccup :as h]
             [game-catalog.infra.html :as html]
             [game-catalog.ui.layout :as layout]
@@ -9,7 +10,7 @@
   ([game] (view-game-row game nil))
   ([game focus-index]
    (h/html
-     [:tr.viewing {:data-game-id (:game/id game)}
+     [:tr.viewing {:data-game-id (:entity/id game)}
       (map-indexed
         (fn [idx col-key]
           [:td {:tabindex 0
@@ -20,9 +21,9 @@
 (defn edit-game-row
   ([game] (edit-game-row game nil))
   ([game focus-index]
-   (let [form-id (str "game-form-" (:game/id game))]
+   (let [form-id (str "game-form-" (:entity/id game))]
      (h/html
-       [:tr.editing {:data-game-id (:game/id game)}
+       [:tr.editing {:data-game-id (:entity/id game)}
         (map-indexed
           (fn [idx col-key]
             (h/html [:td
@@ -48,7 +49,7 @@
         (view-game-row game))]]))
 
 (defn games-page-handler [request]
-  (let [all-games (->> (games/get-all-games)
+  (let [all-games (->> (db/get-all :games)
                        (sort-by (comp clojure.string/lower-case :game/name)))]
     (->
       (h/html
@@ -60,7 +61,7 @@
 (defn view-game-row-handler [request]
   (let [game-id (get-in request [:path-params :game-id])
         focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
-        game (games/get-game-by-id game-id)]
+        game (db/get-by-id :games game-id)]
     (if game
       (html/response (view-game-row game focus-index))
       (-> (html/response "Game not found")
@@ -69,7 +70,7 @@
 (defn edit-game-row-handler [request]
   (let [game-id (get-in request [:path-params :game-id])
         focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
-        game (games/get-game-by-id game-id)]
+        game (db/get-by-id :games game-id)]
     (if game
       (html/response (edit-game-row game focus-index))
       (-> (html/response "Game not found")
@@ -81,7 +82,7 @@
         new-game (-> (:params request)
                      (update-keys keyword)
                      (select-keys games/csv-column-keys))]
-    (games/update-game! game-id new-game)
+    (db/update! :games game-id new-game)
     (println (str "Saved game " game-id ":")
              (pr-str new-game))
     (html/response (view-game-row new-game focus-index))))
