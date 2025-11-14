@@ -52,6 +52,7 @@
                                   :name (subs (str col-key) 1) ; namespaced keyword without the ":" prefix
                                   :value value
                                   :autofocus (= idx focus-index)
+                                  :autocomplete "off"
                                   :data-1p-ignore true}])]))) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
           (:columns config))]))))
 
