@@ -14,6 +14,16 @@ document.addEventListener('input', (e) => {
     }
 })
 
+// Scroll to bottom when the adding row receives focus
+document.addEventListener('focusin', (e) => {
+    if (e.target.closest('.spreadsheet tr.adding')) {
+        window.scrollTo({
+            top: document.documentElement.scrollHeight,
+            behavior: 'instant'
+        })
+    }
+})
+
 function isFormModified(row) {
     return row.dataset.modified === 'true'
 }
