@@ -4,6 +4,20 @@ function getCellIndex(row, cell) {
     return Array.from(row.children).indexOf(cell);
 }
 
+// Track when forms are modified
+document.addEventListener('input', (e) => {
+    if (e.target.matches('.spreadsheet input')) {
+        const row = e.target.closest('tr')
+        if (row) {
+            row.dataset.modified = 'true'
+        }
+    }
+})
+
+function isFormModified(row) {
+    return row.dataset.modified === 'true'
+}
+
 function getEntityInfo(row) {
     const entityType = row.dataset.entityType
     const entityId = row.dataset.entityId
@@ -73,10 +87,14 @@ document.addEventListener('keydown', (e) => {
     // Check if we're in an input field within a spreadsheet row (edit mode)
     if (e.target.matches('.spreadsheet input')) {
         if (e.key === 'Enter' || e.key === 'F2') {
-            // Exit edit mode for this row and save changes
+            // Exit edit mode for this row and save changes (only if modified)
             const row = e.target.closest('tr')
             const cell = e.target.closest('td')
-            saveAndExitEditMode(row, cell)
+            if (isFormModified(row)) {
+                saveAndExitEditMode(row, cell)
+            } else {
+                cancelEditMode(row, cell)
+            }
             e.preventDefault()
             return
         } else if (e.key === 'Escape') {
@@ -86,6 +104,24 @@ document.addEventListener('keydown', (e) => {
             cancelEditMode(row, cell)
             e.preventDefault()
             return
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            // Move focus to the adjacent row (focusout handler will save/cancel as needed)
+            const row = e.target.closest('tr')
+            const cell = e.target.closest('td')
+            const cellIndex = getCellIndex(row, cell)
+            const targetRow = e.key === 'ArrowUp' ? row.previousElementSibling : row.nextElementSibling
+            if (targetRow) {
+                // Just move focus - this will trigger focusout which handles save/cancel
+                const targetCell = targetRow.children[cellIndex]
+                const input = targetCell.querySelector('input')
+                if (input) {
+                    input.focus()
+                } else {
+                    targetCell.focus()
+                }
+                e.preventDefault()
+                return
+            }
         }
     }
 
@@ -100,8 +136,12 @@ document.addEventListener('keydown', (e) => {
     // Check if we're in a read-only cell in edit mode
     if (row.classList.contains('editing')) {
         if (e.key === 'Enter' || e.key === 'F2') {
-            // Exit edit mode for this row and save changes
-            saveAndExitEditMode(row, cell)
+            // Exit edit mode for this row and save changes (only if modified)
+            if (isFormModified(row)) {
+                saveAndExitEditMode(row, cell)
+            } else {
+                cancelEditMode(row, cell)
+            }
             e.preventDefault()
             return
         } else if (e.key === 'Escape') {
@@ -134,7 +174,13 @@ document.addEventListener('keydown', (e) => {
     }
     if (targetCell) {
         e.preventDefault()
-        targetCell.focus()
+        // If the target cell contains an input (i.e. it's the add-row), focus that instead of the cell
+        const input = targetCell.querySelector('input')
+        if (input) {
+            input.focus()
+        } else {
+            targetCell.focus()
+        }
     }
 })
 
@@ -160,7 +206,11 @@ document.addEventListener('focusout', (e) => {
     setTimeout(() => {
         const newFocus = document.activeElement
         if (!row.contains(newFocus)) {
-            saveAndExitEditMode(row)
+            if (isFormModified(row)) {
+                saveAndExitEditMode(row)
+            } else {
+                cancelEditMode(row)
+            }
         }
     }, 0)
 })
