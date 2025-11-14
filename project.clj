@@ -41,7 +41,7 @@
   :test-selectors {:default (fn [m] (not (:e2e m)))
                    :e2e :e2e}
 
-  :profiles {:uberjar {:auto-clean false
+  :profiles {:uberjar {:auto-clean true
                        :omit-source true
                        :aot :all
                        :uberjar-name "game-catalog.jar"}
