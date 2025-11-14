@@ -125,40 +125,27 @@
                     (apply max 0))]
     (str (inc max-id))))
 
-(defn add-row-handler [config]
-  (fn [request]
-    (let [collection-key (:collection-key config)
-          focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
-          new-id (generate-new-id collection-key)
-          entity-keys-whitelist (map :column/entity-key (:columns config))
-          new-entity (-> (:params request)
-                         (update-keys keyword)
-                         (select-keys entity-keys-whitelist)
-                         (assoc :entity/id new-id))]
-      (db/save! collection-key new-entity)
-      (println (str "Added " (name collection-key) " " new-id ":")
-               (pr-str new-entity))
-      (html/response
-        (h/html
-          (view-row config new-entity focus-index)
-          (add-row config))))))
-
 (defn save-row-handler [config]
   (fn [request]
     (let [collection-key (:collection-key config)
           entity-id (get-in request [:path-params :entity-id])
           focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
-          old-entity (db/get-by-id collection-key entity-id)
-          _ (assert old-entity)
           entity-keys-whitelist (map :column/entity-key (:columns config))
           updates (-> (:params request)
                       (update-keys keyword)
                       (select-keys entity-keys-whitelist))
-          new-entity (merge old-entity updates)]
+          old-entity (db/get-by-id collection-key entity-id)
+          new-entity (cond
+                       (some? old-entity) (merge old-entity updates)
+                       (= "new" entity-id) (assoc updates :entity/id (generate-new-id collection-key))
+                       :else (assert false "entity not found"))]
       (db/save! collection-key new-entity)
-      (println (str "Saved " (name collection-key) " " entity-id ":")
+      (println (str "Saved " (name collection-key) " " (:entity/id new-entity) ":")
                (pr-str new-entity))
-      (html/response (view-row config new-entity focus-index)))))
+      (html/response (h/html
+                       (view-row config new-entity focus-index)
+                       (when (= "new" entity-id)
+                         (add-row config)))))))
 
 (defn make-routes [config]
   (let [entity-type (entity-type config)]
@@ -167,6 +154,4 @@
      [(str "/spreadsheet/" entity-type "/:entity-id/edit")
       {:post {:handler (edit-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/save")
-      {:post {:handler (save-row-handler config)}}]
-     [(str "/spreadsheet/" entity-type "/add")
-      {:post {:handler (add-row-handler config)}}]]))
+      {:post {:handler (save-row-handler config)}}]]))
