@@ -52,6 +52,9 @@ jobs:
           sudo mv lein /usr/local/bin/
           lein version
 
+      - name: Run tests
+        run: lein test
+
       - name: Build uberjar
         run: lein uberjar
 
