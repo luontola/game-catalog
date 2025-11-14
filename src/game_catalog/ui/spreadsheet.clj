@@ -17,9 +17,11 @@
                    :data-entity-id (:entity/id entity)}
       (map-indexed
         (fn [idx column]
-          [:td {:tabindex 0
-                :autofocus (= idx focus-index)}
-           (get entity (:column/entity-key column))])
+          (let [focus? (= idx focus-index)]
+            [:td {:tabindex 0
+                  :autofocus focus?
+                  :auto-scroll-into-view focus?}
+             (get entity (:column/entity-key column))]))
         (:columns config))])))
 
 (defn edit-row

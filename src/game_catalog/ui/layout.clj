@@ -16,7 +16,7 @@
            [:link {:rel "stylesheet", :href "/simple.css"}]
            [:link {:rel "stylesheet", :href "/styles.css"}]
            [:script {:src "https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-alpha2/dist/htmx.min.js"}]
-           [:script {:src "/scripts.js"}]]
+           [:script {:src "/scripts.js", :type "module"}]]
           [:body {:hx-headers:inherited (html/anti-forgery-headers-json)}
            [:header
             [:h1 "Game Catalog"]

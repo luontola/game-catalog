@@ -61,22 +61,6 @@ function saveAndExitEditMode(row, cell = null) {
         formData.append('focusIndex', `${cellIndex}`)
     }
 
-    if (entityId === 'new') {
-        // After adding a new row, scroll it into view so it's not hidden behind the sticky adding row
-        document.addEventListener('htmx:after:swap', () => {
-            // The swap replaces the adding row with the new viewing row + a fresh adding row.
-            // So we need to find the second-to-last row (the newly added one) and scroll it into view.
-            const tbody = document.querySelector(`tr[data-entity-type="${entityType}"]`)?.closest('tbody')
-            if (tbody) {
-                const rows = tbody.querySelectorAll('tr')
-                const newRow = rows[rows.length - 2]
-                if (newRow) {
-                    newRow.scrollIntoView({behavior: 'smooth', block: 'nearest'})
-                }
-            }
-        }, {once: true})
-    }
-
     htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/save`, {
         target: row,
         swap: 'outerHTML',
@@ -253,4 +237,23 @@ document.addEventListener('dblclick', (e) => {
         return
     }
     enterEditMode(row, cell)
+})
+
+// Watch for elements with auto-scroll-into-view and scroll them into view
+const autoScrollObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const attr = 'auto-scroll-into-view';
+                if (node.hasAttribute(attr)) {
+                    node.scrollIntoView({behavior: 'smooth', block: 'nearest'})
+                    node.removeAttribute(attr)
+                }
+            }
+        }
+    }
+})
+autoScrollObserver.observe(document.body, {
+    childList: true,
+    subtree: true
 })
