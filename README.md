@@ -43,3 +43,8 @@ Run tests once or automatically
 
     lein kaocha
     lein kaocha --watch
+                     
+GraalVM
+
+asdf install java graalvm-community-25.0.1
+asdf set java graalvm-community-25.0.1

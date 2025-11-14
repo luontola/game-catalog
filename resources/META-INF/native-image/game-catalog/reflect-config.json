@@ -1,0 +1,21 @@
+[
+  {
+    "name": "clojure.lang.Compiler",
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "clojure.lang.RT",
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "clojure.lang.Var",
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "clojure.lang.IFn",
+    "allDeclaredMethods": true
+  }
+]
