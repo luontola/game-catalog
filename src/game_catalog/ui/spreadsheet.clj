@@ -43,10 +43,10 @@
                          (get entity col-key)
                          [:input {:type "text"
                                   :form form-id
-                                  :name (subs (str col-key) 1)
+                                  :name (subs (str col-key) 1) ; namespaced keyword without the ":" prefix
                                   :value (get entity col-key)
                                   :autofocus (= idx focus-index)
-                                  :data-1p-ignore true}])])))
+                                  :data-1p-ignore true}])]))) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
           (:columns config))]))))
 
 (defn table [config]
