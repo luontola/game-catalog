@@ -1,12 +1,14 @@
-FROM ghcr.io/graalvm/native-image-community:23 AS builder
+FROM ghcr.io/graalvm/native-image-community:25 AS builder
 
 WORKDIR /build
 
 COPY target/uberjar/game-catalog.jar /build/game-catalog.jar
 
+# https://github.com/clj-easy/graalvm-clojure/blob/master/doc/clojure-graalvm-native-binary.md
 RUN native-image \
+    --report-unsupported-elements-at-runtime \
+    --initialize-at-build-time \
     --no-fallback \
-    --install-exit-handlers \
     -H:+ReportExceptionStackTraces \
     -jar game-catalog.jar \
     game-catalog
