@@ -76,7 +76,7 @@ main {
         background-color: #f5f5f5;
     }
 
-    tr.editing {
+    tr.editing:has(td:focus, input:focus) {
         background-color: var(--marked);
     }
 }
