@@ -84,12 +84,19 @@ document.addEventListener('keydown', (e) => {
         return
     }
 
-    // Check if we're in an input field within a spreadsheet row (edit mode)
-    if (e.target.matches('.spreadsheet input')) {
+    // Determine if we're in a spreadsheet context
+    const cell = e.target.closest('.spreadsheet td')
+    if (!cell) {
+        return
+    }
+    const row = cell.closest('tr')
+    const inEditMode = row.classList.contains('editing')
+    const inInput = e.target.matches('input')
+
+    // Handle edit mode (both inputs and read-only cells)
+    if (inEditMode) {
         if (e.key === 'Enter' || e.key === 'F2') {
-            // Exit edit mode for this row and save changes (only if modified)
-            const row = e.target.closest('tr')
-            const cell = e.target.closest('td')
+            // Exit edit mode and save changes (only if modified)
             if (isFormModified(row)) {
                 saveAndExitEditMode(row, cell)
             } else {
@@ -98,20 +105,15 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault()
             return
         } else if (e.key === 'Escape') {
-            // Cancel edit mode for this row without saving
-            const row = e.target.closest('tr')
-            const cell = e.target.closest('td')
+            // Cancel edit mode without saving
             cancelEditMode(row, cell)
             e.preventDefault()
             return
-        } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-            // Move focus to the adjacent row (focusout handler will save/cancel as needed)
-            const row = e.target.closest('tr')
-            const cell = e.target.closest('td')
+        } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && inInput) {
+            // Move focus to adjacent row (focusout handler will save/cancel as needed)
             const cellIndex = getCellIndex(row, cell)
             const targetRow = e.key === 'ArrowUp' ? row.previousElementSibling : row.nextElementSibling
             if (targetRow) {
-                // Just move focus - this will trigger focusout which handles save/cancel
                 const targetCell = targetRow.children[cellIndex]
                 const input = targetCell.querySelector('input')
                 if (input) {
@@ -123,58 +125,33 @@ document.addEventListener('keydown', (e) => {
                 return
             }
         }
-    }
-
-    // Intercept only when a spreadsheet cell has the focus
-    const cell = e.target
-    if (!cell.matches('.spreadsheet td')) {
+        // For other keys in edit mode (like arrow left/right in inputs), let browser handle
         return
     }
 
-    const row = cell.parentElement
-
-    // Check if we're in a read-only cell in edit mode
-    if (row.classList.contains('editing')) {
-        if (e.key === 'Enter' || e.key === 'F2') {
-            // Exit edit mode for this row and save changes (only if modified)
-            if (isFormModified(row)) {
-                saveAndExitEditMode(row, cell)
-            } else {
-                cancelEditMode(row, cell)
-            }
-            e.preventDefault()
-            return
-        } else if (e.key === 'Escape') {
-            // Cancel edit mode for this row without saving
-            cancelEditMode(row, cell)
-            e.preventDefault()
-            return
-        }
-    }
-
+    // Handle view mode
     if (e.key === 'Enter' || e.key === 'F2') {
-        // Enter edit mode for this row
         enterEditMode(row, cell)
         e.preventDefault()
         return
     }
 
+    // Handle arrow key navigation
     let targetCell = null
     if (e.key === 'ArrowLeft') {
         targetCell = cell.previousElementSibling
     } else if (e.key === 'ArrowRight') {
         targetCell = cell.nextElementSibling
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        const row = cell.parentElement
-        const cellIndex = Array.from(row.children).indexOf(cell)
+        const cellIndex = getCellIndex(row, cell)
         const targetRow = e.key === 'ArrowUp' ? row.previousElementSibling : row.nextElementSibling
         if (targetRow) {
             targetCell = targetRow.children[cellIndex]
         }
     }
+
     if (targetCell) {
         e.preventDefault()
-        // If the target cell contains an input (i.e. it's the add-row), focus that instead of the cell
         const input = targetCell.querySelector('input')
         if (input) {
             input.focus()
@@ -231,11 +208,13 @@ document.addEventListener('focusin', (e) => {
 // Otherwise, the first autofocus in the DOM always grabs the focus.
 document.addEventListener('focusin', e => {
     const node = e.target;
-    if (node.matches('input') && node.hasAttribute('autofocus')) {
-        // When autofocus focuses a text input element, the cursor will be
-        // in the front of any existing text. We want to select all the text.
-        // Then the user can easily replace it or press the right arrow to append text.
-        node.select()
+    if (node.hasAttribute('autofocus')) {
+        if (node.matches('input')) {
+            // When autofocus focuses a text input element, the cursor will be
+            // in the front of any existing text. We want to select all the text.
+            // Then the user can easily replace it or press the right arrow to append text.
+            node.select()
+        }
         node.removeAttribute('autofocus')
     }
 })
