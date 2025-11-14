@@ -52,15 +52,17 @@ function saveAndExitEditMode(row, cell = null) {
     }
 
     if (entityId === 'new') {
-        // If adding a new row, store the add-row's position to restore it after swap,
-        // so that the adding row won't scroll down off the screen.
-        const addRowTop = row.getBoundingClientRect().top
+        // After adding a new row, scroll it into view so it's not hidden behind the sticky adding row
         document.addEventListener('htmx:after:swap', () => {
-            const newAddRow = document.querySelector(`tr[data-entity-type="${entityType}"][data-entity-id="new"]`)
-            if (newAddRow) {
-                const newAddRowTop = newAddRow.getBoundingClientRect().top
-                const scrollDelta = newAddRowTop - addRowTop
-                window.scrollBy(0, scrollDelta)
+            // The swap replaces the adding row with the new viewing row + a fresh adding row.
+            // So we need to find the second-to-last row (the newly added one) and scroll it into view.
+            const tbody = document.querySelector(`tr[data-entity-type="${entityType}"]`)?.closest('tbody')
+            if (tbody) {
+                const rows = tbody.querySelectorAll('tr')
+                const newRow = rows[rows.length - 2]
+                if (newRow) {
+                    newRow.scrollIntoView({behavior: 'smooth', block: 'nearest'})
+                }
             }
         }, {once: true})
     }

@@ -1,3 +1,8 @@
+html {
+    /* Account for sticky adding row at the bottom, when scrolling the just added row into view */
+    scroll-padding-bottom: 5rem;
+}
+
 header {
     display: flex;
     justify-content: space-between;
@@ -78,5 +83,11 @@ main {
 
     tr.editing:has(td:focus, input:focus) {
         background-color: var(--marked);
+    }
+
+    tr.adding {
+        position: sticky;
+        bottom: 0;
+        background-color: var(--bg);
     }
 }
