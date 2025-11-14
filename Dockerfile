@@ -8,8 +8,7 @@ COPY target/uberjar/game-catalog.jar /build/game-catalog.jar
 RUN native-image \
     --report-unsupported-elements-at-runtime \
     --initialize-at-build-time \
-    --no-fallback \
-    -H:+ReportExceptionStackTraces \
+    --no-server \
     -jar game-catalog.jar \
     game-catalog
 
