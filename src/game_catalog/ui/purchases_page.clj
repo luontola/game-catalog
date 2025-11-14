@@ -7,14 +7,11 @@
             [game-catalog.ui.spreadsheet :as spreadsheet]))
 
 (defn purchases-page-handler [request]
-  (let [collection-key (:collection-key purchases/config)
-        all-purchases (->> (db/get-all collection-key)
-                           (sort-by (comp clojure.string/lower-case :purchase/date)))]
-    (-> (h/html
-          [:h2 "Purchases"]
-          (spreadsheet/table purchases/config all-purchases))
-        (layout/page)
-        (html/response))))
+  (-> (h/html
+        [:h2 "Purchases"]
+        (spreadsheet/table purchases/config))
+      (layout/page)
+      (html/response)))
 
 (def routes
   [["/purchases"

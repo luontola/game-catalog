@@ -6,6 +6,7 @@
 
 (def config
   {:collection-key :purchases
+   :sort-by :purchase/date
    :columns [{:column/name "#"
               :entity/key :entity/id}
              {:column/name "Shop"

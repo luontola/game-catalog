@@ -6,6 +6,7 @@
 
 (def config
   {:collection-key :games
+   :sort-by (comp clojure.string/lower-case :game/name)
    :columns [{:column/name "#"
               :entity/key :entity/id}
              {:column/name "Name"

@@ -7,14 +7,11 @@
             [game-catalog.ui.spreadsheet :as spreadsheet]))
 
 (defn games-page-handler [request]
-  (let [collection-key (:collection-key games/config)
-        all-games (->> (db/get-all collection-key)
-                       (sort-by (comp clojure.string/lower-case :game/name)))]
-    (-> (h/html
-          [:h2 "Games"]
-          (spreadsheet/table games/config all-games))
-        (layout/page)
-        (html/response))))
+  (-> (h/html
+        [:h2 "Games"]
+        (spreadsheet/table games/config))
+      (layout/page)
+      (html/response)))
 
 (def routes
   [["/games"

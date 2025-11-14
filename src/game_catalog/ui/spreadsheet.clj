@@ -44,16 +44,18 @@
                                 :data-1p-ignore true}]])))
           (:columns config))]))))
 
-(defn table [config entities]
-  (h/html
-    [:table.spreadsheet
-     [:thead
-      [:tr
-       (for [column (:columns config)]
-         [:th (:column/name column)])]]
-     [:tbody
-      (for [entity entities]
-        (view-row config entity))]]))
+(defn table [config]
+  (let [entities (->> (db/get-all (:collection-key config))
+                      (sort-by (:sort-by config)))]
+    (h/html
+      [:table.spreadsheet
+       [:thead
+        [:tr
+         (for [column (:columns config)]
+           [:th (:column/name column)])]]
+       [:tbody
+        (for [entity entities]
+          (view-row config entity))]])))
 
 (defn view-row-handler [config]
   (fn [request]
@@ -63,7 +65,7 @@
           entity (db/get-by-id collection-key entity-id)]
       (if entity
         (html/response (view-row config entity focus-index))
-        (-> (html/response (str (name collection-key) " not found"))
+        (-> (html/response "Row not found")
             (response/status 404))))))
 
 (defn edit-row-handler [config]
@@ -74,7 +76,7 @@
           entity (db/get-by-id collection-key entity-id)]
       (if entity
         (html/response (edit-row config entity focus-index))
-        (-> (html/response (str (name collection-key) " not found"))
+        (-> (html/response "Row not found")
             (response/status 404))))))
 
 (defn save-row-handler [config]
