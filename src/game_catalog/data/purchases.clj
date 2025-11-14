@@ -5,20 +5,20 @@
             [mount.core :as mount]))
 
 (def columns
-  {:entity/id {:column/name "#"
-               :column/display-order 1}
-   :purchase/shop {:column/name "Shop"
-                   :column/display-order 2}
-   :purchase/date {:column/name "Date"
-                   :column/display-order 3}
-   :purchase/cost {:column/name "Cost"
-                   :column/display-order 4}
-   :purchase/base-games {:column/name "Base Games"
-                         :column/display-order 5}
-   :purchase/dlcs {:column/name "DLCs"
-                   :column/display-order 6}
-   :purchase/bundle-name {:column/name "Bundle Name"
-                          :column/display-order 7}})
+  [{:entity/key :entity/id
+    :column/name "#"}
+   {:entity/key :purchase/shop
+    :column/name "Shop"}
+   {:entity/key :purchase/date
+    :column/name "Date"}
+   {:entity/key :purchase/cost
+    :column/name "Cost"}
+   {:entity/key :purchase/base-games
+    :column/name "Base Games"}
+   {:entity/key :purchase/dlcs
+    :column/name "DLCs"}
+   {:entity/key :purchase/bundle-name
+    :column/name "Bundle Name"}])
 
 (def csv-column-keys
   [:entity/id

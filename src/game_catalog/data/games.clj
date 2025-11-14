@@ -5,26 +5,26 @@
             [mount.core :as mount]))
 
 (def columns
-  {:entity/id {:column/name "#"
-               :column/display-order 1}
-   :game/name {:column/name "Name"
-               :column/display-order 2}
-   :game/release {:column/name "Release"
-                  :column/display-order 3}
-   :game/remake {:column/name "Remake"
-                 :column/display-order 4}
-   :game/series {:column/name "Series"
-                 :column/display-order 5}
-   :game/tags {:column/name "Tags"
-               :column/display-order 6}
-   :game/purchases {:column/name "Purchases"
-                    :column/display-order 7}
-   :game/status {:column/name "Status"
-                 :column/display-order 8}
-   :game/content {:column/name "Content"
-                  :column/display-order 9}
-   :game/dlcs {:column/name "DLCs"
-               :column/display-order 10}})
+  [{:entity/key :entity/id
+    :column/name "#"}
+   {:entity/key :game/name
+    :column/name "Name"}
+   {:entity/key :game/release
+    :column/name "Release"}
+   {:entity/key :game/remake
+    :column/name "Remake"}
+   {:entity/key :game/series
+    :column/name "Series"}
+   {:entity/key :game/tags
+    :column/name "Tags"}
+   {:entity/key :game/purchases
+    :column/name "Purchases"}
+   {:entity/key :game/status
+    :column/name "Status"}
+   {:entity/key :game/content
+    :column/name "Content"}
+   {:entity/key :game/dlcs
+    :column/name "DLCs"}])
 
 (def csv-column-keys
   [:entity/id
