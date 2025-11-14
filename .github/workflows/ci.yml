@@ -42,7 +42,8 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-          cache: 'leiningen'
+          cache: 'maven'
+          cache-dependency-path: 'project.clj'
 
       - name: Install Leiningen
         run: |
