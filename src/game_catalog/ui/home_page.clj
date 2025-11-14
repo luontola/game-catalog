@@ -10,7 +10,8 @@
                       (->
                         (h/html
                           [:p "hello world"]
-                          [:button {:hx-post "/clicked" :hx-swap "outerHTML"}
+                          [:button {:hx-post "/clicked"
+                                    :hx-swap "outerHTML"}
                            "Click Me"])
                         (layout/page)
                         (html/response)))}}]
@@ -18,6 +19,7 @@
     {:post {:handler (fn [request]
                        (->
                          (h/html
-                           [:button {:hx-post "/clicked" :hx-swap "outerHTML"}
+                           [:button {:hx-post "/clicked"
+                                     :hx-swap "outerHTML"}
                             "Clicked at " (LocalDateTime/now)])
                          (html/response)))}}]])

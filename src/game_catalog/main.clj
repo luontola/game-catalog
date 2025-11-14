@@ -25,7 +25,8 @@
   (log-mount-states (mount/stop)))
 
 (defn start-app []
-  (start-logging! {:level "info" :console true})
+  (start-logging! {:level "info"
+                   :console true})
   (log-mount-states (mount/start)))
 
 (defn -main [& _args]
