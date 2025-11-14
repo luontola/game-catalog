@@ -11,6 +11,24 @@ After cloning the repository, set up the data directory:
 
 This creates a `data/` directory that contains the CSV data files from the `data` branch.
 
+## Running with Docker
+
+Run the published Docker image from GitHub Container Registry:
+
+    docker run -p 8080:8080 ghcr.io/luontola/game-catalog:latest
+    open http://localhost:8080/
+
+Or run a specific version (format: YYYY-MM-DD.BUILD):
+
+    docker run -p 8080:8080 ghcr.io/luontola/game-catalog:2024-11-14.123
+    open http://localhost:8080/
+
+Or build and run locally:
+
+    ./build.sh
+    docker run -p 8080:8080 game-catalog:latest
+    open http://localhost:8080/
+
 ## Developing
 
 Start the app
@@ -23,9 +41,3 @@ Run tests once or automatically
 
     lein kaocha
     lein kaocha --watch
-
-Build and run with Docker:
-
-    ./build.sh
-    docker run -p 8080:8080 game-catalog:latest
-    open http://localhost:8080/
