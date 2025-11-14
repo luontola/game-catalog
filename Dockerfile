@@ -1,11 +1,24 @@
-FROM eclipse-temurin:25-jre
+FROM ghcr.io/graalvm/native-image-community:23 AS builder
+
+WORKDIR /build
+
+COPY target/uberjar/game-catalog.jar /build/game-catalog.jar
+
+RUN native-image \
+    --no-fallback \
+    --install-exit-handlers \
+    -H:+ReportExceptionStackTraces \
+    -jar game-catalog.jar \
+    game-catalog
+
+FROM ubuntu:24.04
 
 RUN groupadd -r app \
     && useradd -r -g app app
 
 WORKDIR /app
 
-COPY target/uberjar/game-catalog.jar /app/game-catalog.jar
+COPY --from=builder /build/game-catalog /app/game-catalog
 
 COPY data/*.csv /app/data/
 
@@ -15,8 +28,4 @@ USER app
 
 EXPOSE 8080
 
-CMD ["java", \
-     "-XX:MaxRAMPercentage=70", \
-     "-XX:+UseCompactObjectHeaders", \
-     "-XX:+PrintCommandLineFlags", \
-     "-jar", "game-catalog.jar"]
+CMD ["/app/game-catalog"]

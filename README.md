@@ -13,6 +13,8 @@ This creates a `data/` directory that contains the CSV data files from the `data
 
 ## Running with Docker
 
+The application is compiled to a native binary using GraalVM native-image for fast startup and low memory usage.
+
 Run the published Docker image from GitHub Container Registry:
 
     docker run -p 8080:8080 ghcr.io/luontola/game-catalog:latest
@@ -23,7 +25,7 @@ Or run a specific version (format: YYYY-MM-DD.BUILD):
     docker run -p 8080:8080 ghcr.io/luontola/game-catalog:2024-11-14.123
     open http://localhost:8080/
 
-Or build and run locally:
+Or build and run locally (note: native-image compilation takes several minutes):
 
     ./build.sh
     docker run -p 8080:8080 game-catalog:latest
