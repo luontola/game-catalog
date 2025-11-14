@@ -1,6 +1,5 @@
 (ns game-catalog.ui.purchases-page
-  (:require [game-catalog.data.db :as db]
-            [game-catalog.data.purchases :as purchases]
+  (:require [game-catalog.data.purchases :as purchases]
             [game-catalog.infra.hiccup :as h]
             [game-catalog.infra.html :as html]
             [game-catalog.ui.layout :as layout]
