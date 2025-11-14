@@ -36,7 +36,10 @@ function saveAndExitEditMode(row, cell = null) {
         const cellIndex = getCellIndex(row, cell)
         formData.append('focusIndex', `${cellIndex}`)
     }
-    htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/save`, {
+
+    htmx.ajax('POST', entityId === 'new'
+        ? `/spreadsheet/${entityType}/add`
+        : `/spreadsheet/${entityType}/${entityId}/save`, {
         target: row,
         swap: 'outerHTML',
         values: Object.fromEntries(formData)

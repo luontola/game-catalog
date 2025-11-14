@@ -26,10 +26,11 @@
    (edit-row config entity nil))
   ([config entity focus-index]
    (let [entity-type (entity-type config)
-         form-id (str entity-type "-form-" (:entity/id entity))]
+         entity-id (:entity/id entity)
+         form-id (str entity-type "-form-" entity-id)]
      (h/html
        [:tr.editing {:data-entity-type entity-type
-                     :data-entity-id (:entity/id entity)}
+                     :data-entity-id entity-id}
         (map-indexed
           (fn [idx column]
             (let [col-key (:column/entity-key column)
@@ -49,6 +50,35 @@
                                   :data-1p-ignore true}])]))) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
           (:columns config))]))))
 
+(defn add-row
+  ([config]
+   (add-row config nil))
+  ([config focus-index]
+   (let [entity-type (entity-type config)
+         entity-id "new"
+         form-id (str entity-type "-form-" entity-id)]
+     (h/html
+       [:tr.editing.adding {:data-entity-type entity-type
+                            :data-entity-id entity-id}
+        (map-indexed
+          (fn [idx column]
+            (let [col-key (:column/entity-key column)
+                  read-only? (:column/read-only? column)]
+              (h/html [:td (when read-only?
+                             {:tabindex 0
+                              :autofocus (= idx focus-index)})
+                       (when (zero? idx)
+                         [:form {:id form-id}])
+                       (if read-only?
+                         ""
+                         [:input {:type "text"
+                                  :form form-id
+                                  :name (subs (str col-key) 1) ; namespaced keyword without the ":" prefix
+                                  :value ""
+                                  :autofocus (= idx focus-index)
+                                  :data-1p-ignore true}])]))) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
+          (:columns config))]))))
+
 (defn table [config]
   (let [entities (->> (db/get-all (:collection-key config))
                       (sort-by (:sort-by config)))]
@@ -60,7 +90,8 @@
            [:th (:column/name column)])]]
        [:tbody
         (for [entity entities]
-          (view-row config entity))]])))
+          (view-row config entity))
+        (add-row config)]])))
 
 (defn view-row-handler [config]
   (fn [request]
@@ -68,10 +99,12 @@
           entity-id (get-in request [:path-params :entity-id])
           focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
           entity (db/get-by-id collection-key entity-id)]
-      (if entity
-        (html/response (view-row config entity focus-index))
-        (-> (html/response "Row not found")
-            (response/status 404))))))
+      (if (= entity-id "new")
+        (html/response (add-row config focus-index))
+        (if entity
+          (html/response (view-row config entity focus-index))
+          (-> (html/response "Row not found")
+              (response/status 404)))))))
 
 (defn edit-row-handler [config]
   (fn [request]
@@ -84,13 +117,39 @@
         (-> (html/response "Row not found")
             (response/status 404))))))
 
+(defn- generate-new-id [collection-key]
+  (let [entities (db/get-all collection-key)
+        max-id (->> entities
+                    (map :entity/id)
+                    (map parse-long)
+                    (apply max 0))]
+    (str (inc max-id))))
+
+(defn add-row-handler [config]
+  (fn [request]
+    (let [collection-key (:collection-key config)
+          focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
+          new-id (generate-new-id collection-key)
+          entity-keys-whitelist (map :column/entity-key (:columns config))
+          new-entity (-> (:params request)
+                         (update-keys keyword)
+                         (select-keys entity-keys-whitelist)
+                         (assoc :entity/id new-id))]
+      (db/save! collection-key new-entity)
+      (println (str "Added " (name collection-key) " " new-id ":")
+               (pr-str new-entity))
+      (html/response
+        (h/html
+          (view-row config new-entity focus-index)
+          (add-row config))))))
+
 (defn save-row-handler [config]
   (fn [request]
     (let [collection-key (:collection-key config)
           entity-id (get-in request [:path-params :entity-id])
           focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
           old-entity (db/get-by-id collection-key entity-id)
-          _ (assert old-entity) ; TODO: support adding new entities
+          _ (assert old-entity)
           entity-keys-whitelist (map :column/entity-key (:columns config))
           updates (-> (:params request)
                       (update-keys keyword)
@@ -108,4 +167,6 @@
      [(str "/spreadsheet/" entity-type "/:entity-id/edit")
       {:post {:handler (edit-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/save")
-      {:post {:handler (save-row-handler config)}}]]))
+      {:post {:handler (save-row-handler config)}}]
+     [(str "/spreadsheet/" entity-type "/add")
+      {:post {:handler (add-row-handler config)}}]]))
