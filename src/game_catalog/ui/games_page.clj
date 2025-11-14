@@ -10,7 +10,8 @@
   ([game] (view-game-row game nil))
   ([game focus-index]
    (h/html
-     [:tr.viewing {:data-game-id (:entity/id game)}
+     [:tr.viewing {:data-entity-type "games"
+                   :data-entity-id (:entity/id game)}
       (map-indexed
         (fn [idx col-key]
           [:td {:tabindex 0
@@ -23,7 +24,8 @@
   ([game focus-index]
    (let [form-id (str "game-form-" (:entity/id game))]
      (h/html
-       [:tr.editing {:data-game-id (:entity/id game)}
+       [:tr.editing {:data-entity-type "games"
+                     :data-entity-id (:entity/id game)}
         (map-indexed
           (fn [idx col-key]
             (h/html [:td

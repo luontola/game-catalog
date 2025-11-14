@@ -4,10 +4,16 @@ function getCellIndex(row, cell) {
     return Array.from(row.children).indexOf(cell);
 }
 
+function getEntityInfo(row) {
+    const entityType = row.dataset.entityType
+    const entityId = row.dataset.entityId
+    return {entityType, entityId}
+}
+
 function enterEditMode(row, cell) {
-    const gameId = row.dataset.gameId
+    const {entityType, entityId} = getEntityInfo(row)
     const cellIndex = getCellIndex(row, cell)
-    htmx.ajax('POST', `/games/${gameId}/edit`, {
+    htmx.ajax('POST', `/${entityType}/${entityId}/edit`, {
         target: row,
         swap: 'outerHTML',
         values: {focusIndex: cellIndex}
@@ -23,14 +29,14 @@ function saveAndExitEditMode(row, cell = null) {
     }
     row.dataset.exiting = 'true'
 
-    const gameId = row.dataset.gameId
+    const {entityType, entityId} = getEntityInfo(row)
     const form = row.querySelector('form')
     const formData = new FormData(form)
     if (cell) {
         const cellIndex = getCellIndex(row, cell)
         formData.append('focusIndex', `${cellIndex}`)
     }
-    htmx.ajax('POST', `/games/${gameId}/save`, {
+    htmx.ajax('POST', `/${entityType}/${entityId}/save`, {
         target: row,
         swap: 'outerHTML',
         values: Object.fromEntries(formData)
@@ -43,13 +49,13 @@ function cancelEditMode(row, cell = null) {
     }
     row.dataset.exiting = 'true'
 
-    const gameId = row.dataset.gameId
+    const {entityType, entityId} = getEntityInfo(row)
     const values = {}
     if (cell) {
         const cellIndex = getCellIndex(row, cell)
         values.focusIndex = cellIndex
     }
-    htmx.ajax('POST', `/games/${gameId}/view`, {
+    htmx.ajax('POST', `/${entityType}/${entityId}/view`, {
         target: row,
         swap: 'outerHTML',
         values: values
