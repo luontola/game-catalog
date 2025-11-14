@@ -11,11 +11,11 @@
                            (sort-by (comp clojure.string/lower-case :purchase/date)))]
     (-> (h/html
           [:h2 "Purchases"]
-          (spreadsheet/table :purchases all-purchases purchases/columns purchases/csv-column-keys))
+          (spreadsheet/table :purchases all-purchases purchases/columns))
         (layout/page)
         (html/response))))
 
 (def routes
   [["/purchases"
     {:get {:handler purchases-page-handler}}]
-   (spreadsheet/make-routes :purchases purchases/csv-column-keys)])
+   (spreadsheet/make-routes :purchases purchases/columns)])

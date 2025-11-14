@@ -11,11 +11,11 @@
                        (sort-by (comp clojure.string/lower-case :game/name)))]
     (-> (h/html
           [:h2 "Games"]
-          (spreadsheet/table :games all-games games/columns games/csv-column-keys))
+          (spreadsheet/table :games all-games games/columns))
         (layout/page)
         (html/response))))
 
 (def routes
   [["/games"
     {:get {:handler games-page-handler}}]
-   (spreadsheet/make-routes :games games/csv-column-keys)])
+   (spreadsheet/make-routes :games games/columns)])
