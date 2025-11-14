@@ -4,25 +4,28 @@
             [game-catalog.infra.html :as html]
             [ring.util.response :as response]))
 
+(defn- entity-type [config]
+  (name (:collection-key config)))
+
 (defn view-row
-  ([collection-key entity columns]
-   (view-row collection-key entity columns nil))
-  ([collection-key entity columns focus-index]
+  ([config entity]
+   (view-row config entity nil))
+  ([config entity focus-index]
    (h/html
-     [:tr.viewing {:data-entity-type (name collection-key)
+     [:tr.viewing {:data-entity-type (entity-type config)
                    :data-entity-id (:entity/id entity)}
       (map-indexed
         (fn [idx column]
           [:td {:tabindex 0
                 :autofocus (= idx focus-index)}
            (get entity (:entity/key column))])
-        columns)])))
+        (:columns config))])))
 
 (defn edit-row
-  ([collection-key entity columns]
-   (edit-row collection-key entity columns nil))
-  ([collection-key entity columns focus-index]
-   (let [entity-type (name collection-key)
+  ([config entity]
+   (edit-row config entity nil))
+  ([config entity focus-index]
+   (let [entity-type (entity-type config)
          form-id (str entity-type "-form-" (:entity/id entity))]
      (h/html
        [:tr.editing {:data-entity-type entity-type
@@ -39,56 +42,60 @@
                                 :value (get entity col-key)
                                 :autofocus (= idx focus-index)
                                 :data-1p-ignore true}]])))
-          columns)]))))
+          (:columns config))]))))
 
-(defn table [collection-key entities columns]
+(defn table [config entities]
   (h/html
     [:table.spreadsheet
      [:thead
       [:tr
-       (for [column columns]
+       (for [column (:columns config)]
          [:th (:column/name column)])]]
      [:tbody
       (for [entity entities]
-        (view-row collection-key entity columns))]]))
+        (view-row config entity))]]))
 
-(defn view-row-handler [collection-key columns]
+(defn view-row-handler [config]
   (fn [request]
-    (let [entity-id (get-in request [:path-params :entity-id])
+    (let [collection-key (:collection-key config)
+          entity-id (get-in request [:path-params :entity-id])
           focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
           entity (db/get-by-id collection-key entity-id)]
       (if entity
-        (html/response (view-row collection-key entity columns focus-index))
+        (html/response (view-row config entity focus-index))
         (-> (html/response (str (name collection-key) " not found"))
             (response/status 404))))))
 
-(defn edit-row-handler [collection-key columns]
+(defn edit-row-handler [config]
   (fn [request]
-    (let [entity-id (get-in request [:path-params :entity-id])
+    (let [collection-key (:collection-key config)
+          entity-id (get-in request [:path-params :entity-id])
           focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
           entity (db/get-by-id collection-key entity-id)]
       (if entity
-        (html/response (edit-row collection-key entity columns focus-index))
+        (html/response (edit-row config entity focus-index))
         (-> (html/response (str (name collection-key) " not found"))
             (response/status 404))))))
 
-(defn save-row-handler [collection-key columns]
+(defn save-row-handler [config]
   (fn [request]
-    (let [entity-id (get-in request [:path-params :entity-id])
+    (let [collection-key (:collection-key config)
+          entity-id (get-in request [:path-params :entity-id])
           focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
-          entity-keys-whitelist (map :entity/key columns)
+          entity-keys-whitelist (map :entity/key (:columns config))
           new-entity (-> (:params request)
                          (update-keys keyword)
                          (select-keys entity-keys-whitelist))]
       (db/save! collection-key new-entity)
       (println (str "Saved " (name collection-key) " " entity-id ":")
                (pr-str new-entity))
-      (html/response (view-row collection-key new-entity columns focus-index)))))
+      (html/response (view-row config new-entity focus-index)))))
 
-(defn make-routes [collection-key columns]
-  [[(str "/spreadsheet/" (name collection-key) "/:entity-id/view")
-    {:post {:handler (view-row-handler collection-key columns)}}]
-   [(str "/spreadsheet/" (name collection-key) "/:entity-id/edit")
-    {:post {:handler (edit-row-handler collection-key columns)}}]
-   [(str "/spreadsheet/" (name collection-key) "/:entity-id/save")
-    {:post {:handler (save-row-handler collection-key columns)}}]])
+(defn make-routes [config]
+  (let [entity-type (entity-type config)]
+    [[(str "/spreadsheet/" entity-type "/:entity-id/view")
+      {:post {:handler (view-row-handler config)}}]
+     [(str "/spreadsheet/" entity-type "/:entity-id/edit")
+      {:post {:handler (edit-row-handler config)}}]
+     [(str "/spreadsheet/" entity-type "/:entity-id/save")
+      {:post {:handler (save-row-handler config)}}]]))

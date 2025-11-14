@@ -4,27 +4,28 @@
             [game-catalog.data.db :as db]
             [mount.core :as mount]))
 
-(def columns
-  [{:entity/key :entity/id
-    :column/name "#"}
-   {:entity/key :game/name
-    :column/name "Name"}
-   {:entity/key :game/release
-    :column/name "Release"}
-   {:entity/key :game/remake
-    :column/name "Remake"}
-   {:entity/key :game/series
-    :column/name "Series"}
-   {:entity/key :game/tags
-    :column/name "Tags"}
-   {:entity/key :game/purchases
-    :column/name "Purchases"}
-   {:entity/key :game/status
-    :column/name "Status"}
-   {:entity/key :game/content
-    :column/name "Content"}
-   {:entity/key :game/dlcs
-    :column/name "DLCs"}])
+(def config
+  {:collection-key :games
+   :columns [{:column/name "#"
+              :entity/key :entity/id}
+             {:column/name "Name"
+              :entity/key :game/name}
+             {:column/name "Release"
+              :entity/key :game/release}
+             {:column/name "Remake"
+              :entity/key :game/remake}
+             {:column/name "Series"
+              :entity/key :game/series}
+             {:column/name "Tags"
+              :entity/key :game/tags}
+             {:column/name "Purchases"
+              :entity/key :game/purchases}
+             {:column/name "Status"
+              :entity/key :game/status}
+             {:column/name "Content"
+              :entity/key :game/content}
+             {:column/name "DLCs"
+              :entity/key :game/dlcs}]})
 
 (def csv-column-keys
   [:entity/id
@@ -46,4 +47,4 @@
            rows))))
 
 (mount/defstate games-loader
-  :start (db/init-collection! :games (read-games-from-csv)))
+  :start (db/init-collection! (:collection-key config) (read-games-from-csv)))

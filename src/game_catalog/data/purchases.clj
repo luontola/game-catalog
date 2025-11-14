@@ -4,21 +4,22 @@
             [game-catalog.data.db :as db]
             [mount.core :as mount]))
 
-(def columns
-  [{:entity/key :entity/id
-    :column/name "#"}
-   {:entity/key :purchase/shop
-    :column/name "Shop"}
-   {:entity/key :purchase/date
-    :column/name "Date"}
-   {:entity/key :purchase/cost
-    :column/name "Cost"}
-   {:entity/key :purchase/base-games
-    :column/name "Base Games"}
-   {:entity/key :purchase/dlcs
-    :column/name "DLCs"}
-   {:entity/key :purchase/bundle-name
-    :column/name "Bundle Name"}])
+(def config
+  {:collection-key :purchases
+   :columns [{:column/name "#"
+              :entity/key :entity/id}
+             {:column/name "Shop"
+              :entity/key :purchase/shop}
+             {:column/name "Date"
+              :entity/key :purchase/date}
+             {:column/name "Cost"
+              :entity/key :purchase/cost}
+             {:column/name "Base Games"
+              :entity/key :purchase/base-games}
+             {:column/name "DLCs"
+              :entity/key :purchase/dlcs}
+             {:column/name "Bundle Name"
+              :entity/key :purchase/bundle-name}]})
 
 (def csv-column-keys
   [:entity/id
@@ -37,4 +38,4 @@
            rows))))
 
 (mount/defstate purchases-loader
-  :start (db/init-collection! :purchases (read-purchases-from-csv)))
+  :start (db/init-collection! (:collection-key config) (read-purchases-from-csv)))
