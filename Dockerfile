@@ -6,9 +6,8 @@ COPY target/uberjar/game-catalog.jar /build/game-catalog.jar
 
 # https://github.com/clj-easy/graalvm-clojure/blob/master/doc/clojure-graalvm-native-binary.md
 RUN native-image \
-    --report-unsupported-elements-at-runtime \
+    --initialize-at-run-time=clojure.lang.Compiler \
     --initialize-at-build-time \
-    --no-server \
     -jar game-catalog.jar \
     game-catalog
 
