@@ -32,7 +32,11 @@
     (db/init-collection! :stuff [{:entity/id "2", :name "Stuff"}])
     (is (= {:things {"1" {:entity/id "1", :name "Thing"}}
             :stuff {"2" {:entity/id "2", :name "Stuff"}}}
-           @db/*collections))))
+           @db/*collections)))
+
+  (testing "error: missing :entity/id"
+    (is (thrown? AssertionError
+                 (db/init-collection! :things [{:name "No ID"}])))))
 
 (deftest get-all-test
   (testing "non-existent collection"
@@ -92,4 +96,8 @@
       (db/init-collection! :things [thing-1])
       (db/save! :stuff stuff-1)
       (is (= [thing-1] (db/get-all :things)))
-      (is (= [stuff-1] (db/get-all :stuff))))))
+      (is (= [stuff-1] (db/get-all :stuff)))))
+
+  (testing "error: missing :entity/id"
+    (is (thrown? AssertionError
+                 (db/save! :things {:name "No ID"})))))
