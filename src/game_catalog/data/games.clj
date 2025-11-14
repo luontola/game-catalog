@@ -32,10 +32,8 @@
   (with-open [reader (io/reader "data/Games.csv")]
     (let [csv-data (doall (csv/read-csv reader))
           rows (rest csv-data)]
-      (->> rows
-           (map #(zipmap csv-column-keys %))
-           (map (fn [game] [(:entity/id game) game]))
-           (into {})))))
+      (map #(zipmap csv-column-keys %)
+           rows))))
 
 (mount/defstate games-loader
   :start (db/init-collection! :games (read-games-from-csv)))

@@ -13,5 +13,8 @@
 (defn update! [collection-key entity-id updated-entity]
   (swap! *collections assoc-in [collection-key entity-id] updated-entity))
 
-(defn init-collection! [collection-key data-map]
-  (swap! *collections assoc collection-key data-map))
+(defn init-collection! [collection-key entities]
+  (let [data-map (->> entities
+                      (map (fn [entity] [(:entity/id entity) entity]))
+                      (into {}))]
+    (swap! *collections assoc collection-key data-map)))
