@@ -90,7 +90,7 @@ main {
     /* Highlight the focused row */
 
     tr.viewing:has(td:focus) {
-        background-color: #f5f5f5;
+        background-color: var(--accent-bg);
     }
 
     tr.editing:has(td:focus, input:focus) {
