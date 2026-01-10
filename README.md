@@ -20,7 +20,7 @@ Run the published Docker image from GitHub Container Registry:
 
 Or run a specific version (format: YYYY-MM-DD.BUILD):
 
-    docker run -p 8080:8080 ghcr.io/luontola/game-catalog:2024-11-14.123
+    docker run -p 8080:8080 ghcr.io/luontola/game-catalog:2025-11-15.6
     open http://localhost:8080/
 
 Or build and run locally:
