@@ -80,11 +80,10 @@
   (testing "games page displays table with game data"
     (.navigate *page* (str *base-url* "/games"))
 
-    (let [table-content (-> (.locator *page* "table")
-                            (.evaluate "(element) => element.outerHTML"))]
+    (let [table (.locator *page* "table")]
       (is (= (html/normalize-whitespace "
              #  Name                                     Release  Remake  Series Tags                 Purchases  Status   Content  DLCs
              3  Hollow Knight                            2017                    Metroidvania, Indie             Backlog
              2  Portal 2                                 2011             Portal                                 Playing
              1  The Legend of Zelda: Breath of the Wild  2017             Zelda                                  Completed")
-             (html/visualize-html table-content))))))
+             (html/visualize-html table))))))

@@ -5,7 +5,8 @@
             [ring.middleware.anti-forgery :as anti-forgery]
             [ring.util.http-response :as http-response]
             [ring.util.response :as response])
-  (:import (org.jsoup Jsoup)
+  (:import (com.microsoft.playwright Locator)
+           (org.jsoup Jsoup)
            (org.jsoup.nodes Element Node TextNode)))
 
 ;;;; Common helpers
@@ -75,10 +76,11 @@
       (visit node))
     (normalize-whitespace (.toString result))))
 
-(defn visualize-html [^String html]
+(defn visualize-html [html]
   (cond
     (nil? html) ""
-    (string? html) (if (str/blank? html)
+    (string? html) (if (str/blank? ^String html)
                      ""
-                     (visualize-html-element (.body (Jsoup/parse html))))
+                     (visualize-html-element (.body (Jsoup/parse ^String html))))
+    (instance? Locator html) (recur (.evaluate ^Locator html "(element) => element.outerHTML"))
     :else ""))
