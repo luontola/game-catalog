@@ -5,7 +5,8 @@
             [game-catalog.main :as main]
             [mount.core :as mount]
             [unilog.config :refer [start-logging!]])
-  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Page Playwright)))
+  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Page Playwright)
+           (org.eclipse.jetty.server NetworkConnector)))
 
 (def ^:dynamic ^String *base-url* nil)
 (def ^:dynamic ^Playwright *playwright* nil)
@@ -22,7 +23,7 @@
       (mount/with-args {:port 0})
       (mount/start))
   (try
-    (let [port (.getLocalPort (first (.getConnectors main/http-server)))]
+    (let [port (.getLocalPort ^NetworkConnector (first (.getConnectors main/http-server)))]
       (with-open [playwright (Playwright/create)
                   browser (.launch (.chromium playwright)
                                    (-> (BrowserType$LaunchOptions.)
