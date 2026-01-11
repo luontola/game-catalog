@@ -1,5 +1,11 @@
 #kaocha/v1
-{:tests [{:id :default
+{:tests [{:id :fast
+          :skip-meta [:slow]
+          :source-paths ["src" "resources"]
+          :test-paths ["src"]
+          :ns-patterns ["^game-catalog"]}
+         {:id :slow
+          :focus-meta [:slow]
           :source-paths ["src" "resources"]
           :test-paths ["src"]
           :ns-patterns ["^game-catalog"]}]

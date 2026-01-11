@@ -11,7 +11,7 @@
 (mount/defstate ^{:tag Server, :on-reload :noop} http-server
   :start
   (httpd/run-jetty #'webapp/app
-                   {:port 8080
+                   {:port (or (:port (mount/args)) 8080)
                     :join? false
                     :configurator (fn [^Server server]
                                     (.insertHandler server (GzipHandler.)))})

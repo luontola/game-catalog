@@ -46,7 +46,8 @@
                        :aot :all
                        :uberjar-name "game-catalog.jar"}
 
-             :dev {:dependencies [[etaoin "1.1.43"]
+             :dev {:dependencies [[com.microsoft.playwright/playwright "1.57.0"]
+                                  [etaoin "1.1.43"]
                                   [lambdaisland/kaocha "1.91.1392"]
                                   [ring/ring-devel "1.15.3"]
                                   [ring/ring-mock "0.6.2"]]
