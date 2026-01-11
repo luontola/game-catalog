@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [clojure.test :refer :all]
             [game-catalog.data.db :as db]
+            [game-catalog.infra.html :as html]
             [game-catalog.main :as main]
             [mount.core :as mount]
             [unilog.config :refer [start-logging!]])
@@ -79,12 +80,11 @@
   (testing "games page displays table with game data"
     (.navigate *page* (str *base-url* "/games"))
 
-    (let [table-content (.textContent *page* "table")]
-      (is (str/includes? table-content "The Legend of Zelda: Breath of the Wild"))
-      (is (str/includes? table-content "Portal 2"))
-      (is (str/includes? table-content "Hollow Knight"))
-      (is (str/includes? table-content "2017"))
-      (is (str/includes? table-content "2011"))
-      (is (str/includes? table-content "Completed"))
-      (is (str/includes? table-content "Playing"))
-      (is (str/includes? table-content "Backlog")))))
+    (let [table-content (-> (.locator *page* "table")
+                            (.evaluate "(element) => element.outerHTML"))]
+      (is (= (html/normalize-whitespace "
+             #  Name                                     Release  Remake  Series Tags                 Purchases  Status   Content  DLCs
+             3  Hollow Knight                            2017                    Metroidvania, Indie             Backlog
+             2  Portal 2                                 2011             Portal                                 Playing
+             1  The Legend of Zelda: Breath of the Wild  2017             Zelda                                  Completed")
+             (html/visualize-html table-content))))))
