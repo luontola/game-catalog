@@ -4,54 +4,57 @@
             [game-catalog.main :as main]
             [mount.core :as mount]
             [unilog.config :refer [start-logging!]])
-  (:import (com.microsoft.playwright BrowserType$LaunchOptions Page Playwright)
-           (org.eclipse.jetty.server Server)))
+  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Page Playwright)))
 
-(def ^:dynamic *base-url* nil)
+(def ^:dynamic ^String *base-url* nil)
+(def ^:dynamic ^Playwright *playwright* nil)
+(def ^:dynamic ^Browser *browser* nil)
+(def ^:dynamic ^BrowserContext *context* nil)
+(def ^:dynamic ^Page *page* nil)
 
-(defn start-server-fixture [f]
+(defn http-server-fixture [f]
   (start-logging! {:level "info"
                    :console true})
   (mount/start-with-args {:port 0})
-  (let [^Server server @#'main/http-server
-        port (.getLocalPort (first (.getConnectors server)))]
-    (try
+  (try
+    (let [port (.getLocalPort (first (.getConnectors main/http-server)))]
       (binding [*base-url* (str "http://localhost:" port)]
-        (f))
-      (finally
-        (mount/stop)))))
+        (f)))
+    (finally
+      (mount/stop))))
 
-(use-fixtures :once start-server-fixture)
+(defn playwright-fixture [f]
+  (with-open [playwright (Playwright/create)
+              browser (.launch (.chromium playwright)
+                               (-> (BrowserType$LaunchOptions.)
+                                   (.setHeadless true)))
+              context (.newContext browser)
+              page (.newPage context)]
+    (binding [*playwright* playwright
+              *browser* browser
+              *context* context
+              *page* page]
+      (.setDefaultTimeout context 5000)
+      (f))))
 
-(deftest ^:slow home-page-test
+(use-fixtures :once http-server-fixture)
+(use-fixtures :each playwright-fixture)
+
+(deftest home-page-test
   (testing "home page loads and displays content"
-    (with-open [playwright (Playwright/create)
-                browser (.launch (.chromium playwright)
-                                 (-> (BrowserType$LaunchOptions.)
-                                     (.setHeadless true)))
-                context (.newContext browser)
-                ^Page page (.newPage context)]
-      (.setDefaultTimeout page 5000)
-      (.navigate page (str *base-url* "/"))
-      (is (str/includes? (.textContent page "body") "hello world"))
+    (.navigate *page* (str *base-url* "/"))
+    (is (str/includes? (.textContent *page* "body") "hello world"))
 
-      (let [button (.locator page "button")]
-        (is (= "Click Me" (.textContent button)))
-        (.click button)
-        (.waitForCondition page #(not= "Click Me" (.textContent button)))
-        (is (str/includes? (.textContent button) "Clicked at 20"))))))
+    (let [button (.locator *page* "button")]
+      (is (= "Click Me" (.textContent button)))
+      (.click button)
+      (.waitForCondition *page* #(not= "Click Me" (.textContent button)))
+      (is (str/includes? (.textContent button) "Clicked at 20")))))
 
 (deftest games-page-test
   (testing "games page is accessible"
-    (with-open [playwright (Playwright/create)
-                browser (.launch (.chromium playwright)
-                                 (-> (BrowserType$LaunchOptions.)
-                                     (.setHeadless true)))
-                context (.newContext browser)
-                ^Page page (.newPage context)]
-      (.setDefaultTimeout page 5000)
-      (.navigate page (str *base-url* "/games"))
+    (.navigate *page* (str *base-url* "/games"))
 
-      (is (= 200 (-> (.request page)
-                     (.get (str *base-url* "/games"))
-                     (.status)))))))
+    (is (= 200 (-> (.request *page*)
+                   (.get (str *base-url* "/games"))
+                   (.status))))))
