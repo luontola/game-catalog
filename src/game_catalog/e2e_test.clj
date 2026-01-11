@@ -1,6 +1,7 @@
 (ns ^:slow game-catalog.e2e-test
   (:require [clojure.string :as str]
             [clojure.test :refer :all]
+            [game-catalog.data.db :as db]
             [game-catalog.main :as main]
             [mount.core :as mount]
             [unilog.config :refer [start-logging!]])
@@ -12,33 +13,33 @@
 (def ^:dynamic ^BrowserContext *context* nil)
 (def ^:dynamic ^Page *page* nil)
 
-(defn http-server-fixture [f]
+(defn browser-fixture [f]
   (start-logging! {:level "info"
                    :console true})
-  (mount/start-with-args {:port 0})
+  (-> (mount/only #{#'db/*collections
+                    #'main/http-server
+                    #'game-catalog.webapp/app})
+      (mount/with-args {:port 0})
+      (mount/start))
   (try
     (let [port (.getLocalPort (first (.getConnectors main/http-server)))]
-      (binding [*base-url* (str "http://localhost:" port)]
-        (f)))
+      (with-open [playwright (Playwright/create)
+                  browser (.launch (.chromium playwright)
+                                   (-> (BrowserType$LaunchOptions.)
+                                       (.setHeadless true)))
+                  context (.newContext browser)
+                  page (.newPage context)]
+        (binding [*base-url* (str "http://localhost:" port)
+                  *playwright* playwright
+                  *browser* browser
+                  *context* context
+                  *page* page]
+          (.setDefaultTimeout context 5000)
+          (f))))
     (finally
       (mount/stop))))
 
-(defn playwright-fixture [f]
-  (with-open [playwright (Playwright/create)
-              browser (.launch (.chromium playwright)
-                               (-> (BrowserType$LaunchOptions.)
-                                   (.setHeadless true)))
-              context (.newContext browser)
-              page (.newPage context)]
-    (binding [*playwright* playwright
-              *browser* browser
-              *context* context
-              *page* page]
-      (.setDefaultTimeout context 5000)
-      (f))))
-
-(use-fixtures :once http-server-fixture)
-(use-fixtures :each playwright-fixture)
+(use-fixtures :once browser-fixture)
 
 (deftest home-page-test
   (testing "home page loads and displays content"
@@ -52,9 +53,37 @@
       (is (str/includes? (.textContent button) "Clicked at 20")))))
 
 (deftest games-page-test
-  (testing "games page is accessible"
-    (.navigate *page* (str *base-url* "/games"))
+  (db/init-collection! :games
+                       [{:entity/id "1"
+                         :game/name "The Legend of Zelda: Breath of the Wild"
+                         :game/release "2017"
+                         :game/series "Zelda"
+                         :game/status "Completed"}
+                        {:entity/id "2"
+                         :game/name "Portal 2"
+                         :game/release "2011"
+                         :game/series "Portal"
+                         :game/status "Playing"}
+                        {:entity/id "3"
+                         :game/name "Hollow Knight"
+                         :game/release "2017"
+                         :game/tags "Metroidvania, Indie"
+                         :game/status "Backlog"}])
 
+  (testing "games page is accessible"
     (is (= 200 (-> (.request *page*)
                    (.get (str *base-url* "/games"))
-                   (.status))))))
+                   (.status)))))
+
+  (testing "games page displays table with game data"
+    (.navigate *page* (str *base-url* "/games"))
+
+    (let [table-content (.textContent *page* "table")]
+      (is (str/includes? table-content "The Legend of Zelda: Breath of the Wild"))
+      (is (str/includes? table-content "Portal 2"))
+      (is (str/includes? table-content "Hollow Knight"))
+      (is (str/includes? table-content "2017"))
+      (is (str/includes? table-content "2011"))
+      (is (str/includes? table-content "Completed"))
+      (is (str/includes? table-content "Playing"))
+      (is (str/includes? table-content "Backlog")))))
