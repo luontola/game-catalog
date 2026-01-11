@@ -12,6 +12,7 @@
                  [org.clojure/clojure "1.12.4"]
                  [org.clojure/data.csv "1.1.1"]
                  [org.clojure/tools.logging "1.3.1"]
+                 [org.jsoup/jsoup "1.18.3"]
                  [ring "1.15.3"]
                  [ring-logger "1.1.1"]
                  [ring-ttl-session "0.3.1"]
