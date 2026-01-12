@@ -1,9 +1,9 @@
 (ns ^:slow game-catalog.ui.spreadsheet-test
   (:require [clojure.test :refer :all]
             [game-catalog.data.db :as db]
-            [game-catalog.infra.html :as html]
+            [game-catalog.infra.html :as infra.html]
             [game-catalog.testing.browser :as browser]
-            [game-catalog.testing.html :as test-html]
+            [game-catalog.testing.html :as html]
             [game-catalog.ui.layout :as layout]
             [game-catalog.ui.routes :as routes]
             [game-catalog.ui.spreadsheet :as spreadsheet]
@@ -26,7 +26,7 @@
 (defn things-page-handler [_request]
   (-> (spreadsheet/table things-config)
       (layout/page)
-      (html/response)))
+      (infra.html/response)))
 
 (def test-routes
   [["/things"
@@ -42,8 +42,8 @@
 (use-fixtures :once test-fixture)
 
 
-(deftest spreadsheet-test
-  (do
+(deftest spreadsheet-table-test
+  (let [keyboard (.keyboard browser/*page*)]
     (db/init-collection! :things
                          [{:entity/id "1"
                            :thing/name "Apple"
@@ -57,14 +57,34 @@
                            :thing/name "Car"
                            :thing/color "Blue"
                            :thing/size "450"}])
-    (browser/navigate! "/things"))
+    (browser/navigate! "/things")
 
-  (testing "renders spreadsheet table"
-    (let [table (browser/locator "table")]
-      (is (= (test-html/normalize-whitespace "
+    (testing "renders spreadsheet table"
+      (let [table (browser/locator "table")]
+        (is (= (html/normalize-whitespace "
              #  Name    Color   Size
              1  Apple   Red     8
              2  Banana  Yellow  20
              3  Car     Blue    450
                 []      []      []")
-             (test-html/visualize-html table))))))
+               (html/visualize-html table)))))
+
+    (testing "clicking a cell gives it focus"
+      (.click (browser/locator "text=Apple"))
+      (is (= "Apple" (html/visualize-html (browser/focused-element)))))
+
+    (testing "arrow keys move focus between cells"
+      (.click (browser/locator "text=Apple"))
+      (is (= "Apple" (html/visualize-html (browser/focused-element))))
+
+      (.press keyboard "ArrowRight")
+      (is (= "Red" (html/visualize-html (browser/focused-element))))
+
+      (.press keyboard "ArrowDown")
+      (is (= "Yellow" (html/visualize-html (browser/focused-element))))
+
+      (.press keyboard "ArrowLeft")
+      (is (= "Banana" (html/visualize-html (browser/focused-element))))
+
+      (.press keyboard "ArrowUp")
+      (is (= "Apple" (html/visualize-html (browser/focused-element)))))))

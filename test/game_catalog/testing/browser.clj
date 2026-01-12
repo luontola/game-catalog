@@ -44,3 +44,9 @@
 
 (defn locator [selector]
   (.locator *page* selector))
+
+(defn has-focus [element]
+  (.evaluate element "el => el === document.activeElement"))
+
+(defn focused-element []
+  (.evaluate *page* "document.activeElement.outerHTML"))
