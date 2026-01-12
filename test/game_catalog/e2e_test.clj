@@ -2,56 +2,20 @@
   (:require [clojure.string :as str]
             [clojure.test :refer :all]
             [game-catalog.data.db :as db]
-            [game-catalog.main :as main]
-            [game-catalog.testing.html :as html]
-            [mount.core :as mount]
-            [unilog.config :refer [start-logging!]])
-  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Page Playwright)
-           (org.eclipse.jetty.server NetworkConnector)))
+            [game-catalog.testing.browser :as browser]
+            [game-catalog.testing.html :as html]))
 
-(def ^:dynamic ^String *base-url* nil)
-(def ^:dynamic ^Playwright *playwright* nil)
-(def ^:dynamic ^Browser *browser* nil)
-(def ^:dynamic ^BrowserContext *context* nil)
-(def ^:dynamic ^Page *page* nil)
-
-(defn browser-fixture [f]
-  (start-logging! {:level "info"
-                   :console true})
-  (-> (mount/only #{#'db/*collections
-                    #'main/http-server
-                    #'game-catalog.webapp/app})
-      (mount/with-args {:port 0})
-      (mount/start))
-  (try
-    (let [port (.getLocalPort ^NetworkConnector (first (.getConnectors main/http-server)))]
-      (with-open [playwright (Playwright/create)
-                  browser (.launch (.chromium playwright)
-                                   (-> (BrowserType$LaunchOptions.)
-                                       (.setHeadless true)))
-                  context (.newContext browser)
-                  page (.newPage context)]
-        (binding [*base-url* (str "http://localhost:" port)
-                  *playwright* playwright
-                  *browser* browser
-                  *context* context
-                  *page* page]
-          (.setDefaultTimeout context 5000)
-          (f))))
-    (finally
-      (mount/stop))))
-
-(use-fixtures :once browser-fixture)
+(use-fixtures :once browser/fixture)
 
 (deftest home-page-test
   (testing "home page loads and displays content"
-    (.navigate *page* (str *base-url* "/"))
-    (is (str/includes? (.textContent *page* "body") "hello world"))
+    (browser/navigate! "/")
+    (is (str/includes? (.textContent browser/*page* "body") "hello world"))
 
-    (let [button (.locator *page* "button")]
+    (let [button (browser/locator "button")]
       (is (= "Click Me" (.textContent button)))
       (.click button)
-      (.waitForCondition *page* #(not= "Click Me" (.textContent button)))
+      (.waitForCondition browser/*page* #(not= "Click Me" (.textContent button)))
       (is (str/includes? (.textContent button) "Clicked at 20")))))
 
 (deftest games-page-test
@@ -73,14 +37,13 @@
                          :game/status "Backlog"}])
 
   (testing "games page is accessible"
-    (is (= 200 (-> (.request *page*)
-                   (.get (str *base-url* "/games"))
+    (is (= 200 (-> (.request browser/*page*)
+                   (.get (str browser/*base-url* "/games"))
                    (.status)))))
 
   (testing "games page displays table with game data"
-    (.navigate *page* (str *base-url* "/games"))
-
-    (let [table (.locator *page* "table")]
+    (browser/navigate! "/games")
+    (let [table (browser/locator "table")]
       (is (= (html/normalize-whitespace "
              #  Name                                     Release  Remake  Series Tags                 Purchases  Status   Content  DLCs
              3  Hollow Knight                            2017                    Metroidvania, Indie             Backlog
