@@ -1,7 +1,7 @@
 (ns game-catalog.data.db-test
   (:require [clojure.test :refer :all]
             [game-catalog.data.db :as db]
-            [game-catalog.infra.testutil :refer [thrown?]]
+            [game-catalog.testing.util :refer [thrown?]]
             [mount.core :as mount]))
 
 (defn reset-collections-fixture [f]

@@ -2,8 +2,8 @@
   (:require [clojure.string :as str]
             [clojure.test :refer :all]
             [game-catalog.data.db :as db]
-            [game-catalog.infra.html :as html]
             [game-catalog.main :as main]
+            [game-catalog.testing.html :as html]
             [mount.core :as mount]
             [unilog.config :refer [start-logging!]])
   (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Page Playwright)

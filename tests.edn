@@ -2,12 +2,12 @@
 {:tests [{:id :fast
           :skip-meta [:slow]
           :source-paths ["src" "resources"]
-          :test-paths ["src"]
+          :test-paths ["test"]
           :ns-patterns ["^game-catalog"]}
          {:id :slow
           :focus-meta [:slow]
           :source-paths ["src" "resources"]
-          :test-paths ["src"]
+          :test-paths ["test"]
           :ns-patterns ["^game-catalog"]}]
 
  :reporter [kaocha.report.progress/report]

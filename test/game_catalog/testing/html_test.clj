@@ -1,6 +1,6 @@
-(ns game-catalog.infra.html-test
+(ns game-catalog.testing.html-test
   (:require [clojure.test :refer :all]
-            [game-catalog.infra.html :as html]))
+            [game-catalog.testing.html :as html]))
 
 (deftest visualize-html-test
   (testing "empty input"

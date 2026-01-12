@@ -27,7 +27,7 @@
   :min-lein-version "2.12.0"
 
   :source-paths ["src"]
-  :test-paths ["src"]
+  :test-paths ["test"]
   :resource-paths ^:replace ["resources"]
   :target-path "target/%s/"
   :main ^:skip-aot game-catalog.main
