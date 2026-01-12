@@ -65,5 +65,6 @@
              #  Name    Color   Size
              1  Apple   Red     8
              2  Banana  Yellow  20
-             3  Car     Blue    450")
+             3  Car     Blue    450
+                []      []      []")
              (test-html/visualize-html table))))))

@@ -48,5 +48,6 @@
              #  Name                                     Release  Remake  Series Tags                 Purchases  Status   Content  DLCs
              3  Hollow Knight                            2017                    Metroidvania, Indie             Backlog
              2  Portal 2                                 2011             Portal                                 Playing
-             1  The Legend of Zelda: Breath of the Wild  2017             Zelda                                  Completed")
+             1  The Legend of Zelda: Breath of the Wild  2017             Zelda                                  Completed
+                []                                       []       []      []     []                   []         []        []      []")
              (html/visualize-html table))))))
