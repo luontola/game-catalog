@@ -165,7 +165,9 @@
 
 (deftest edit-mode-test
   (let [keyboard (.keyboard browser/*page*)
-        cell-1a (browser/locator "text=Cell 1A")]
+        cell-1a (browser/locator "text=Cell 1A")
+        saved [{:method "POST", :path "/spreadsheet/things/1/save"}]
+        cancelled [{:method "POST", :path "/spreadsheet/things/1/view"}]]
 
     (with-fixtures [data-fixture]
       (testing "double-click enters edit mode"
@@ -189,9 +191,12 @@
         (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element))))) ; (form input change is not reflected in data-test-* attributes)
 
       (testing "clicking outside saves changes and exits edit mode"
+        (reset! browser/*request-log [])
+
         (.click (browser/locator "text=Cell 2A"))
         (wait-for-view-mode)
 
+        (is (= saved @browser/*request-log))
         (is (= (html/normalize-whitespace "
               #  Alfa      Bravo    Charlie
               1  Modified  Cell 1B  Cell 1C
@@ -199,6 +204,17 @@
               3  Cell 3A   Cell 3B  Cell 3C
                  []        []       []")
                (html/visualize-html (browser/locator "table"))))
+        (is (= "Cell 2A" (html/visualize-html (browser/focused-element)))))
+
+      (testing "focus loss exits edit mode without saving when there are no changes"
+        (.dblclick (browser/locator "text=Modified"))
+        (wait-for-edit-mode)
+        (reset! browser/*request-log [])
+
+        (.press keyboard "ArrowDown") ; also testing arrow navigation from editing row with down arrow
+        (wait-for-view-mode)
+
+        (is (= cancelled @browser/*request-log))
         (is (= "Cell 2A" (html/visualize-html (browser/focused-element))))))
 
     (with-fixtures [data-fixture]
@@ -213,10 +229,23 @@
 
         (testing "saves changes and exits edit mode"
           (.type keyboard "Modified")
+          (reset! browser/*request-log [])
 
           (.press keyboard "Enter")
           (wait-for-view-mode)
 
+          (is (= saved @browser/*request-log))
+          (is (= "Modified" (html/visualize-html (browser/focused-element)))))
+
+        (testing "exits edit mode without saving when there are no changes"
+          (.press keyboard "Enter")
+          (wait-for-edit-mode)
+          (reset! browser/*request-log [])
+
+          (.press keyboard "Enter")
+          (wait-for-view-mode)
+
+          (is (= cancelled @browser/*request-log))
           (is (= "Modified" (html/visualize-html (browser/focused-element)))))))
 
     (with-fixtures [data-fixture]
@@ -231,10 +260,23 @@
 
         (testing "saves changes and exits edit mode"
           (.type keyboard "Modified")
+          (reset! browser/*request-log [])
 
           (.press keyboard "F2")
           (wait-for-view-mode)
 
+          (is (= saved @browser/*request-log))
+          (is (= "Modified" (html/visualize-html (browser/focused-element)))))
+
+        (testing "exits edit mode without saving when there are no changes"
+          (.press keyboard "F2")
+          (wait-for-edit-mode)
+          (reset! browser/*request-log [])
+
+          (.press keyboard "F2")
+          (wait-for-view-mode)
+
+          (is (= cancelled @browser/*request-log))
           (is (= "Modified" (html/visualize-html (browser/focused-element)))))))
 
     (with-fixtures [data-fixture]
@@ -242,10 +284,12 @@
         (.dblclick cell-1a)
         (wait-for-edit-mode)
         (.type keyboard "Discarded")
+        (reset! browser/*request-log [])
 
         (.press keyboard "Escape")
         (wait-for-view-mode)
 
+        (is (= cancelled @browser/*request-log))
         (is (= "Cell 1A" (html/visualize-html (browser/focused-element))))))))
 
 (deftest adding-rows-test
