@@ -1,5 +1,6 @@
 (ns game-catalog.ui.spreadsheet
-  (:require [game-catalog.data.db :as db]
+  (:require [clojure.tools.logging :as log]
+            [game-catalog.data.db :as db]
             [game-catalog.infra.hiccup :as h]
             [game-catalog.infra.html :as html]
             [ring.util.http-response :as http-response]
@@ -129,8 +130,8 @@
                        old-entity (merge old-entity updates)
                        :else (http-response/not-found! "Row not found"))]
       (db/save! collection-key new-entity)
-      (println (str "Saved " (name collection-key) " " (:entity/id new-entity) ":")
-               (pr-str new-entity))
+      (log/info (str "Saved " (name collection-key) " " (:entity/id new-entity) ":")
+                (pr-str new-entity))
       (html/response (h/html
                        (view-row config new-entity focus-index)
                        (when adding?
