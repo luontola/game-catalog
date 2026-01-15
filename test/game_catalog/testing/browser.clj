@@ -14,8 +14,9 @@
 (def ^:dynamic ^Page *page* nil)
 
 (defn fixture [f]
-  (start-logging! {:level "info"
-                   :console true})
+  (start-logging! {:level :info
+                   :console true
+                   :overrides {"org.eclipse.jetty" :warn}})
   (-> (mount/only #{#'db/*collections
                     #'main/http-server
                     #'game-catalog.webapp/app})
