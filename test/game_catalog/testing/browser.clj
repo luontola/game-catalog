@@ -4,7 +4,8 @@
             [game-catalog.main :as main]
             [mount.core :as mount]
             [unilog.config :refer [start-logging!]])
-  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Locator Page Playwright)
+  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Locator Page Playwright Request)
+           (java.net URI)
            (org.eclipse.jetty.server NetworkConnector)))
 
 (def ^:dynamic ^String *base-url* nil)
@@ -12,6 +13,7 @@
 (def ^:dynamic ^Browser *browser* nil)
 (def ^:dynamic ^BrowserContext *context* nil)
 (def ^:dynamic ^Page *page* nil)
+(def *request-log (atom []))
 
 (defn fixture [f]
   (start-logging! {:level :info
@@ -36,6 +38,11 @@
                   *context* context
                   *page* page]
           (.setDefaultTimeout context 5000)
+          (.onRequest page (fn [^Request request]
+                             (let [uri (URI. (.url request))]
+                               (swap! *request-log conj (cond-> {:method (.method request)
+                                                                 :path (.getPath uri)}
+                                                          (.getQuery uri) (assoc :query (.getQuery uri)))))))
           (f))))
     (finally
       (mount/stop))))
