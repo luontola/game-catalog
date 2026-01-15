@@ -33,31 +33,35 @@
     {:get {:handler things-page-handler}}]
    (spreadsheet/make-routes things-config)])
 
-(defn test-fixture [f]
+(defn browser-fixture [f]
   (with-redefs [routes/ring-handler (ring/ring-handler
                                       (ring/router test-routes)
                                       (constantly (http-response/not-found "Not found")))]
     (browser/fixture f)))
 
-(use-fixtures :once test-fixture)
+(defn data-fixture [f]
+  (db/init-collection! :things
+                       [{:entity/id "1"
+                         :thing/alfa "Cell 1A"
+                         :thing/bravo "Cell 1B"
+                         :thing/charlie "Cell 1C"}
+                        {:entity/id "2"
+                         :thing/alfa "Cell 2A"
+                         :thing/bravo "Cell 2B"
+                         :thing/charlie "Cell 2C"}
+                        {:entity/id "3"
+                         :thing/alfa "Cell 3A"
+                         :thing/bravo "Cell 3B"
+                         :thing/charlie "Cell 3C"}])
+  (browser/navigate! "/things")
+  (f))
+
+(use-fixtures :once browser-fixture)
+(use-fixtures :each data-fixture)
 
 
 (deftest spreadsheet-table-navigation-test
   (let [keyboard (.keyboard browser/*page*)]
-    (db/init-collection! :things
-                         [{:entity/id "1"
-                           :thing/alfa "Cell 1A"
-                           :thing/bravo "Cell 1B"
-                           :thing/charlie "Cell 1C"}
-                          {:entity/id "2"
-                           :thing/alfa "Cell 2A"
-                           :thing/bravo "Cell 2B"
-                           :thing/charlie "Cell 2C"}
-                          {:entity/id "3"
-                           :thing/alfa "Cell 3A"
-                           :thing/bravo "Cell 3B"
-                           :thing/charlie "Cell 3C"}])
-    (browser/navigate! "/things")
 
     (testing "renders spreadsheet table"
       (let [table (browser/locator "table")]
@@ -148,3 +152,40 @@
         (.click (browser/locator "tr.adding input >> nth=0"))
         (.press keyboard "ArrowDown")
         (is (= "[]" (html/visualize-html (browser/focused-element))))))))
+
+(deftest adding-rows-test
+  (let [keyboard (.keyboard browser/*page*)]
+    (.click (browser/locator "tr.adding input >> nth=0"))
+    (.type keyboard "Added A")
+    (.press keyboard "Tab")
+    (.type keyboard "Added B")
+    (.press keyboard "Tab")
+    (.type keyboard "Added C")
+    (.press keyboard "Enter")
+    (.waitFor (browser/locator "text=Added A"))
+
+    (testing "the added row goes last in the table"
+      (let [table (browser/locator "table")]
+        (is (= (html/normalize-whitespace "
+             #  Alfa     Bravo    Charlie
+             1  Cell 1A  Cell 1B  Cell 1C
+             2  Cell 2A  Cell 2B  Cell 2C
+             3  Cell 3A  Cell 3B  Cell 3C
+             4  Added A  Added B  Added C
+                []       []       []")
+               (html/visualize-html table)))))
+
+    (testing "the added row is focused"
+      (is (= "Added C" (html/visualize-html (browser/focused-element)))))
+
+    (testing "refreshing the page will sort the added row to its place"
+      (browser/navigate! "/things")
+      (let [table (browser/locator "table")]
+        (is (= (html/normalize-whitespace "
+             #  Alfa     Bravo    Charlie
+             4  Added A  Added B  Added C
+             1  Cell 1A  Cell 1B  Cell 1C
+             2  Cell 2A  Cell 2B  Cell 2C
+             3  Cell 3A  Cell 3B  Cell 3C
+                []       []       []")
+               (html/visualize-html table)))))))
