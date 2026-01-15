@@ -4,6 +4,7 @@
             [game-catalog.infra.html :as infra.html]
             [game-catalog.testing.browser :as browser]
             [game-catalog.testing.html :as html]
+            [game-catalog.testing.util :refer [with-fixtures]]
             [game-catalog.ui.layout :as layout]
             [game-catalog.ui.routes :as routes]
             [game-catalog.ui.spreadsheet :as spreadsheet]
@@ -166,83 +167,81 @@
   (let [keyboard (.keyboard browser/*page*)
         cell-1a (browser/locator "text=Cell 1A")]
 
-    (testing "double-click enters edit mode"
-      (.dblclick cell-1a)
-      (wait-for-edit-mode)
+    (with-fixtures [data-fixture]
+      (testing "double-click enters edit mode"
+        (.dblclick cell-1a)
+        (wait-for-edit-mode)
 
-      (is (= (html/normalize-whitespace "
+        (is (= (html/normalize-whitespace "
               #  Alfa       Bravo      Charlie
               1  [Cell 1A]  [Cell 1B]  [Cell 1C]
               2  Cell 2A    Cell 2B    Cell 2C
               3  Cell 3A    Cell 3B    Cell 3C
                  []         []         []")
-             (html/visualize-html (browser/locator "table"))))
-      (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element)))))
+               (html/visualize-html (browser/locator "table"))))
+        (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element)))))
 
-    (testing "clicking outside saves changes and exits edit mode"
-      (.type keyboard "Modified")
+      (testing "clicking outside saves changes and exits edit mode"
+        (.type keyboard "Modified")
 
-      (.click (browser/locator "text=Cell 2A"))
-      (wait-for-view-mode)
+        (.click (browser/locator "text=Cell 2A"))
+        (wait-for-view-mode)
 
-      (is (= (html/normalize-whitespace "
+        (is (= (html/normalize-whitespace "
               #  Alfa      Bravo    Charlie
               1  Modified  Cell 1B  Cell 1C
               2  Cell 2A   Cell 2B  Cell 2C
               3  Cell 3A   Cell 3B  Cell 3C
                  []        []       []")
-             (html/visualize-html (browser/locator "table"))))
-      (is (= "Cell 2A" (html/visualize-html (browser/focused-element)))))
+               (html/visualize-html (browser/locator "table"))))
+        (is (= "Cell 2A" (html/visualize-html (browser/focused-element))))))
 
-    (data-fixture #())
+    (with-fixtures [data-fixture]
+      (testing "Enter key:"
+        (testing "enters edit mode"
+          (.click cell-1a)
 
-    (testing "Enter key:"
-      (testing "enters edit mode"
-        (.click cell-1a)
+          (.press keyboard "Enter")
+          (wait-for-edit-mode)
 
-        (.press keyboard "Enter")
+          (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element)))))
+
+        (testing "saves changes and exits edit mode"
+          (.type keyboard "Modified")
+
+          (.press keyboard "Enter")
+          (wait-for-view-mode)
+
+          (is (= "Modified" (html/visualize-html (browser/focused-element)))))))
+
+    (with-fixtures [data-fixture]
+      (testing "F2 key:"
+        (testing "enters edit mode"
+          (.click cell-1a)
+
+          (.press keyboard "F2")
+          (wait-for-edit-mode)
+
+          (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element)))))
+
+        (testing "saves changes and exits edit mode"
+          (.type keyboard "Modified")
+
+          (.press keyboard "F2")
+          (wait-for-view-mode)
+
+          (is (= "Modified" (html/visualize-html (browser/focused-element)))))))
+
+    (with-fixtures [data-fixture]
+      (testing "Escape key discards changes and exits edit mode"
+        (.dblclick cell-1a)
         (wait-for-edit-mode)
+        (.type keyboard "Discarded")
 
-        (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element)))))
-
-      (testing "saves changes and exits edit mode"
-        (.type keyboard "Modified")
-
-        (.press keyboard "Enter")
+        (.press keyboard "Escape")
         (wait-for-view-mode)
 
-        (is (= "Modified" (html/visualize-html (browser/focused-element))))))
-
-    (data-fixture #())
-
-    (testing "F2 key:"
-      (testing "enters edit mode"
-        (.click cell-1a)
-
-        (.press keyboard "F2")
-        (wait-for-edit-mode)
-
-        (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element)))))
-
-      (testing "saves changes and exits edit mode"
-        (.type keyboard "Modified")
-
-        (.press keyboard "F2")
-        (wait-for-view-mode)
-
-        (is (= "Modified" (html/visualize-html (browser/focused-element))))))
-
-    (data-fixture #())
-
-    (testing "Escape key discards changes and exits edit mode"
-      (.dblclick cell-1a)
-      (wait-for-edit-mode)
-      (.type keyboard "Discarded")
-
-      (.press keyboard "Escape")
-      (wait-for-view-mode)
-
-      (is (= "Cell 1A" (html/visualize-html (browser/focused-element)))))))
+        (is (= "Cell 1A" (html/visualize-html (browser/focused-element))))))))
 
 (deftest adding-rows-test
   (let [keyboard (.keyboard browser/*page*)]
