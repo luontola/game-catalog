@@ -4,7 +4,7 @@
             [game-catalog.main :as main]
             [mount.core :as mount]
             [unilog.config :refer [start-logging!]])
-  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Page Playwright)
+  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Locator Page Playwright)
            (org.eclipse.jetty.server NetworkConnector)))
 
 (def ^:dynamic ^String *base-url* nil)
@@ -42,10 +42,10 @@
 (defn navigate! [path]
   (.navigate *page* (str *base-url* path)))
 
-(defn locator [selector]
+(defn ^Locator locator [selector]
   (.locator *page* selector))
 
-(defn has-focus [element]
+(defn has-focus? [^Locator element]
   (.evaluate element "el => el === document.activeElement"))
 
 (defn focused-element []
