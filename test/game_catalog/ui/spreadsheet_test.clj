@@ -73,18 +73,38 @@
       (.click (browser/locator "text=Cell 1A"))
       (is (= "Cell 1A" (html/visualize-html (browser/focused-element)))))
 
-    (testing "arrow keys move focus between cells"
+    (testing "arrow keys move focus between cells:"
       (.click (browser/locator "text=Cell 1A"))
       (is (= "Cell 1A" (html/visualize-html (browser/focused-element))))
 
-      (.press keyboard "ArrowRight")
-      (is (= "Cell 1B" (html/visualize-html (browser/focused-element))))
+      (testing "right"
+        (.press keyboard "ArrowRight")
+        (is (= "Cell 1B" (html/visualize-html (browser/focused-element)))))
 
-      (.press keyboard "ArrowDown")
-      (is (= "Cell 2B" (html/visualize-html (browser/focused-element))))
+      (testing "down"
+        (.press keyboard "ArrowDown")
+        (is (= "Cell 2B" (html/visualize-html (browser/focused-element)))))
 
-      (.press keyboard "ArrowLeft")
-      (is (= "Cell 2A" (html/visualize-html (browser/focused-element))))
+      (testing "left"
+        (.press keyboard "ArrowLeft")
+        (is (= "Cell 2A" (html/visualize-html (browser/focused-element)))))
 
-      (.press keyboard "ArrowUp")
-      (is (= "Cell 1A" (html/visualize-html (browser/focused-element)))))))
+      (testing "up"
+        (.press keyboard "ArrowUp")
+        (is (= "Cell 1A" (html/visualize-html (browser/focused-element))))))
+
+    (testing "arrow keys cannot move focus beyond the table edges:"
+      (testing "top edge"
+        (.click (browser/locator "text=Cell 1A"))
+        (.press keyboard "ArrowUp")
+        (is (= "Cell 1A" (html/visualize-html (browser/focused-element)))))
+
+      (testing "left edge"
+        (.click (.first (browser/locator "td:text-is('2')")))
+        (.press keyboard "ArrowLeft")
+        (is (= "2" (html/visualize-html (browser/focused-element)))))
+
+      (testing "right edge"
+        (.click (browser/locator "text=Cell 2C"))
+        (.press keyboard "ArrowRight")
+        (is (= "Cell 2C" (html/visualize-html (browser/focused-element))))))))
