@@ -107,4 +107,24 @@
       (testing "right edge"
         (.click (browser/locator "text=Cell 2C"))
         (.press keyboard "ArrowRight")
-        (is (= "Cell 2C" (html/visualize-html (browser/focused-element))))))))
+        (is (= "Cell 2C" (html/visualize-html (browser/focused-element))))))
+
+    (testing "arrow keys with modifier keys should not navigate:"
+      (.click (browser/locator "text=Cell 2B"))
+      (is (= "Cell 2B" (html/visualize-html (browser/focused-element))))
+
+      (testing "meta"
+        (.press keyboard "Meta+ArrowRight")
+        (is (= "Cell 2B" (html/visualize-html (browser/focused-element)))))
+
+      (testing "ctrl"
+        (.press keyboard "Control+ArrowRight")
+        (is (= "Cell 2B" (html/visualize-html (browser/focused-element)))))
+
+      (testing "alt"
+        (.press keyboard "Alt+ArrowRight")
+        (is (= "Cell 2B" (html/visualize-html (browser/focused-element)))))
+
+      (testing "shift"
+        (.press keyboard "Shift+ArrowRight")
+        (is (= "Cell 2B" (html/visualize-html (browser/focused-element))))))))
