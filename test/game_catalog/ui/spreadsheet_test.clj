@@ -127,4 +127,19 @@
 
       (testing "shift"
         (.press keyboard "Shift+ArrowRight")
-        (is (= "Cell 2B" (html/visualize-html (browser/focused-element))))))))
+        (is (= "Cell 2B" (html/visualize-html (browser/focused-element))))))
+
+    (testing "arrow keys can navigate to and from the adding row:"
+      (testing "down to adding row"
+        (.click (browser/locator "text=Cell 3A"))
+        (.press keyboard "ArrowDown")
+        (is (= "[]" (html/visualize-html (browser/focused-element)))))
+
+      (testing "up from adding row"
+        (.press keyboard "ArrowUp")
+        (is (= "Cell 3A" (html/visualize-html (browser/focused-element)))))
+
+      (testing "bottom edge"
+        (.click (browser/locator "tr.adding input >> nth=0"))
+        (.press keyboard "ArrowDown")
+        (is (= "[]" (html/visualize-html (browser/focused-element))))))))
