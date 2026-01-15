@@ -60,7 +60,7 @@
 (use-fixtures :each data-fixture)
 
 
-(deftest spreadsheet-table-navigation-test
+(deftest table-navigation-test
   (let [keyboard (.keyboard browser/*page*)]
 
     (testing "renders spreadsheet table"
