@@ -42,7 +42,7 @@
 (use-fixtures :once test-fixture)
 
 
-(deftest spreadsheet-table-test
+(deftest spreadsheet-table-navigation-test
   (let [keyboard (.keyboard browser/*page*)]
     (db/init-collection! :things
                          [{:entity/id "1"
@@ -138,6 +138,11 @@
       (testing "up from adding row"
         (.press keyboard "ArrowUp")
         (is (= "Cell 3A" (html/visualize-html (browser/focused-element)))))
+
+      (testing "up from adding row's # column"
+        (.click (browser/locator "tr.adding td >> nth=0"))
+        (.press keyboard "ArrowUp")
+        (is (= "3" (html/visualize-html (browser/focused-element)))))
 
       (testing "bottom edge"
         (.click (browser/locator "tr.adding input >> nth=0"))

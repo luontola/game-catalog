@@ -91,7 +91,6 @@ document.addEventListener('keydown', (e) => {
     }
     const row = cell.closest('tr')
     const inEditMode = row.classList.contains('editing')
-    const inInput = e.target.matches('input')
 
     // Handle edit mode (both inputs and read-only cells)
     if (inEditMode) {
@@ -109,7 +108,7 @@ document.addEventListener('keydown', (e) => {
             cancelEditMode(row, cell)
             e.preventDefault()
             return
-        } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && inInput) {
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
             // Move focus to adjacent row (focusout handler will save/cancel as needed)
             const cellIndex = getCellIndex(row, cell)
             const targetRow = e.key === 'ArrowUp' ? row.previousElementSibling : row.nextElementSibling
