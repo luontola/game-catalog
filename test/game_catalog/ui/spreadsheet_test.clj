@@ -8,7 +8,9 @@
             [game-catalog.ui.routes :as routes]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [reitit.ring :as ring]
-            [ring.util.http-response :as http-response]))
+            [ring.util.http-response :as http-response])
+  (:import (com.microsoft.playwright Locator$WaitForOptions)
+           (com.microsoft.playwright.options WaitForSelectorState)))
 
 (def things-config
   {:collection-key :things
@@ -58,6 +60,14 @@
 
 (use-fixtures :once browser-fixture)
 (use-fixtures :each data-fixture)
+
+(defn wait-for-edit-mode []
+  (.waitFor (browser/locator "tr.editing:not(.adding)")))
+
+(defn wait-for-view-mode []
+  (.waitFor (browser/locator "tr.editing:not(.adding)")
+            (-> (Locator$WaitForOptions.)
+                (.setState WaitForSelectorState/HIDDEN))))
 
 
 (deftest table-navigation-test
@@ -151,6 +161,88 @@
         (.click (browser/locator "tr.adding input >> nth=0"))
         (.press keyboard "ArrowDown")
         (is (= "[]" (html/visualize-html (browser/focused-element))))))))
+
+(deftest edit-mode-test
+  (let [keyboard (.keyboard browser/*page*)
+        cell-1a (browser/locator "text=Cell 1A")]
+
+    (testing "double-click enters edit mode"
+      (.dblclick cell-1a)
+      (wait-for-edit-mode)
+
+      (is (= (html/normalize-whitespace "
+              #  Alfa       Bravo      Charlie
+              1  [Cell 1A]  [Cell 1B]  [Cell 1C]
+              2  Cell 2A    Cell 2B    Cell 2C
+              3  Cell 3A    Cell 3B    Cell 3C
+                 []         []         []")
+             (html/visualize-html (browser/locator "table"))))
+      (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element)))))
+
+    (testing "clicking outside saves changes and exits edit mode"
+      (.type keyboard "Modified")
+
+      (.click (browser/locator "text=Cell 2A"))
+      (wait-for-view-mode)
+
+      (is (= (html/normalize-whitespace "
+              #  Alfa      Bravo    Charlie
+              1  Modified  Cell 1B  Cell 1C
+              2  Cell 2A   Cell 2B  Cell 2C
+              3  Cell 3A   Cell 3B  Cell 3C
+                 []        []       []")
+             (html/visualize-html (browser/locator "table"))))
+      (is (= "Cell 2A" (html/visualize-html (browser/focused-element)))))
+
+    (data-fixture #())
+
+    (testing "Enter key:"
+      (testing "enters edit mode"
+        (.click cell-1a)
+
+        (.press keyboard "Enter")
+        (wait-for-edit-mode)
+
+        (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element)))))
+
+      (testing "saves changes and exits edit mode"
+        (.type keyboard "Modified")
+
+        (.press keyboard "Enter")
+        (wait-for-view-mode)
+
+        (is (= "Modified" (html/visualize-html (browser/focused-element))))))
+
+    (data-fixture #())
+
+    (testing "F2 key:"
+      (testing "enters edit mode"
+        (.click cell-1a)
+
+        (.press keyboard "F2")
+        (wait-for-edit-mode)
+
+        (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element)))))
+
+      (testing "saves changes and exits edit mode"
+        (.type keyboard "Modified")
+
+        (.press keyboard "F2")
+        (wait-for-view-mode)
+
+        (is (= "Modified" (html/visualize-html (browser/focused-element))))))
+
+    (data-fixture #())
+
+    (testing "Escape key discards changes and exits edit mode"
+      (.dblclick cell-1a)
+      (wait-for-edit-mode)
+      (.type keyboard "Discarded")
+
+      (.press keyboard "Escape")
+      (wait-for-view-mode)
+
+      (is (= "Cell 1A" (html/visualize-html (browser/focused-element)))))))
 
 (deftest adding-rows-test
   (let [keyboard (.keyboard browser/*page*)]
