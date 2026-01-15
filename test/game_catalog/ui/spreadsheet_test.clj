@@ -181,9 +181,14 @@
                (html/visualize-html (browser/locator "table"))))
         (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element)))))
 
-      (testing "clicking outside saves changes and exits edit mode"
-        (.type keyboard "Modified")
+      (.type keyboard "Modified") ; change form input as a setup for testing saving
 
+      (testing "double-clicking on a cell already in edit mode does nothing"
+        (.dblclick (browser/locator "tr.editing input >> nth=0"))
+
+        (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element))))) ; (form input change is not reflected in data-test-* attributes)
+
+      (testing "clicking outside saves changes and exits edit mode"
         (.click (browser/locator "text=Cell 2A"))
         (wait-for-view-mode)
 
