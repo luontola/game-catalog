@@ -12,16 +12,16 @@
 
 (def things-config
   {:collection-key :things
-   :sort-by (comp clojure.string/lower-case :thing/name)
+   :sort-by (comp clojure.string/lower-case :thing/alfa)
    :columns [{:column/name "#"
               :column/entity-key :entity/id
               :column/read-only? true}
-             {:column/name "Name"
-              :column/entity-key :thing/name}
-             {:column/name "Color"
-              :column/entity-key :thing/color}
-             {:column/name "Size"
-              :column/entity-key :thing/size}]})
+             {:column/name "Alfa"
+              :column/entity-key :thing/alfa}
+             {:column/name "Bravo"
+              :column/entity-key :thing/bravo}
+             {:column/name "Charlie"
+              :column/entity-key :thing/charlie}]})
 
 (defn things-page-handler [_request]
   (-> (spreadsheet/table things-config)
@@ -46,45 +46,45 @@
   (let [keyboard (.keyboard browser/*page*)]
     (db/init-collection! :things
                          [{:entity/id "1"
-                           :thing/name "Apple"
-                           :thing/color "Red"
-                           :thing/size "8"}
+                           :thing/alfa "Cell 1A"
+                           :thing/bravo "Cell 1B"
+                           :thing/charlie "Cell 1C"}
                           {:entity/id "2"
-                           :thing/name "Banana"
-                           :thing/color "Yellow"
-                           :thing/size "20"}
+                           :thing/alfa "Cell 2A"
+                           :thing/bravo "Cell 2B"
+                           :thing/charlie "Cell 2C"}
                           {:entity/id "3"
-                           :thing/name "Car"
-                           :thing/color "Blue"
-                           :thing/size "450"}])
+                           :thing/alfa "Cell 3A"
+                           :thing/bravo "Cell 3B"
+                           :thing/charlie "Cell 3C"}])
     (browser/navigate! "/things")
 
     (testing "renders spreadsheet table"
       (let [table (browser/locator "table")]
         (is (= (html/normalize-whitespace "
-             #  Name    Color   Size
-             1  Apple   Red     8
-             2  Banana  Yellow  20
-             3  Car     Blue    450
-                []      []      []")
+             #  Alfa     Bravo    Charlie
+             1  Cell 1A  Cell 1B  Cell 1C
+             2  Cell 2A  Cell 2B  Cell 2C
+             3  Cell 3A  Cell 3B  Cell 3C
+                []       []       []")
                (html/visualize-html table)))))
 
     (testing "clicking a cell gives it focus"
-      (.click (browser/locator "text=Apple"))
-      (is (= "Apple" (html/visualize-html (browser/focused-element)))))
+      (.click (browser/locator "text=Cell 1A"))
+      (is (= "Cell 1A" (html/visualize-html (browser/focused-element)))))
 
     (testing "arrow keys move focus between cells"
-      (.click (browser/locator "text=Apple"))
-      (is (= "Apple" (html/visualize-html (browser/focused-element))))
+      (.click (browser/locator "text=Cell 1A"))
+      (is (= "Cell 1A" (html/visualize-html (browser/focused-element))))
 
       (.press keyboard "ArrowRight")
-      (is (= "Red" (html/visualize-html (browser/focused-element))))
+      (is (= "Cell 1B" (html/visualize-html (browser/focused-element))))
 
       (.press keyboard "ArrowDown")
-      (is (= "Yellow" (html/visualize-html (browser/focused-element))))
+      (is (= "Cell 2B" (html/visualize-html (browser/focused-element))))
 
       (.press keyboard "ArrowLeft")
-      (is (= "Banana" (html/visualize-html (browser/focused-element))))
+      (is (= "Cell 2A" (html/visualize-html (browser/focused-element))))
 
       (.press keyboard "ArrowUp")
-      (is (= "Apple" (html/visualize-html (browser/focused-element)))))))
+      (is (= "Cell 1A" (html/visualize-html (browser/focused-element)))))))
