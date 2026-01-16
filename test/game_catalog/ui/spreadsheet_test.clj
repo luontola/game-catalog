@@ -6,10 +6,7 @@
             [game-catalog.testing.html :as html]
             [game-catalog.testing.util :refer [with-fixtures]]
             [game-catalog.ui.layout :as layout]
-            [game-catalog.ui.routes :as routes]
-            [game-catalog.ui.spreadsheet :as spreadsheet]
-            [reitit.ring :as ring]
-            [ring.util.http-response :as http-response])
+            [game-catalog.ui.spreadsheet :as spreadsheet])
   (:import (com.microsoft.playwright Locator$WaitForOptions)
            (com.microsoft.playwright.options WaitForSelectorState)))
 
@@ -36,12 +33,6 @@
     {:get {:handler things-page-handler}}]
    (spreadsheet/make-routes things-config)])
 
-(defn browser-fixture [f]
-  (with-redefs [routes/ring-handler (ring/ring-handler
-                                      (ring/router test-routes)
-                                      (constantly (http-response/not-found "Not found")))]
-    (browser/fixture f)))
-
 (def default-entities
   [{:entity/id "1"
     :thing/alfa "Cell 1A"
@@ -63,7 +54,7 @@
    (browser/navigate! "/things")
    (f)))
 
-(use-fixtures :once browser-fixture)
+(use-fixtures :once (partial browser/fixture test-routes))
 (use-fixtures :each data-fixture)
 
 (defn wait-for-edit-mode []

@@ -2,7 +2,10 @@
   (:require [clojure.test :refer :all]
             [game-catalog.data.db :as db]
             [game-catalog.main :as main]
+            [game-catalog.ui.routes :as routes]
             [mount.core :as mount]
+            [reitit.ring :as ring]
+            [ring.util.http-response :as http-response]
             [unilog.config :refer [start-logging!]])
   (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Locator Page Playwright Request)
            (java.net URI)
@@ -15,7 +18,7 @@
 (def ^:dynamic ^Page *page* nil)
 (def *request-log (atom []))
 
-(defn fixture [f]
+(defn- run-fixture [f]
   (start-logging! {:level :info
                    :console true
                    :overrides {"org.eclipse.jetty" :warn}})
@@ -46,6 +49,14 @@
           (f))))
     (finally
       (mount/stop))))
+
+(defn fixture
+  ([f] (run-fixture f))
+  ([routes f]
+   (with-redefs [routes/ring-handler (ring/ring-handler
+                                       (ring/router routes)
+                                       (constantly (http-response/not-found "Not found")))]
+     (run-fixture f))))
 
 (defn navigate! [path]
   (.navigate *page* (str *base-url* path)))
