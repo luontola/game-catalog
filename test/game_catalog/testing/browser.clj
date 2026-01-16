@@ -7,8 +7,9 @@
             [reitit.ring :as ring]
             [ring.util.http-response :as http-response]
             [unilog.config :refer [start-logging!]])
-  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Locator Page Page$EmulateMediaOptions Playwright Request)
+  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Locator Page Page$EmulateMediaOptions Playwright Request Tracing$StartOptions Tracing$StopOptions)
            (com.microsoft.playwright.options ReducedMotion)
+           (java.io File)
            (java.net URI)
            (org.eclipse.jetty.server NetworkConnector)))
 
@@ -62,6 +63,26 @@
                                        (ring/router routes)
                                        (constantly (http-response/not-found "Not found")))]
      (run-fixture f))))
+
+(defn tracing-fixture [f]
+  (let [trace-dir (File. "target/playwright-traces")
+        test-var (first *testing-vars*) ; empty outside a test var, i.e. with use-fixtures
+        trace-name (if test-var
+                     (str (-> test-var meta :ns ns-name) "__" (-> test-var meta :name))
+                     (str "trace-" (System/currentTimeMillis))) ; fallback
+        trace-file (File. trace-dir (str trace-name ".zip"))]
+    (.start (.tracing *context*)
+            (-> (Tracing$StartOptions.)
+                (.setScreenshots true)
+                (.setSnapshots true)))
+    (try
+      (f)
+      (finally
+        (.mkdirs trace-dir)
+        (.stop (.tracing *context*)
+               (-> (Tracing$StopOptions.)
+                   (.setPath (.toPath trace-file))))
+        (println (str "Trace saved to: " trace-file))))))
 
 (defn navigate! [path]
   (.navigate *page* (str *base-url* path)))
