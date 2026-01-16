@@ -2,7 +2,7 @@
   "permissions": {
     "allow": [
       "Bash(lein test:*)",
-      "WebFetch(domain:code.claude.com)"
+      "Bash(lein check:*)"
     ],
     "deny": [],
     "ask": []
