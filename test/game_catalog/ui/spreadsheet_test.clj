@@ -158,10 +158,67 @@
         (.press keyboard "ArrowUp")
         (is (= "3" (html/visualize-html (browser/focused-element)))))
 
-      (testing "bottom edge"
+      (testing "cannot move beyond the bottom edge"
         (.click (browser/locator "tr.adding input >> nth=0"))
         (.press keyboard "ArrowDown")
         (is (= "[]" (html/visualize-html (browser/focused-element))))))))
+
+(deftest editor-navigation-test
+  (let [keyboard (.keyboard browser/*page*)
+        reset-editor! (fn []
+                        (.press keyboard "Escape")
+                        (wait-for-view-mode))]
+
+    (testing "up arrow key moves focus to cell in row above"
+      (.dblclick (browser/locator "text=Cell 2B"))
+      (wait-for-edit-mode)
+
+      (.press keyboard "ArrowUp")
+      (wait-for-view-mode)
+
+      (is (= "Cell 1B" (html/visualize-html (browser/focused-element)))))
+
+    (testing "down arrow key moves focus to cell in row below"
+      (.dblclick (browser/locator "text=Cell 2B"))
+      (wait-for-edit-mode)
+
+      (.press keyboard "ArrowDown")
+      (wait-for-view-mode)
+
+      (is (= "Cell 3B" (html/visualize-html (browser/focused-element)))))
+
+    (testing "up arrow key cannot move focus beyond top edge"
+      (.dblclick (browser/locator "text=Cell 1B"))
+      (wait-for-edit-mode)
+
+      (.press keyboard "ArrowUp")
+
+      (is (= "[Cell 1B]" (html/visualize-html (browser/focused-element))))
+      (reset-editor!))
+
+    (testing "down arrow key moves focus from bottom row to adding row"
+      (.dblclick (browser/locator "text=Cell 3B"))
+      (wait-for-edit-mode)
+
+      (.press keyboard "ArrowDown")
+      (wait-for-view-mode)
+
+      (is (= "[]" (html/visualize-html (browser/focused-element))))
+      (is (= "thing/bravo" (.evaluate browser/*page* "document.activeElement.name"))
+          "should focus the same column"))
+
+    (testing "left and right arrow keys do default cursor movement in input fields (unlike in view mode)"
+      (.dblclick (browser/locator "text=Cell 2B"))
+      (wait-for-edit-mode)
+
+      (.type keyboard "1")
+      (.press keyboard "ArrowLeft")
+      (.type keyboard "2")
+      (.press keyboard "ArrowRight")
+      (.type keyboard "3")
+
+      (is (= "213" (.evaluate browser/*page* "document.activeElement.value")))
+      (reset-editor!))))
 
 (deftest edit-mode-test
   (let [keyboard (.keyboard browser/*page*)
