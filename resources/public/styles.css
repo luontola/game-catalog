@@ -1,6 +1,7 @@
 html {
+    --page-bottom-margin: 5rem;
     /* Account for sticky adding row at the bottom, when scrolling the just added row into view */
-    scroll-padding-bottom: 5rem;
+    scroll-padding-bottom: var(--page-bottom-margin);
 }
 
 header {
@@ -30,7 +31,7 @@ header {
 }
 
 main {
-    margin: 1.5rem 2rem 5rem;
+    margin: 1.5rem 2rem var(--page-bottom-margin);
 }
 
 .spreadsheet {
