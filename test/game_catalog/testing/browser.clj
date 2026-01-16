@@ -13,7 +13,8 @@
            (java.awt Desktop)
            (java.io File)
            (java.net URI)
-           (javax.swing JOptionPane)
+           (javax.swing JEditorPane JOptionPane UIManager)
+           (javax.swing.event HyperlinkEvent$EventType HyperlinkListener)
            (org.eclipse.jetty.server NetworkConnector)))
 
 (def ^:dynamic ^String *base-url* nil)
@@ -90,16 +91,26 @@
 (defn pause-here []
   (when-not *base-url*
     (throw (IllegalStateException. "not inside browser fixture")))
-  (.browse (Desktop/getDesktop) (URI. *base-url*))
   (let [test-var (first test/*testing-vars*)
         test-name (when test-var
                     (str (-> test-var meta :ns ns-name) "/" (-> test-var meta :name)))
         test-context (test/testing-contexts-str)
-        message (str "Test paused:\n" test-name
+        font (UIManager/getFont "Label.font")
+        message (str "<html><body style=\"font-family:" (.getFamily font) "; font-size:" (.getSize font) "pt\">"
+                     "Test paused:<br>" test-name
                      (when-not (str/blank? test-context)
-                       (str "\n\"" test-context "\""))
-                     "\n\nServer: " *base-url*
-                     "\n\nClick OK to continue.")]
+                       (str "<br><i>" test-context "</i>"))
+                     "<br><br>Server: <a href=\"" *base-url* "\">" *base-url* "</a>"
+                     "<br><br>Click OK to continue.</body></html>")
+        message (doto (JEditorPane. "text/html" message)
+                  (.setEditable false)
+                  (.setFocusable false)
+                  (.setOpaque false)
+                  (.addHyperlinkListener
+                    (reify HyperlinkListener
+                      (hyperlinkUpdate [_ event]
+                        (when (= (.getEventType event) HyperlinkEvent$EventType/ACTIVATED)
+                          (.browse (Desktop/getDesktop) (.toURI (.getURL event))))))))]
     (println "Test paused. Click OK in the UI dialog to continue.")
     (JOptionPane/showMessageDialog nil message "Test Paused" JOptionPane/INFORMATION_MESSAGE)))
 
