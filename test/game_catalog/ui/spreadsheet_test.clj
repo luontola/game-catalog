@@ -42,22 +42,26 @@
                                       (constantly (http-response/not-found "Not found")))]
     (browser/fixture f)))
 
-(defn data-fixture [f]
-  (db/init-collection! :things
-                       [{:entity/id "1"
-                         :thing/alfa "Cell 1A"
-                         :thing/bravo "Cell 1B"
-                         :thing/charlie "Cell 1C"}
-                        {:entity/id "2"
-                         :thing/alfa "Cell 2A"
-                         :thing/bravo "Cell 2B"
-                         :thing/charlie "Cell 2C"}
-                        {:entity/id "3"
-                         :thing/alfa "Cell 3A"
-                         :thing/bravo "Cell 3B"
-                         :thing/charlie "Cell 3C"}])
-  (browser/navigate! "/things")
-  (f))
+(def default-entities
+  [{:entity/id "1"
+    :thing/alfa "Cell 1A"
+    :thing/bravo "Cell 1B"
+    :thing/charlie "Cell 1C"}
+   {:entity/id "2"
+    :thing/alfa "Cell 2A"
+    :thing/bravo "Cell 2B"
+    :thing/charlie "Cell 2C"}
+   {:entity/id "3"
+    :thing/alfa "Cell 3A"
+    :thing/bravo "Cell 3B"
+    :thing/charlie "Cell 3C"}])
+
+(defn data-fixture
+  ([f] (data-fixture default-entities f))
+  ([entities f]
+   (db/init-collection! :things entities)
+   (browser/navigate! "/things")
+   (f)))
 
 (use-fixtures :once browser-fixture)
 (use-fixtures :each data-fixture)
@@ -410,3 +414,39 @@
               3  Cell 3A  Cell 3B  Cell 3C
                  []       []       []")
              (html/visualize-html (browser/locator "table")))))))
+
+(deftest adding-row-scroll-into-view-test
+  (let [keyboard (.keyboard browser/*page*)
+        many-entities (for [i (range 1 25)]
+                        {:entity/id (str i)
+                         :thing/alfa ""
+                         :thing/bravo ""
+                         :thing/charlie ""})]
+    (with-fixtures [(partial data-fixture many-entities)]
+
+      (testing "focusing the adding row scrolls to the page bottom"
+        (let [viewport-height (.evaluate browser/*page* "window.innerHeight")
+              scrollable-height (.evaluate browser/*page* "document.documentElement.scrollHeight")
+              scroll-before (.evaluate browser/*page* "window.scrollY")]
+          (is (< viewport-height scrollable-height (* 2 viewport-height))
+              "the test should have more rows than fits on the screen") ; but not unnecessarily many, to have a faster test
+          (is (= 0 scroll-before)
+              "the test should start scrolled to the top")
+
+          (.click (browser/locator "tr.adding input >> nth=0"))
+
+          (let [scroll-after (.evaluate browser/*page* "window.scrollY")]
+            (is (< scroll-before scroll-after))
+            (is (= (- scrollable-height viewport-height) scroll-after)))))
+
+      (testing "new row is scrolled into view, so it won't hide behind the adding row"
+        (.type keyboard "New")
+        (.press keyboard "Enter")
+        (.waitFor (browser/locator "text=New"))
+
+        (let [new-row (.boundingBox (browser/locator "text=New"))
+              new-row-bottom (+ (.y new-row) (.height new-row))
+              adding-row (.boundingBox (browser/locator "tr.adding"))
+              adding-row-top (.y adding-row)]
+          (is (<= new-row-bottom adding-row-top)
+              "new row should not overlap with the adding row"))))))
