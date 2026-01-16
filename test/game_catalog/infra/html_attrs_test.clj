@@ -10,14 +10,18 @@
   [["/test"
     {:get {:handler (fn [_request]
                       (-> (h/html
-                            [:button {:hx-get "/test/input" :hx-target "this" :hx-swap "outerHTML"}
+                            [:button {:hx-get "/test/input"
+                                      :hx-target "this"
+                                      :hx-swap "afterend"}
                              "Load input"])
                           (layout/page)
                           (infra.html/response)))}}]
    ["/test/input"
     {:get {:handler (fn [_request]
                       (-> (h/html
-                            [:input#input1 {:type "text" :value "hello" :autofocus true}])
+                            [:input#input1 {:type "text"
+                                            :value "hello"
+                                            :autofocus true}])
                           (infra.html/response)))}}]])
 
 (deftest autofocus-test
@@ -36,3 +40,41 @@
       ;; When adding autofocuses dynamically with htmx, we need to clean them up after use.
       (let [input1 (browser/locator "#input1")]
         (is (not (.evaluate input1 "el => el.hasAttribute('autofocus')")))))))
+
+(def auto-scroll-routes
+  [["/test"
+    {:get {:handler (fn [_request]
+                      (-> (h/html
+                            [:div
+                             [:button {:hx-get "/test/element"
+                                       :hx-target "#container"
+                                       :hx-swap "afterend"}
+                              "Load element"]
+                             [:div#container {:style {:height "2000px"
+                                                      :border "1px solid blue"}}
+                              "Tall content"]])
+                          (layout/page)
+                          (infra.html/response)))}}]
+   ["/test/element"
+    {:get {:handler (fn [_request]
+                      (-> (h/html
+                            [:div#target {:auto-scroll-into-view true}
+                             "Scrolled element"])
+                          (infra.html/response)))}}]])
+
+(deftest auto-scroll-into-view-test
+  (with-fixtures [(partial browser/fixture auto-scroll-routes)]
+    (browser/navigate! "/test")
+    (let [scroll-before (.evaluate browser/*page* "window.scrollY")]
+      (is (= 0 scroll-before) "should start at top of page")
+
+      (.click (browser/locator "button"))
+      (.waitFor (browser/locator "#target"))
+
+      (testing "element is scrolled into view"
+        (let [scroll-after (.evaluate browser/*page* "window.scrollY")]
+          (is (< scroll-before scroll-after))))
+
+      (testing "auto-scroll-into-view attribute is removed after scrolling"
+        (let [target (browser/locator "#target")]
+          (is (not (.evaluate target "el => el.hasAttribute('auto-scroll-into-view')"))))))))

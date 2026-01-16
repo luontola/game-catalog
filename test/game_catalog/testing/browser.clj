@@ -7,7 +7,8 @@
             [reitit.ring :as ring]
             [ring.util.http-response :as http-response]
             [unilog.config :refer [start-logging!]])
-  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Locator Page Playwright Request)
+  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Locator Page Page$EmulateMediaOptions Playwright Request)
+           (com.microsoft.playwright.options ReducedMotion)
            (java.net URI)
            (org.eclipse.jetty.server NetworkConnector)))
 
@@ -41,6 +42,10 @@
                   *context* context
                   *page* page]
           (.setDefaultTimeout context 5000)
+          ;; animations slow down tests and make them flaky if we need to wait for animations to end
+          (.emulateMedia page (-> (Page$EmulateMediaOptions.)
+                                  (.setReducedMotion ReducedMotion/REDUCE)))
+          ;; enable asserting which requests the tests made
           (.onRequest page (fn [^Request request]
                              (let [uri (URI. (.url request))]
                                (swap! *request-log conj (cond-> {:method (.method request)

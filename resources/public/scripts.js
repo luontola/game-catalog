@@ -225,7 +225,8 @@ const autoScrollObserver = new MutationObserver((mutations) => {
             if (node.nodeType === Node.ELEMENT_NODE) {
                 const attr = 'auto-scroll-into-view';
                 if (node.hasAttribute(attr)) {
-                    node.scrollIntoView({behavior: 'smooth', block: 'nearest'})
+                    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                    node.scrollIntoView({behavior: prefersReducedMotion ? 'instant' : 'smooth', block: 'nearest'})
                     node.removeAttribute(attr)
                 }
             }
