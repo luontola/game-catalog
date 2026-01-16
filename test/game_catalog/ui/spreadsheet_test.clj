@@ -290,7 +290,34 @@
         (wait-for-view-mode)
 
         (is (= cancelled @browser/*request-log))
-        (is (= "Cell 1A" (html/visualize-html (browser/focused-element))))))))
+        (is (= "Cell 1A" (html/visualize-html (browser/focused-element))))))
+
+    (testing "double-submit guard:"
+      (with-fixtures [data-fixture]
+        (testing "pressing Enter twice quickly only submits once"
+          (.dblclick cell-1a)
+          (wait-for-edit-mode)
+          (.type keyboard "Modified")
+          (reset! browser/*request-log [])
+
+          (.press keyboard "Enter")
+          (.press keyboard "Enter")
+          (wait-for-view-mode)
+
+          (is (= saved @browser/*request-log))))
+
+      (with-fixtures [data-fixture]
+        (testing "pressing Escape twice quickly only cancels once"
+          (.dblclick cell-1a)
+          (wait-for-edit-mode)
+          (.type keyboard "Discarded")
+          (reset! browser/*request-log [])
+
+          (.press keyboard "Escape")
+          (.press keyboard "Escape")
+          (wait-for-view-mode)
+
+          (is (= cancelled @browser/*request-log)))))))
 
 (deftest adding-rows-test
   (let [keyboard (.keyboard browser/*page*)]
