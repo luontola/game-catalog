@@ -29,7 +29,7 @@
       (infra.html/response)))
 
 (def test-routes
-  [["/things"
+  [["/"
     {:get {:handler things-page-handler}}]
    (spreadsheet/make-routes things-config)])
 
@@ -51,7 +51,7 @@
   ([f] (data-fixture default-entities f))
   ([entities f]
    (db/init-collection! :things entities)
-   (browser/navigate! "/things")
+   (browser/navigate! "/")
    (f)))
 
 (use-fixtures :once (partial browser/fixture test-routes))

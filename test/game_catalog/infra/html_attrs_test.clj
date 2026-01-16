@@ -7,16 +7,16 @@
             [game-catalog.ui.layout :as layout]))
 
 (def autofocus-routes
-  [["/test"
+  [["/"
     {:get {:handler (fn [_request]
                       (-> (h/html
-                            [:button {:hx-get "/test/input"
+                            [:button {:hx-get "/input"
                                       :hx-target "this"
                                       :hx-swap "afterend"}
                              "Load input"])
                           (layout/page)
                           (infra.html/response)))}}]
-   ["/test/input"
+   ["/input"
     {:get {:handler (fn [_request]
                       (-> (h/html
                             [:input#input1 {:type "text"
@@ -26,7 +26,7 @@
 
 (deftest autofocus-test
   (with-fixtures [(partial browser/fixture autofocus-routes)]
-    (browser/navigate! "/test")
+    (browser/navigate! "/")
     (.click (browser/locator "button"))
     (.waitFor (browser/locator "#input1"))
 
@@ -42,11 +42,11 @@
         (is (not (.evaluate input1 "el => el.hasAttribute('autofocus')")))))))
 
 (def auto-scroll-routes
-  [["/test"
+  [["/"
     {:get {:handler (fn [_request]
                       (-> (h/html
                             [:div
-                             [:button {:hx-get "/test/element"
+                             [:button {:hx-get "/element"
                                        :hx-target "#container"
                                        :hx-swap "afterend"}
                               "Load element"]
@@ -55,7 +55,7 @@
                               "Tall content"]])
                           (layout/page)
                           (infra.html/response)))}}]
-   ["/test/element"
+   ["/element"
     {:get {:handler (fn [_request]
                       (-> (h/html
                             [:div#target {:auto-scroll-into-view true}
@@ -64,7 +64,7 @@
 
 (deftest auto-scroll-into-view-test
   (with-fixtures [(partial browser/fixture auto-scroll-routes)]
-    (browser/navigate! "/test")
+    (browser/navigate! "/")
     (let [scroll-before (.evaluate browser/*page* "window.scrollY")]
       (is (= 0 scroll-before) "should start at top of page")
 

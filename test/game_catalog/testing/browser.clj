@@ -1,5 +1,6 @@
 (ns game-catalog.testing.browser
-  (:require [clojure.test :refer :all]
+  (:require [clojure.string :as str]
+            [clojure.test :as test]
             [game-catalog.data.db :as db]
             [game-catalog.main :as main]
             [game-catalog.ui.routes :as routes]
@@ -9,8 +10,10 @@
             [unilog.config :refer [start-logging!]])
   (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Locator Page Page$EmulateMediaOptions Playwright Request Tracing$StartOptions Tracing$StopOptions)
            (com.microsoft.playwright.options ReducedMotion)
+           (java.awt Desktop)
            (java.io File)
            (java.net URI)
+           (javax.swing JOptionPane)
            (org.eclipse.jetty.server NetworkConnector)))
 
 (def ^:dynamic ^String *base-url* nil)
@@ -66,7 +69,7 @@
 
 (defn tracing-fixture [f]
   (let [trace-dir (File. "target/playwright-traces")
-        test-var (first *testing-vars*) ; empty outside a test var, i.e. with use-fixtures
+        test-var (first test/*testing-vars*) ; empty outside a test var, i.e. with use-fixtures
         trace-name (if test-var
                      (str (-> test-var meta :ns ns-name) "__" (-> test-var meta :name))
                      (str "trace-" (System/currentTimeMillis))) ; fallback
@@ -83,6 +86,22 @@
                (-> (Tracing$StopOptions.)
                    (.setPath (.toPath trace-file))))
         (println (str "Trace saved to: " trace-file))))))
+
+(defn pause-here []
+  (when-not *base-url*
+    (throw (IllegalStateException. "not inside browser fixture")))
+  (.browse (Desktop/getDesktop) (URI. *base-url*))
+  (let [test-var (first test/*testing-vars*)
+        test-name (when test-var
+                    (str (-> test-var meta :ns ns-name) "/" (-> test-var meta :name)))
+        test-context (test/testing-contexts-str)
+        message (str "Test paused:\n" test-name
+                     (when-not (str/blank? test-context)
+                       (str "\n\"" test-context "\""))
+                     "\n\nServer: " *base-url*
+                     "\n\nClick OK to continue.")]
+    (println "Test paused. Click OK in the UI dialog to continue.")
+    (JOptionPane/showMessageDialog nil message "Test Paused" JOptionPane/INFORMATION_MESSAGE)))
 
 (defn navigate! [path]
   (.navigate *page* (str *base-url* path)))
