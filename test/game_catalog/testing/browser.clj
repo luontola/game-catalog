@@ -8,8 +8,8 @@
             [reitit.ring :as ring]
             [ring.util.http-response :as http-response]
             [unilog.config :refer [start-logging!]])
-  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Locator Page Page$EmulateMediaOptions Playwright Request Tracing$StartOptions Tracing$StopOptions)
-           (com.microsoft.playwright.options ReducedMotion)
+  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Locator Locator$ClickOptions Page Page$EmulateMediaOptions Playwright Request Tracing$StartOptions Tracing$StopOptions)
+           (com.microsoft.playwright.options MouseButton ReducedMotion)
            (java.awt Desktop)
            (java.io File)
            (java.net URI)
@@ -125,3 +125,7 @@
 
 (defn focused-element []
   (.evaluate *page* "document.activeElement.outerHTML"))
+
+(defn right-click [^Locator locator]
+  (.click locator (-> (Locator$ClickOptions.)
+                      (.setButton MouseButton/RIGHT))))

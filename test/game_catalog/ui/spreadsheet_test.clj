@@ -441,3 +441,71 @@
               adding-row-top (.y adding-row)]
           (is (<= new-row-bottom adding-row-top)
               "new row should not overlap with the adding row"))))))
+
+(defn context-menu-visible? []
+  (.isVisible (browser/locator "#context-menu")))
+
+(defn wait-for-row-deleted [cell-text]
+  (.waitFor (browser/locator (str "text=" cell-text))
+            (-> (Locator$WaitForOptions.)
+                (.setState WaitForSelectorState/HIDDEN))))
+
+(deftest context-menu-test
+  (let [keyboard (.keyboard browser/*page*)]
+
+    (testing "right-clicking a cell shows the context menu"
+      (is (not (context-menu-visible?)))
+
+      (browser/right-click (browser/locator "text=Cell 2A"))
+
+      (is (context-menu-visible?)))
+
+    (testing "clicking outside hides the context menu"
+      (is (context-menu-visible?))
+
+      (.click (browser/locator "text=Cell 1A"))
+
+      (is (not (context-menu-visible?))))
+
+    (testing "Escape key hides the context menu"
+      (browser/right-click (browser/locator "text=Cell 1A"))
+      (is (context-menu-visible?))
+
+      (.press keyboard "Escape")
+
+      (is (not (context-menu-visible?))))
+
+    (testing "context menu does not appear on the adding row"
+      (is (not (context-menu-visible?)))
+
+      (browser/right-click (browser/locator "tr.adding td >> nth=1"))
+
+      (is (not (context-menu-visible?))))))
+
+(deftest delete-row-test
+  (let [delete-button (browser/locator "#context-menu li[data-action='delete']")]
+
+    (testing "clicking 'Delete row' removes the row from the table"
+      (browser/right-click (browser/locator "text=Cell 2A"))
+      (reset! browser/*request-log [])
+
+      (.click delete-button)
+      (wait-for-row-deleted "Cell 2A")
+
+      (is (= [{:method "POST", :path "/spreadsheet/things/2/delete"}]
+             @browser/*request-log))
+      (is (= (html/normalize-whitespace "
+              #  Alfa     Bravo    Charlie
+              1  Cell 1A  Cell 1B  Cell 1C
+              3  Cell 3A  Cell 3B  Cell 3C
+                 []       []       []")
+             (html/visualize-html (browser/locator "table")))))
+
+    (testing "context menu is hidden after clicking delete"
+      (browser/right-click (browser/locator "text=Cell 1A"))
+      (is (context-menu-visible?))
+
+      (.click delete-button)
+      (wait-for-row-deleted "Cell 1A")
+
+      (is (not (context-menu-visible?))))))

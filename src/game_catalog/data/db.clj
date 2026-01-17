@@ -15,6 +15,9 @@
     (assert entity-id "entity was missing :entity/id")
     (swap! *collections assoc-in [collection-key entity-id] entity)))
 
+(defn delete! [collection-key entity-id]
+  (swap! *collections update collection-key dissoc entity-id))
+
 (defn init-collection! [collection-key entities]
   (let [entities-by-id (->> entities
                             (map (fn [entity]

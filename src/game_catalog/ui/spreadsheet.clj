@@ -137,6 +137,19 @@
                        (when adding?
                          (add-row config)))))))
 
+(defn delete-row-handler [config]
+  (fn [request]
+    (let [collection-key (:collection-key config)
+          entity-id (get-in request [:path-params :entity-id])
+          entity (db/get-by-id collection-key entity-id)]
+      (if entity
+        (do
+          (db/delete! collection-key entity-id)
+          (log/info (str "Deleted " (name collection-key) " " entity-id))
+          (http-response/ok ""))
+        (-> (html/response "Row not found")
+            (response/status 404))))))
+
 (defn make-routes [config]
   (let [entity-type (entity-type config)]
     [[(str "/spreadsheet/" entity-type "/:entity-id/view")
@@ -144,4 +157,6 @@
      [(str "/spreadsheet/" entity-type "/:entity-id/edit")
       {:post {:handler (edit-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/save")
-      {:post {:handler (save-row-handler config)}}]]))
+      {:post {:handler (save-row-handler config)}}]
+     [(str "/spreadsheet/" entity-type "/:entity-id/delete")
+      {:post {:handler (delete-row-handler config)}}]]))

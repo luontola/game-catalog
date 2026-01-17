@@ -102,3 +102,38 @@
   (testing "error: missing :entity/id"
     (is (thrown? AssertionError
                  (db/save! :things {:name "No ID"})))))
+
+(deftest delete-test
+  (testing "removes existing entity"
+    (let [entity {:entity/id "1", :name "A"}]
+      (db/init-collection! :things [entity])
+      (db/delete! :things "1")
+      (is (nil? (db/get-by-id :things "1")))
+      (is (empty? (db/get-all :things)))))
+
+  (testing "non-existent collection does nothing"
+    (db/delete! :nonexistent "1")
+    (is (nil? (db/get-by-id :nonexistent "1"))))
+
+  (testing "non-existent entity does nothing"
+    (let [entity {:entity/id "1", :name "A"}]
+      (db/init-collection! :things [entity])
+      (db/delete! :things "666")
+      (is (= entity (db/get-by-id :things "1")))))
+
+  (testing "doesn't affect other entities"
+    (let [entity-1 {:entity/id "1", :name "A"}
+          entity-2 {:entity/id "2", :name "B"}]
+      (db/init-collection! :things [entity-1 entity-2])
+      (db/delete! :things "1")
+      (is (nil? (db/get-by-id :things "1")))
+      (is (= entity-2 (db/get-by-id :things "2")))))
+
+  (testing "doesn't affect other collections"
+    (let [thing {:entity/id "1", :name "Thing"}
+          stuff {:entity/id "1", :name "Stuff"}]
+      (db/init-collection! :things [thing])
+      (db/init-collection! :stuff [stuff])
+      (db/delete! :things "1")
+      (is (nil? (db/get-by-id :things "1")))
+      (is (= stuff (db/get-by-id :stuff "1"))))))
