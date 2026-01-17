@@ -101,7 +101,7 @@ main {
 
 .context-menu {
     display: none;
-    position: fixed;
+    position: absolute;
     z-index: 1000;
     background-color: var(--bg);
     border: var(--border-width) solid var(--border);

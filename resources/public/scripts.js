@@ -254,8 +254,8 @@ if (contextMenu) {
             closeContextMenu()
         }
 
-        contextMenu.style.left = `${x}px`
-        contextMenu.style.top = `${y}px`
+        contextMenu.style.left = `${x + window.scrollX}px`
+        contextMenu.style.top = `${y + window.scrollY}px`
         contextMenu.classList.add('visible')
     }
 
