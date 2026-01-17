@@ -483,7 +483,7 @@
       (is (not (context-menu-visible?))))))
 
 (deftest delete-row-test
-  (let [delete-button (browser/locator "#context-menu li[data-action='delete']")]
+  (let [delete-button (browser/locator "#context-menu-delete")]
 
     (testing "clicking 'Delete row' removes the row from the table"
       (browser/right-click (browser/locator "text=Cell 2A"))

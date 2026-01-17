@@ -28,6 +28,4 @@
               [:li [:a {:href "/purchases"} "Purchases"]]
               [:li [:a {:href "https://github.com/luontola/game-catalog"} "GitHub Project"]]]]]
            [:main
-            view]
-           [:menu#context-menu {:class "context-menu"}
-            [:li {:data-action "delete"} "Delete row"]]]])))
+            view]]])))

@@ -240,58 +240,55 @@ autoScrollObserver.observe(document.body, {
 
 // Context menu for spreadsheet cells
 const contextMenu = document.getElementById('context-menu')
-let contextMenuTargetRow = null
+if (contextMenu) {
 
-function showContextMenu(x, y, row) {
-    contextMenuTargetRow = row
-    contextMenu.style.left = `${x}px`
-    contextMenu.style.top = `${y}px`
-    contextMenu.classList.add('visible')
+    function openContextMenu(x, y, row) {
+        const {entityType, entityId} = getEntityInfo(row)
+
+        const deleteButton = contextMenu.querySelector('#context-menu-delete')
+        deleteButton.clickHandler = () => {
+            htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/delete`, {
+                target: row,
+                swap: 'delete'
+            })
+            closeContextMenu()
+        }
+
+        contextMenu.style.left = `${x}px`
+        contextMenu.style.top = `${y}px`
+        contextMenu.classList.add('visible')
+    }
+
+    function closeContextMenu() {
+        contextMenu.classList.remove('visible')
+    }
+
+    // Open context menu by right-clicking a table cell
+    document.addEventListener('contextmenu', (e) => {
+        const cell = e.target.closest('.spreadsheet td')
+        if (!cell) {
+            return
+        }
+        const row = cell.closest('tr')
+        // Don't show context menu for the adding row
+        if (row.classList.contains('adding')) {
+            return
+        }
+        e.preventDefault()
+        openContextMenu(e.clientX, e.clientY, row)
+    })
+
+    // Close context menu by clicking outside
+    document.addEventListener('click', (e) => {
+        if (!contextMenu.contains(e.target)) {
+            closeContextMenu()
+        }
+    })
+
+    // Close context menu by pressing Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeContextMenu()
+        }
+    })
 }
-
-function hideContextMenu() {
-    contextMenu.classList.remove('visible')
-    contextMenuTargetRow = null
-}
-
-document.addEventListener('contextmenu', (e) => {
-    const cell = e.target.closest('.spreadsheet td')
-    if (!cell) {
-        return
-    }
-    const row = cell.closest('tr')
-    // Don't show context menu for the adding row
-    if (row.classList.contains('adding')) {
-        return
-    }
-    e.preventDefault()
-    showContextMenu(e.clientX, e.clientY, row)
-})
-
-document.addEventListener('click', (e) => {
-    if (!contextMenu.contains(e.target)) {
-        hideContextMenu()
-    }
-})
-
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && contextMenu.classList.contains('visible')) {
-        hideContextMenu()
-    }
-})
-
-contextMenu.addEventListener('click', (e) => {
-    const item = e.target.closest('li')
-    if (!item || !contextMenuTargetRow) {
-        return
-    }
-    const action = item.dataset.action
-    if (action === 'delete') {
-        const {entityType, entityId} = getEntityInfo(contextMenuTargetRow)
-        htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/delete`, {
-            target: contextMenuTargetRow,
-            swap: 'delete'
-        })
-    }
-    hideContextMenu()
-})

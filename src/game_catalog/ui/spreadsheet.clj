@@ -78,7 +78,11 @@
        [:tbody
         (for [entity entities]
           (view-row config entity))
-        (add-row config nil)]])))
+        (add-row config nil)]]
+      [:menu#context-menu {:class "context-menu"}
+       [:li
+        [:button#context-menu-delete {:onclick "this.clickHandler()"}
+         "Delete row"]]])))
 
 (defn view-row-handler [config]
   (fn [request]
