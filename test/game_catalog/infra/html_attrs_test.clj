@@ -27,7 +27,7 @@
 (deftest autofocus-test
   (with-fixtures [(partial browser/fixture autofocus-routes)]
     (browser/navigate! "/")
-    (.click (browser/locator "button"))
+    (.click (browser/locator "text=Load input"))
     (.waitFor (browser/locator "#input1"))
 
     (testing "autofocus selects all text by default"
@@ -68,7 +68,7 @@
     (let [scroll-before (.evaluate browser/*page* "window.scrollY")]
       (is (= 0 scroll-before) "should start at top of page")
 
-      (.click (browser/locator "button"))
+      (.click (browser/locator "text=Load element"))
       (.waitFor (browser/locator "#target"))
 
       (testing "element is scrolled into view"

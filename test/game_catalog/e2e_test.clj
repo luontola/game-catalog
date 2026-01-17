@@ -3,7 +3,8 @@
             [clojure.test :refer :all]
             [game-catalog.data.db :as db]
             [game-catalog.testing.browser :as browser]
-            [game-catalog.testing.html :as html]))
+            [game-catalog.testing.html :as html])
+  (:import (com.microsoft.playwright.assertions PlaywrightAssertions)))
 
 (use-fixtures :once browser/fixture)
 
@@ -12,11 +13,8 @@
     (browser/navigate! "/")
     (is (str/includes? (.textContent browser/*page* "body") "hello world"))
 
-    (let [button (browser/locator "button")]
-      (is (= "Click Me" (.textContent button)))
-      (.click button)
-      (.waitForCondition browser/*page* #(not= "Click Me" (.textContent button)))
-      (is (str/includes? (.textContent button) "Clicked at 20")))))
+    (.click (browser/locator "text=Click Me"))
+    (.isVisible (PlaywrightAssertions/assertThat (browser/locator "text=Clicked at 20")))))
 
 (deftest games-page-test
   (db/init-collection! :games
