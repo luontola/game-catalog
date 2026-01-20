@@ -13,12 +13,12 @@ This creates a `data/` directory that contains the CSV data files from the `data
 
 ## Running with Docker
 
-Run the published Docker image from GitHub Container Registry:
+Run the latest published Docker image from GitHub Container Registry:
 
     docker run -p 8080:8080 ghcr.io/luontola/game-catalog:latest
     open http://localhost:8080/
 
-Or run a specific version (format: YYYY-MM-DD.BUILD):
+Or run a [specific version](https://github.com/luontola/game-catalog/pkgs/container/game-catalog) (format: YYYY-MM-DD.BUILD):
 
     docker run -p 8080:8080 ghcr.io/luontola/game-catalog:2025-11-15.6
     open http://localhost:8080/
@@ -40,4 +40,4 @@ Start the app
 Run tests once or automatically
 
     lein kaocha
-    lein kaocha --watch
+    lein autotest
