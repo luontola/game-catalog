@@ -1,8 +1,10 @@
 .DS_Store
 /*.iml
 /*.log
+/.clj-kondo/
 /.idea/
 /.lein-*
+/.lsp/
 /.nrepl-*
 /data/
 /node_modules/
