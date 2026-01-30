@@ -10,6 +10,23 @@
 (defn- entity-type [config]
   (name (:collection-key config)))
 
+(defn- row-number-viewer [_ctx]
+  (h/html [:span.row-number]))
+
+(defn- text-viewer [{:keys [value]}]
+  (h/html value))
+
+(defn- text-editor [{:keys [column value form-id focus?]}]
+  (h/html
+    [:input {:type "text"
+             :form form-id
+             :name (subs (str (:column/entity-key column)) 1) ; namespaced keyword without the ":" prefix
+             :value value
+             :data-test-content (str "[" value "]")
+             :autofocus focus?
+             :autocomplete "off"
+             :data-1p-ignore true}])) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
+
 (defn view-row
   ([config entity]
    (view-row config entity nil))
@@ -19,17 +36,19 @@
                    :data-entity-id (:entity/id entity)}
       (map-indexed
         (fn [idx column]
-          (let [focus? (= idx focus-index)]
+          (let [value (get entity (:column/entity-key column))
+                focus? (= idx focus-index)
+                ctx {:value value}]
             (h/html
               [:td {:tabindex 0
                     :autofocus focus?
                     :auto-scroll-into-view focus?}
-               (case (:column/type column)
-                 :row-number
-                 (h/html [:span.row-number])
+               (cond
+                 (= :row-number (:column/type column))
+                 (row-number-viewer ctx)
 
-                 ;; else
-                 (h/html (get entity (:column/entity-key column))))])))
+                 :else
+                 (text-viewer ctx))])))
         (:columns config))])))
 
 (defn edit-row
@@ -47,29 +66,26 @@
                               "adding")}
         (map-indexed
           (fn [idx column]
-            (let [col-key (:column/entity-key column)
+            (let [value (get entity (:column/entity-key column))
                   read-only? (:column/read-only? column)
                   focus? (= idx focus-index)
-                  value (get entity col-key)]
+                  ctx {:value value
+                       :column column
+                       :form-id form-id
+                       :focus? focus?}]
               (h/html
                 [:td (when read-only?
                        {:tabindex 0
                         :autofocus focus?})
-                 (case (:column/type column)
-                   :row-number
-                   (h/html [:span.row-number])
+                 (cond
+                   (= :row-number (:column/type column))
+                   (row-number-viewer ctx)
 
-                   ;; else
-                   (h/html (if read-only?
-                             value
-                             [:input {:type "text"
-                                      :form form-id
-                                      :name (subs (str col-key) 1) ; namespaced keyword without the ":" prefix
-                                      :value value
-                                      :data-test-content (str "[" value "]")
-                                      :autofocus focus?
-                                      :autocomplete "off"
-                                      :data-1p-ignore true}])))]))) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
+                   read-only?
+                   (text-viewer ctx)
+
+                   :else
+                   (text-editor ctx))])))
           (:columns config))
         ;; HTML doesn't allow <form> between <table> and <td> elements,
         ;; so it must be inside one of the <td>s and referred using IDs
