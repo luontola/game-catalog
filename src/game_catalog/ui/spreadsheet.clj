@@ -52,8 +52,6 @@
                              (when row-number? {:class "row-number"})
                              (when read-only? {:tabindex 0
                                                :autofocus (= idx focus-index)}))
-                       (when (zero? idx)
-                         [:form {:id form-id}])
                        (when-not row-number?
                          (if read-only?
                            value
@@ -65,7 +63,11 @@
                                     :autofocus (= idx focus-index)
                                     :autocomplete "off"
                                     :data-1p-ignore true}]))]))) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
-          (:columns config))]))))
+          (:columns config))
+        ;; HTML doesn't allow <form> between <table> and <td> elements,
+        ;; so it must be inside one of the <td>s and referred using IDs
+        [:td.form-element-container
+         [:form {:id form-id}]]]))))
 
 (defn add-row
   ([config]

@@ -64,6 +64,10 @@ main {
         white-space: pre-wrap;
     }
 
+    td.form-element-container {
+        display: none;
+    }
+
     /* Focusable table cells */
 
     td {
