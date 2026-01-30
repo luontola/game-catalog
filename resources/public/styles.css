@@ -97,6 +97,20 @@ main {
     tr.editing:has(td:focus, input:focus) {
         background-color: var(--marked);
     }
+
+    /* Row number counter */
+
+    tbody {
+        counter-reset: row-number;
+    }
+
+    tr:not(.adding) {
+        counter-increment: row-number;
+
+        td.row-number::before {
+            content: counter(row-number);
+        }
+    }
 }
 
 .context-menu {

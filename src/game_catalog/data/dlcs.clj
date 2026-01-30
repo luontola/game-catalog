@@ -10,7 +10,7 @@
    :id-generator spreadsheet/uuid-id-generator
    :sort-by (comp clojure.string/lower-case :dlc/name)
    :columns [{:column/name "#"
-              :column/entity-key :entity/id
+              :column/type :row-number
               :column/read-only? true}
              {:column/name "Name"
               :column/entity-key :dlc/name}

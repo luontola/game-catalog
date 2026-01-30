@@ -19,11 +19,14 @@
                    :data-entity-id (:entity/id entity)}
       (map-indexed
         (fn [idx column]
-          (let [focus? (= idx focus-index)]
-            [:td {:tabindex 0
+          (let [focus? (= idx focus-index)
+                row-number? (= :row-number (:column/type column))]
+            [:td {:class (when row-number? "row-number")
+                  :tabindex 0
                   :autofocus focus?
                   :auto-scroll-into-view focus?}
-             (get entity (:column/entity-key column))]))
+             (when-not row-number?
+               (get entity (:column/entity-key column)))]))
         (:columns config))])))
 
 (defn edit-row
@@ -43,22 +46,25 @@
           (fn [idx column]
             (let [col-key (:column/entity-key column)
                   read-only? (:column/read-only? column)
+                  row-number? (= :row-number (:column/type column))
                   value (get entity col-key)]
-              (h/html [:td (when read-only?
-                             {:tabindex 0
-                              :autofocus (= idx focus-index)})
+              (h/html [:td (merge
+                             (when row-number? {:class "row-number"})
+                             (when read-only? {:tabindex 0
+                                               :autofocus (= idx focus-index)}))
                        (when (zero? idx)
                          [:form {:id form-id}])
-                       (if read-only?
-                         value
-                         [:input {:type "text"
-                                  :form form-id
-                                  :name (subs (str col-key) 1) ; namespaced keyword without the ":" prefix
-                                  :value value
-                                  :data-test-content (str "[" value "]")
-                                  :autofocus (= idx focus-index)
-                                  :autocomplete "off"
-                                  :data-1p-ignore true}])]))) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
+                       (when-not row-number?
+                         (if read-only?
+                           value
+                           [:input {:type "text"
+                                    :form form-id
+                                    :name (subs (str col-key) 1) ; namespaced keyword without the ":" prefix
+                                    :value value
+                                    :data-test-content (str "[" value "]")
+                                    :autofocus (= idx focus-index)
+                                    :autocomplete "off"
+                                    :data-1p-ignore true}]))]))) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
           (:columns config))]))))
 
 (defn add-row
