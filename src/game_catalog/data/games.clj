@@ -47,7 +47,8 @@
   (with-open [reader (io/reader "data/Games.csv")]
     (let [csv-data (doall (csv/read-csv reader))
           rows (rest csv-data)]
-      (map #(zipmap csv-column-keys %)
+      (map #(-> (zipmap csv-column-keys %)
+                (assoc :entity/id (spreadsheet/uuid-id-generator nil)))
            rows))))
 
 (mount/defstate games-loader
