@@ -14,7 +14,7 @@
   {:collection-key :things
    :id-generator spreadsheet/sequential-id-generator
    :sort-by (comp clojure.string/lower-case :thing/alfa)
-   :columns [{:column/name "#"
+   :columns [{:column/name "ID"
               :column/entity-key :entity/id
               :column/read-only? true}
              {:column/name "Alfa"
@@ -72,11 +72,11 @@
 
     (testing "renders spreadsheet table"
       (is (= (html/normalize-whitespace "
-              #  Alfa     Bravo    Charlie
-              1  Cell 1A  Cell 1B  Cell 1C
-              2  Cell 2A  Cell 2B  Cell 2C
-              3  Cell 3A  Cell 3B  Cell 3C
-                 []       []       []")
+              ID  Alfa     Bravo    Charlie
+              1   Cell 1A  Cell 1B  Cell 1C
+              2   Cell 2A  Cell 2B  Cell 2C
+              3   Cell 3A  Cell 3B  Cell 3C
+                  []       []       []")
              (html/visualize-html (browser/locator "table")))))
 
     (testing "clicking a cell gives it focus"
@@ -228,11 +228,11 @@
         (wait-for-edit-mode)
 
         (is (= (html/normalize-whitespace "
-              #  Alfa       Bravo      Charlie
-              1  [Cell 1A]  [Cell 1B]  [Cell 1C]
-              2  Cell 2A    Cell 2B    Cell 2C
-              3  Cell 3A    Cell 3B    Cell 3C
-                 []         []         []")
+              ID  Alfa       Bravo      Charlie
+              1   [Cell 1A]  [Cell 1B]  [Cell 1C]
+              2   Cell 2A    Cell 2B    Cell 2C
+              3   Cell 3A    Cell 3B    Cell 3C
+                  []         []         []")
                (html/visualize-html (browser/locator "table"))))
         (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element)))))
 
@@ -251,11 +251,11 @@
 
         (is (= saved @browser/*request-log))
         (is (= (html/normalize-whitespace "
-              #  Alfa      Bravo    Charlie
-              1  Modified  Cell 1B  Cell 1C
-              2  Cell 2A   Cell 2B  Cell 2C
-              3  Cell 3A   Cell 3B  Cell 3C
-                 []        []       []")
+              ID  Alfa      Bravo    Charlie
+              1   Modified  Cell 1B  Cell 1C
+              2   Cell 2A   Cell 2B  Cell 2C
+              3   Cell 3A   Cell 3B  Cell 3C
+                  []        []       []")
                (html/visualize-html (browser/locator "table"))))
         (is (= "Cell 2A" (html/visualize-html (browser/focused-element)))))
 
@@ -385,12 +385,12 @@
 
     (testing "the added row goes last in the table"
       (is (= (html/normalize-whitespace "
-              #  Alfa     Bravo    Charlie
-              1  Cell 1A  Cell 1B  Cell 1C
-              2  Cell 2A  Cell 2B  Cell 2C
-              3  Cell 3A  Cell 3B  Cell 3C
-              4  Added A  Added B  Added C
-                 []       []       []")
+              ID  Alfa     Bravo    Charlie
+              1   Cell 1A  Cell 1B  Cell 1C
+              2   Cell 2A  Cell 2B  Cell 2C
+              3   Cell 3A  Cell 3B  Cell 3C
+              4   Added A  Added B  Added C
+                  []       []       []")
              (html/visualize-html (browser/locator "table")))))
 
     (testing "the added row is focused"
@@ -399,12 +399,12 @@
     (testing "reloading the page will sort the added row to its place"
       (.reload browser/*page*)
       (is (= (html/normalize-whitespace "
-              #  Alfa     Bravo    Charlie
-              4  Added A  Added B  Added C
-              1  Cell 1A  Cell 1B  Cell 1C
-              2  Cell 2A  Cell 2B  Cell 2C
-              3  Cell 3A  Cell 3B  Cell 3C
-                 []       []       []")
+              ID  Alfa     Bravo    Charlie
+              4   Added A  Added B  Added C
+              1   Cell 1A  Cell 1B  Cell 1C
+              2   Cell 2A  Cell 2B  Cell 2C
+              3   Cell 3A  Cell 3B  Cell 3C
+                  []       []       []")
              (html/visualize-html (browser/locator "table")))))))
 
 (deftest adding-row-scroll-into-view-test
@@ -496,10 +496,10 @@
       (is (= [{:method "POST", :path "/spreadsheet/things/2/delete"}]
              @browser/*request-log))
       (is (= (html/normalize-whitespace "
-              #  Alfa     Bravo    Charlie
-              1  Cell 1A  Cell 1B  Cell 1C
-              3  Cell 3A  Cell 3B  Cell 3C
-                 []       []       []")
+              ID  Alfa     Bravo    Charlie
+              1   Cell 1A  Cell 1B  Cell 1C
+              3   Cell 3A  Cell 3B  Cell 3C
+                  []       []       []")
              (html/visualize-html (browser/locator "table")))))
 
     (testing "context menu is hidden after clicking delete"
