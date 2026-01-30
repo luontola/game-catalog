@@ -2,10 +2,12 @@
   (:require [clojure.data.csv :as csv]
             [clojure.java.io :as io]
             [game-catalog.data.db :as db]
+            [game-catalog.ui.spreadsheet :as spreadsheet]
             [mount.core :as mount]))
 
 (def config
   {:collection-key :dlcs
+   :id-generator spreadsheet/uuid-id-generator
    :sort-by (comp clojure.string/lower-case :dlc/name)
    :columns [{:column/name "#"
               :column/entity-key :entity/id

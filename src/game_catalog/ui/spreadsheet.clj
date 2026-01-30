@@ -4,7 +4,8 @@
             [game-catalog.infra.hiccup :as h]
             [game-catalog.infra.html :as html]
             [ring.util.http-response :as http-response]
-            [ring.util.response :as response]))
+            [ring.util.response :as response])
+  (:import (java.util UUID)))
 
 (defn- entity-type [config]
   (name (:collection-key config)))
@@ -108,13 +109,16 @@
         (-> (html/response "Row not found")
             (response/status 404))))))
 
-(defn- generate-new-id [collection-key]
+(defn sequential-id-generator [collection-key]
   (let [entities (db/get-all collection-key)
         max-id (->> entities
                     (map :entity/id)
                     (map parse-long)
                     (apply max 0))]
     (str (inc max-id))))
+
+(defn uuid-id-generator [_collection-key]
+  (str (UUID/randomUUID)))
 
 (defn save-row-handler [config]
   (fn [request]
@@ -130,7 +134,7 @@
           adding? (= "new" entity-id)
           old-entity (db/get-by-id collection-key entity-id)
           new-entity (cond
-                       adding? (assoc updates :entity/id (generate-new-id collection-key))
+                       adding? (assoc updates :entity/id ((:id-generator config) collection-key))
                        old-entity (merge old-entity updates)
                        :else (http-response/not-found! "Row not found"))]
       (db/save! collection-key new-entity)

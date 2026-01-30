@@ -12,6 +12,7 @@
 
 (def things-config
   {:collection-key :things
+   :id-generator spreadsheet/sequential-id-generator
    :sort-by (comp clojure.string/lower-case :thing/alfa)
    :columns [{:column/name "#"
               :column/entity-key :entity/id
