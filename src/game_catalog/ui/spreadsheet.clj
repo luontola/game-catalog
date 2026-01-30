@@ -3,6 +3,7 @@
             [game-catalog.data.db :as db]
             [game-catalog.infra.hiccup :as h]
             [game-catalog.infra.html :as html]
+            [game-catalog.ui.spreadsheet.text :as text]
             [ring.util.http-response :as http-response]
             [ring.util.response :as response])
   (:import (java.util UUID)))
@@ -10,22 +11,8 @@
 (defn- entity-type [config]
   (name (:collection-key config)))
 
-(defn- row-number-viewer [_ctx]
-  (h/html [:span.row-number]))
-
-(defn- text-viewer [{:keys [value]}]
-  (h/html value))
-
-(defn- text-editor [{:keys [column value form-id focus?]}]
-  (h/html
-    [:input {:type "text"
-             :form form-id
-             :name (subs (str (:column/entity-key column)) 1) ; namespaced keyword without the ":" prefix
-             :value value
-             :data-test-content (str "[" value "]")
-             :autofocus focus?
-             :autocomplete "off"
-             :data-1p-ignore true}])) ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
+(defn- with-defaults [column]
+  (merge text/column-defaults column))
 
 (defn view-row
   ([config entity]
@@ -36,19 +23,16 @@
                    :data-entity-id (:entity/id entity)}
       (map-indexed
         (fn [idx column]
-          (let [value (get entity (:column/entity-key column))
+          (let [column (with-defaults column)
+                value (get entity (:column/entity-key column))
                 focus? (= idx focus-index)
-                ctx {:value value}]
+                ctx {:value value}
+                viewer (:column/viewer column)]
             (h/html
               [:td {:tabindex 0
                     :autofocus focus?
                     :auto-scroll-into-view focus?}
-               (cond
-                 (= :row-number (:column/type column))
-                 (row-number-viewer ctx)
-
-                 :else
-                 (text-viewer ctx))])))
+               (viewer ctx)])))
         (:columns config))])))
 
 (defn edit-row
@@ -66,26 +50,22 @@
                               "adding")}
         (map-indexed
           (fn [idx column]
-            (let [value (get entity (:column/entity-key column))
+            (let [column (with-defaults column)
+                  value (get entity (:column/entity-key column))
                   read-only? (:column/read-only? column)
                   focus? (= idx focus-index)
                   ctx {:value value
                        :column column
                        :form-id form-id
-                       :focus? focus?}]
+                       :focus? focus?}
+                  editor (if read-only?
+                           (:column/viewer column)
+                           (:column/editor column))]
               (h/html
                 [:td (when read-only?
                        {:tabindex 0
                         :autofocus focus?})
-                 (cond
-                   (= :row-number (:column/type column))
-                   (row-number-viewer ctx)
-
-                   read-only?
-                   (text-viewer ctx)
-
-                   :else
-                   (text-editor ctx))])))
+                 (editor ctx)])))
           (:columns config))
         ;; HTML doesn't allow <form> between <table> and <td> elements,
         ;; so it must be inside one of the <td>s and referred using IDs

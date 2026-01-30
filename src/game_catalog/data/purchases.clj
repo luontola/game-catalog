@@ -3,15 +3,15 @@
             [clojure.java.io :as io]
             [game-catalog.data.db :as db]
             [game-catalog.ui.spreadsheet :as spreadsheet]
+            [game-catalog.ui.spreadsheet.row-number :as row-number]
             [mount.core :as mount]))
 
 (def config
   {:collection-key :purchases
    :id-generator spreadsheet/uuid-id-generator
    :sort-by :purchase/date
-   :columns [{:column/name "#"
-              :column/type :row-number
-              :column/read-only? true}
+   :columns [(assoc row-number/column-defaults
+               :column/name "#")
              {:column/name "Shop"
               :column/entity-key :purchase/shop}
              {:column/name "Date"
