@@ -111,7 +111,7 @@ main {
     tr:not(.adding) {
         counter-increment: row-number;
 
-        td.row-number::before {
+        .row-number::before {
             content: counter(row-number);
         }
     }
