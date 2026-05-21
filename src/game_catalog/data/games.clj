@@ -3,6 +3,7 @@
             [clojure.java.io :as io]
             [game-catalog.data.db :as db]
             [game-catalog.ui.spreadsheet :as spreadsheet]
+            [game-catalog.ui.spreadsheet.numeric :as numeric]
             [game-catalog.ui.spreadsheet.row-number :as row-number]
             [mount.core :as mount]))
 
@@ -14,10 +15,12 @@
                :column/name "#")
              {:column/name "Name"
               :column/entity-key :game/name}
-             {:column/name "Release"
-              :column/entity-key :game/release}
-             {:column/name "Remake"
-              :column/entity-key :game/remake}
+             (assoc numeric/column-defaults
+               :column/name "Release"
+               :column/entity-key :game/release)
+             (assoc numeric/column-defaults
+               :column/name "Remake"
+               :column/entity-key :game/remake)
              {:column/name "Series"
               :column/entity-key :game/series}
              {:column/name "Tags"
