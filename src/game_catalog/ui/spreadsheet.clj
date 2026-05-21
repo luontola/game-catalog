@@ -131,17 +131,20 @@
 (defn uuid-id-generator [_collection-key]
   (str (UUID/randomUUID)))
 
+(defn- form-updates [config params]
+  (->> (:columns config)
+       (map with-defaults)
+       (remove :column/read-only?)
+       (mapcat (fn [column]
+                 ((:column/parse-form-params column) params column)))
+       (into {})))
+
 (defn save-row-handler [config]
   (fn [request]
     (let [collection-key (:collection-key config)
           entity-id (get-in request [:path-params :entity-id])
           focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
-          writeable-entity-keys (->> (:columns config)
-                                     (remove :column/read-only?)
-                                     (map :column/entity-key))
-          updates (-> (:params request)
-                      (update-keys keyword)
-                      (select-keys writeable-entity-keys))
+          updates (form-updates config (:params request))
           adding? (= "new" entity-id)
           old-entity (db/get-by-id collection-key entity-id)
           new-entity (cond

@@ -24,3 +24,18 @@
       (is (str/includes? html " name=\"game/release\""))
       (is (str/includes? html " value=\"2017\""))
       (is (str/includes? html " data-test-content=\"[2017]\"")))))
+
+(deftest parse-form-params-test
+  (testing "parses submitted numeric values"
+    (is (= {:game/release 2017}
+           (numeric/parse-form-params {"game/release" "2017"}
+                                      {:column/entity-key :game/release}))))
+
+  (testing "parses blank values as nil"
+    (is (= {:game/release nil}
+           (numeric/parse-form-params {"game/release" ""}
+                                      {:column/entity-key :game/release}))))
+
+  (testing "ignores missing inputs"
+    (is (nil? (numeric/parse-form-params {}
+                                         {:column/entity-key :game/release})))))
