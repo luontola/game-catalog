@@ -6,19 +6,17 @@
 
 (deftest viewer-test
   (testing "renders numeric values"
-    (let [viewer (:column/viewer numeric/column-defaults)]
-      (is (= "1986"
-             (html/visualize-html (str (viewer {:value 1986})))))
-      (is (= ""
-             (html/visualize-html (str (viewer {:value nil}))))))))
+    (is (= "1986"
+           (html/visualize-html (str (numeric/viewer {:value 1986})))))
+    (is (= ""
+           (html/visualize-html (str (numeric/viewer {:value nil})))))))
 
 (deftest editor-test
   (testing "renders numeric editor input"
-    (let [editor (:column/editor numeric/column-defaults)
-          html (str (editor {:column {:column/entity-key :game/release}
-                             :value 2017
-                             :form-id "games-form-1"
-                             :focus? true}))]
+    (let [html (str (numeric/editor {:column {:column/entity-key :game/release}
+                                     :value 2017
+                                     :form-id "games-form-1"
+                                     :focus? true}))]
       (is (str/includes? html " type=\"number\""))
       (is (str/includes? html " form=\"games-form-1\""))
       (is (str/includes? html " name=\"game/release\""))

@@ -6,19 +6,17 @@
 
 (deftest viewer-test
   (testing "renders text values"
-    (let [viewer (:column/viewer text/column-defaults)]
-      (is (= "NieR:Automata"
-             (html/visualize-html (str (viewer {:value "NieR:Automata"})))))
-      (is (= ""
-             (html/visualize-html (str (viewer {:value nil}))))))))
+    (is (= "NieR:Automata"
+           (html/visualize-html (str (text/viewer {:value "NieR:Automata"})))))
+    (is (= ""
+           (html/visualize-html (str (text/viewer {:value nil})))))))
 
 (deftest editor-test
   (testing "renders text editor input"
-    (let [editor (:column/editor text/column-defaults)
-          html (str (editor {:column {:column/entity-key :game/name}
-                             :value "NieR:Automata"
-                             :form-id "games-form-1"
-                             :focus? true}))]
+    (let [html (str (text/editor {:column {:column/entity-key :game/name}
+                                  :value "NieR:Automata"
+                                  :form-id "games-form-1"
+                                  :focus? true}))]
       (is (str/includes? html " type=\"text\""))
       (is (str/includes? html " form=\"games-form-1\""))
       (is (str/includes? html " name=\"game/name\""))

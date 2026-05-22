@@ -1,11 +1,11 @@
 (ns game-catalog.ui.spreadsheet.text
   (:require [game-catalog.infra.hiccup :as h]))
 
-(defn viewer [{:keys [value]}]
-  (h/html value))
-
 (defn form-field-name [column]
   (subs (str (:column/entity-key column)) 1)) ; namespaced keyword without the ":" prefix
+
+(defn viewer [{:keys [value]}]
+  (h/html value))
 
 (defn editor [{:keys [column value form-id focus? input-attrs]}]
   (h/html
