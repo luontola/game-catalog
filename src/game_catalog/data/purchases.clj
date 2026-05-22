@@ -1,6 +1,7 @@
 (ns game-catalog.data.purchases
   (:require [clojure.data.csv :as csv]
             [clojure.java.io :as io]
+            [game-catalog.data.csv-fields :as csv-fields]
             [game-catalog.data.db :as db]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.row-number :as row-number]
@@ -39,6 +40,7 @@
     (let [csv-data (doall (csv/read-csv reader))
           rows (rest csv-data)]
       (map #(-> (zipmap csv-column-keys %)
+                (update :purchase/shop csv-fields/parse-string-vector)
                 (assoc :entity/id (spreadsheet/uuid-id-generator nil)))
            rows))))
 

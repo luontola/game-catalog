@@ -10,7 +10,11 @@
     (is (= "gazonk"
            (html/visualize-html (str (text/viewer {:value "gazonk"})))))
     (is (= ""
-           (html/visualize-html (str (text/viewer {:value nil})))))))
+           (html/visualize-html (str (text/viewer {:value nil}))))))
+
+  (testing "coerces non-string values to strings"
+    (is (= "[\"foo\" \"bar\"]"
+           (html/visualize-html (str (text/viewer {:value ["foo" "bar"]})))))))
 
 (deftest editor-test
   (testing "renders text editor input"
@@ -24,7 +28,16 @@
       (is (= "things-form-1" (.attr input "form")))
       (is (= "thing/foo" (.attr input "name")))
       (is (= "gazonk" (.attr input "value")))
-      (is (= "[gazonk]" (.attr input "data-test-content"))))))
+      (is (= "[gazonk]" (.attr input "data-test-content")))))
+
+  (testing "coerces non-string values to strings"
+    (let [input (-> (text/editor {:column column
+                                  :value ["foo" "bar"]
+                                  :form-id "things-form-1"})
+                    (html/parse-fragment)
+                    (.selectFirst "input"))]
+      (is (= "[\"foo\" \"bar\"]" (.attr input "value")))
+      (is (= "[[\"foo\" \"bar\"]]" (.attr input "data-test-content"))))))
 
 (deftest parse-form-params-test
   (testing "parses submitted text values"
