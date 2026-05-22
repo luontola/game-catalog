@@ -2,6 +2,7 @@
   (:require [clojure.test :refer :all]
             [game-catalog.data.db :as db]
             [game-catalog.ui.spreadsheet :as spreadsheet]
+            [game-catalog.ui.spreadsheet.multiselect :as multiselect]
             [game-catalog.ui.spreadsheet.numeric :as numeric]
             [game-catalog.ui.spreadsheet.select :as select]
             [mount.core :as mount]))
@@ -20,7 +21,11 @@
              (assoc select/column-defaults
                :column/name "Selecty"
                :column/entity-key :thing/selecty
-               :column/options ["" "Good" "Bad"])]})
+               :column/options ["" "Good" "Bad"])
+             (assoc multiselect/column-defaults
+               :column/name "Multiy"
+               :column/entity-key :thing/multiy
+               :column/options ["Foo" "Bar" "Gazonk"])]})
 
 (defn reset-collections-fixture [f]
   (mount/start #'db/*collections)
@@ -36,16 +41,19 @@
     (db/init-collection! :things [{:entity/id "1"
                                    :thing/texty "Old"
                                    :thing/numbery 100
-                                   :thing/selecty "Bad"}])
+                                   :thing/selecty "Bad"
+                                   :thing/multiy ["Foo"]}])
 
     ((spreadsheet/save-row-handler things-config)
      {:path-params {:entity-id "1"}
       :params {"thing/texty" "New"
                "thing/numbery" "200"
-               "thing/selecty" "Good"}})
+               "thing/selecty" "Good"
+               "thing/multiy" ["Foo" "Bar"]}})
 
     (is (= {:entity/id "1"
             :thing/texty "New"
             :thing/numbery 200
-            :thing/selecty "Good"}
+            :thing/selecty "Good"
+            :thing/multiy ["Foo" "Bar"]}
            (db/get-by-id :things "1")))))

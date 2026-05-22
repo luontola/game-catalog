@@ -11,3 +11,11 @@
       (with-redefs [io/reader (fn [_] (StringReader. csv))]
         (is (= ["foo,bar" "baz"]
                (:game/tags (first (games/read-games-from-csv)))))))))
+
+(deftest config-test
+  (testing "tags options include all known CSV values"
+    (is (= (->> (games/read-games-from-csv)
+                (mapcat :game/tags)
+                distinct
+                sort)
+           (sort games/known-tags)))))

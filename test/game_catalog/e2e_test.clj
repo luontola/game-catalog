@@ -33,7 +33,7 @@
                         {:entity/id "3"
                          :game/name "Hollow Knight"
                          :game/release "2017"
-                         :game/tags "Metroidvania, Indie"
+                         :game/tags ["Metroidvania" "Indie"]
                          :game/status "Backlog"}])
 
   (testing "games page is accessible"

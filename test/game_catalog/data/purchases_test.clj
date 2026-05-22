@@ -11,3 +11,11 @@
       (with-redefs [io/reader (fn [_] (StringReader. csv))]
         (is (= ["foo,bar" "baz"]
                (:purchase/shop (first (purchases/read-purchases-from-csv)))))))))
+
+(deftest config-test
+  (testing "shop options include all known CSV values"
+    (is (= (->> (purchases/read-purchases-from-csv)
+                (mapcat :purchase/shop)
+                distinct
+                sort)
+           (sort purchases/known-shops)))))

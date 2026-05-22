@@ -4,10 +4,18 @@
             [game-catalog.data.csv-fields :as csv-fields]
             [game-catalog.data.db :as db]
             [game-catalog.ui.spreadsheet :as spreadsheet]
+            [game-catalog.ui.spreadsheet.multiselect :as multiselect]
             [game-catalog.ui.spreadsheet.numeric :as numeric]
             [game-catalog.ui.spreadsheet.row-number :as row-number]
             [game-catalog.ui.spreadsheet.select :as select]
             [mount.core :as mount]))
+
+(def known-tags
+  ["Local Co-Op"
+   "Local Multiplayer"
+   "Online Co-Op"
+   "PvP"
+   "VR"])
 
 (def config
   {:collection-key :games
@@ -25,8 +33,10 @@
                :column/entity-key :game/remake)
              {:column/name "Series"
               :column/entity-key :game/series}
-             {:column/name "Tags"
-              :column/entity-key :game/tags}
+             (assoc multiselect/column-defaults
+               :column/name "Tags"
+               :column/entity-key :game/tags
+               :column/options known-tags)
              {:column/name "Purchases"
               :column/entity-key :game/purchases}
              (assoc select/column-defaults

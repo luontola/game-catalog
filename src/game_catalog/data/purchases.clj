@@ -4,8 +4,34 @@
             [game-catalog.data.csv-fields :as csv-fields]
             [game-catalog.data.db :as db]
             [game-catalog.ui.spreadsheet :as spreadsheet]
+            [game-catalog.ui.spreadsheet.multiselect :as multiselect]
             [game-catalog.ui.spreadsheet.row-number :as row-number]
             [mount.core :as mount]))
+
+(def known-shops
+  [;; primary distributors
+   "Steam" ; blue #dae4fd
+   "GOG" ; green #d0f6dc
+   "Epic Games" ; light orange #fffbf0
+
+   ;; secondary distributors
+   "Microsoft Store" ; light red #fff2f0 for all
+   "Oculus Store"
+   "Origin"
+   "Rockstar Games"
+
+   ;; no distributor
+   "DDL" ; dark blue #acc8f8
+
+   ;; digital retailers, key resellers and other random places
+   "Humble Store" ; light blue #f0f4fc for all
+   "Kickstarter"
+   "Fanatical"
+   "Indiegala"
+   "Cloud Imperium Games"
+   "DLGamer"
+   "Gamesplanet"
+   "Obsidian Entertainment"])
 
 (def config
   {:collection-key :purchases
@@ -13,8 +39,10 @@
    :sort-by :purchase/date
    :columns [(assoc row-number/column-defaults
                :column/name "#")
-             {:column/name "Shop"
-              :column/entity-key :purchase/shop}
+             (assoc multiselect/column-defaults
+               :column/name "Shop"
+               :column/entity-key :purchase/shop
+               :column/options known-shops)
              {:column/name "Date"
               :column/entity-key :purchase/date}
              {:column/name "Cost"
