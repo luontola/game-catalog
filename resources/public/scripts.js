@@ -1,5 +1,3 @@
-htmx.config.transitions = false
-
 const formFieldSelector = '.spreadsheet input, .spreadsheet select'
 
 function getCellIndex(row, cell) {

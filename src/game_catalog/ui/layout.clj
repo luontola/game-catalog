@@ -15,8 +15,12 @@
            [:link {:rel "stylesheet", :href "/reset.css"}]
            [:link {:rel "stylesheet", :href "/simple.css"}]
            [:link {:rel "stylesheet", :href "/styles.css"}]
-           [:script {:src "https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-alpha2/dist/htmx.min.js"}]
-           [:script {:src "/scripts.js", :type "module"}]]
+           [:script {:type "module"
+                     :src "https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3/dist/htmx.esm.js"
+                     :integrity "sha384-X/TaewiqShi/ztjAUmWNAFs+E7vl5V1CBtA+nTap/2HzeMxuI2e68oX63ebr5E6X"
+                     :crossorigin "anonymous"}]
+           [:script {:type "module"
+                     :src "/scripts.js"}]]
           [:body {:hx-headers:inherited (html/anti-forgery-headers-json)}
            [:header
             [:h1 "Game Catalog"]
