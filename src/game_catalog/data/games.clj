@@ -5,6 +5,7 @@
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.numeric :as numeric]
             [game-catalog.ui.spreadsheet.row-number :as row-number]
+            [game-catalog.ui.spreadsheet.select :as select]
             [mount.core :as mount]))
 
 (def config
@@ -27,8 +28,10 @@
               :column/entity-key :game/tags}
              {:column/name "Purchases"
               :column/entity-key :game/purchases}
-             {:column/name "Status"
-              :column/entity-key :game/status}
+             (assoc select/column-defaults
+               :column/name "Status"
+               :column/entity-key :game/status
+               :column/options ["" "Backlog" "Started" "Completed" "Dropped"])
              {:column/name "Content"
               :column/entity-key :game/content}
              {:column/name "DLCs"

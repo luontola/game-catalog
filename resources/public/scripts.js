@@ -1,18 +1,23 @@
 htmx.config.transitions = false
 
+const formFieldSelector = '.spreadsheet input, .spreadsheet select'
+
 function getCellIndex(row, cell) {
     return Array.from(row.children).indexOf(cell);
 }
 
 // Track when forms are modified
-document.addEventListener('input', (e) => {
-    if (e.target.matches('.spreadsheet input')) {
+function markSpreadsheetRowModified(e) {
+    if (e.target.matches(formFieldSelector)) {
         const row = e.target.closest('tr')
         if (row) {
             row.dataset.modified = 'true'
         }
     }
-})
+}
+
+document.addEventListener('input', markSpreadsheetRowModified)
+document.addEventListener('change', markSpreadsheetRowModified)
 
 function isFormModified(row) {
     return row.dataset.modified === 'true'
@@ -67,8 +72,7 @@ function cancelEditMode(row, cell = null) {
     const {entityType, entityId} = getEntityInfo(row)
     const values = {}
     if (cell) {
-        const cellIndex = getCellIndex(row, cell)
-        values.focusIndex = cellIndex
+        values.focusIndex = getCellIndex(row, cell)
     }
     htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/view`, {
         target: row,
@@ -109,14 +113,21 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault()
             return
         } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            if (e.target.matches('select')) {
+                // Arrow up/down is used in select fields to select a value.
+                // Without this, the user would need to press Space to open/close
+                // the dropdown menu. Consider whether this or that feels better.
+                return
+            }
+
             // Move focus to adjacent row (focusout handler will save/cancel as needed)
             const cellIndex = getCellIndex(row, cell)
             const targetRow = e.key === 'ArrowUp' ? row.previousElementSibling : row.nextElementSibling
             if (targetRow) {
                 const targetCell = targetRow.children[cellIndex]
-                const input = targetCell.querySelector('input')
-                if (input) {
-                    input.focus()
+                const field = targetCell.querySelector(formFieldSelector)
+                if (field) {
+                    field.focus()
                 } else {
                     targetCell.focus()
                 }
@@ -151,9 +162,9 @@ document.addEventListener('keydown', (e) => {
 
     if (targetCell) {
         e.preventDefault()
-        const input = targetCell.querySelector('input')
-        if (input) {
-            input.focus()
+        const field = targetCell.querySelector(formFieldSelector)
+        if (field) {
+            field.focus()
         } else {
             targetCell.focus()
         }

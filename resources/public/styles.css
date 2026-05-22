@@ -80,11 +80,11 @@ main {
             outline-offset: -2px;
         }
 
-        &:has(input) {
+        &:has(input, select) {
             padding: 2px;
         }
 
-        input {
+        input, select {
             width: 100%;
             box-sizing: border-box;
             padding: 0.5rem;
@@ -98,7 +98,7 @@ main {
         background-color: var(--accent-bg);
     }
 
-    tr.editing:has(td:focus, input:focus) {
+    tr.editing:has(td:focus, input:focus, select:focus) {
         background-color: var(--marked);
     }
 

@@ -4,7 +4,9 @@
             [game-catalog.data.db :as db]
             [game-catalog.testing.browser :as browser]
             [game-catalog.testing.html :as html])
-  (:import (com.microsoft.playwright.assertions PlaywrightAssertions)))
+  (:import (com.microsoft.playwright Locator$WaitForOptions)
+           (com.microsoft.playwright.assertions PlaywrightAssertions)
+           (com.microsoft.playwright.options WaitForSelectorState)))
 
 (use-fixtures :once browser/fixture)
 
@@ -49,4 +51,25 @@
                 Portal 2                                 2011             Portal                                  Playing
                 The Legend of Zelda: Breath of the Wild  2017             Zelda                                   Completed
                 []                                       []       []      []      []                   []         []         []       []")
-             (html/visualize-html table))))))
+             (html/visualize-html table)))))
+
+  ;; TODO: should be tested for spreadsheet infra, not for games
+  (testing "game status is edited with a select"
+    (browser/navigate! "/games")
+    (.dblclick (browser/locator "td.column-select:text-is('Backlog')"))
+    (.waitFor (browser/locator "tr.editing:not(.adding)"))
+
+    (let [status-select (browser/locator "tr.editing:not(.adding) select[name='game/status']")]
+      (is (= "Backlog" (.inputValue status-select)))
+
+      (.selectOption status-select "Completed")
+      (reset! browser/*request-log [])
+      (.click (browser/locator "text=Portal 2"))
+      (.waitFor (browser/locator "tr.editing:not(.adding)")
+                (-> (Locator$WaitForOptions.)
+                    (.setState WaitForSelectorState/HIDDEN)))
+
+      (is (= [{:method "POST", :path "/spreadsheet/games/3/save"}]
+             @browser/*request-log))
+      (is (= "Completed"
+             (:game/status (db/get-by-id :games "3")))))))

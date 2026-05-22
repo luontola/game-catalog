@@ -4,6 +4,8 @@
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.numeric :as numeric]))
 
+;; Covers only a few column types, to cover generic spreadsheet functionality
+;; instead of column type specifics.
 (def config
   {:collection-key :things
    :columns [{:column/name "Texty"
