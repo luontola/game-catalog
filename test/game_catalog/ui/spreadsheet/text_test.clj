@@ -26,16 +26,14 @@
       (is (str/includes? html " data-test-content=\"[NieR:Automata]\"")))))
 
 (deftest parse-form-params-test
-  (testing "parses submitted text values"
-    (is (= {:game/name "NieR:Automata"}
-           (text/parse-form-params {"game/name" "NieR:Automata"}
-                                   {:column/entity-key :game/name}))))
+  (let [column {:column/entity-key :game/name}]
+    (testing "parses submitted text values"
+      (is (= {:game/name "NieR:Automata"}
+             (text/parse-form-params {"game/name" "NieR:Automata"} column))))
 
-  (testing "parses blank values as blank strings"
-    (is (= {:game/name ""}
-           (text/parse-form-params {"game/name" ""}
-                                   {:column/entity-key :game/name}))))
+    (testing "parses blank values as blank strings"
+      (is (= {:game/name ""}
+             (text/parse-form-params {"game/name" ""} column))))
 
-  (testing "ignores missing inputs"
-    (is (nil? (text/parse-form-params {}
-                                      {:column/entity-key :game/name})))))
+    (testing "ignores missing inputs"
+      (is (nil? (text/parse-form-params {} column))))))
