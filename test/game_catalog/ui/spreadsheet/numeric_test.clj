@@ -1,6 +1,5 @@
 (ns game-catalog.ui.spreadsheet.numeric-test
-  (:require [clojure.string :as str]
-            [clojure.test :refer :all]
+  (:require [clojure.test :refer :all]
             [game-catalog.testing.html :as html]
             [game-catalog.ui.spreadsheet.numeric :as numeric]))
 
@@ -15,15 +14,17 @@
 
 (deftest editor-test
   (testing "renders numeric editor input"
-    (let [html (str (numeric/editor {:column column
+    (let [input (-> (numeric/editor {:column column
                                      :value 123
                                      :form-id "things-form-1"
-                                     :focus? true}))]
-      (is (str/includes? html " type=\"number\""))
-      (is (str/includes? html " form=\"things-form-1\""))
-      (is (str/includes? html " name=\"thing/foo\""))
-      (is (str/includes? html " value=\"123\""))
-      (is (str/includes? html " data-test-content=\"[123]\"")))))
+                                     :focus? true})
+                    (html/parse-fragment)
+                    (.selectFirst "input"))]
+      (is (= "number" (.attr input "type")))
+      (is (= "things-form-1" (.attr input "form")))
+      (is (= "thing/foo" (.attr input "name")))
+      (is (= "123" (.attr input "value")))
+      (is (= "[123]" (.attr input "data-test-content"))))))
 
 (deftest parse-form-params-test
   (testing "parses submitted numeric values"

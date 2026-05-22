@@ -1,6 +1,5 @@
 (ns game-catalog.ui.spreadsheet.text-test
-  (:require [clojure.string :as str]
-            [clojure.test :refer :all]
+  (:require [clojure.test :refer :all]
             [game-catalog.testing.html :as html]
             [game-catalog.ui.spreadsheet.text :as text]))
 
@@ -15,15 +14,17 @@
 
 (deftest editor-test
   (testing "renders text editor input"
-    (let [html (str (text/editor {:column column
+    (let [input (-> (text/editor {:column column
                                   :value "gazonk"
                                   :form-id "things-form-1"
-                                  :focus? true}))]
-      (is (str/includes? html " type=\"text\""))
-      (is (str/includes? html " form=\"things-form-1\""))
-      (is (str/includes? html " name=\"thing/foo\""))
-      (is (str/includes? html " value=\"gazonk\""))
-      (is (str/includes? html " data-test-content=\"[gazonk]\"")))))
+                                  :focus? true})
+                    (html/parse-fragment)
+                    (.selectFirst "input"))]
+      (is (= "text" (.attr input "type")))
+      (is (= "things-form-1" (.attr input "form")))
+      (is (= "thing/foo" (.attr input "name")))
+      (is (= "gazonk" (.attr input "value")))
+      (is (= "[gazonk]" (.attr input "data-test-content"))))))
 
 (deftest parse-form-params-test
   (testing "parses submitted text values"

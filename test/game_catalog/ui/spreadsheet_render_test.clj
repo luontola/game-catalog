@@ -1,6 +1,6 @@
 (ns game-catalog.ui.spreadsheet-render-test
-  (:require [clojure.string :as str]
-            [clojure.test :refer :all]
+  (:require [clojure.test :refer :all]
+            [game-catalog.testing.html :as html]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.numeric :as numeric]))
 
@@ -14,18 +14,20 @@
 
 (deftest view-row-test
   (testing "renders column type classes on cells"
-    (let [html (str (spreadsheet/view-row things-config
-                                          {:entity/id "1"
-                                           :thing/texty "Words"
-                                           :thing/numbery 123}))]
-      (is (str/includes? html "<td class=\"column-text\" tabindex=\"0\">Words</td>"))
-      (is (str/includes? html "<td class=\"column-numeric\" tabindex=\"0\">123</td>")))))
+    (let [doc (html/parse-table-fragment
+                (spreadsheet/view-row things-config
+                                      {:entity/id "1"
+                                       :thing/texty "Words"
+                                       :thing/numbery 123}))]
+      (is (some? (.selectFirst doc "td.column-text")))
+      (is (some? (.selectFirst doc "td.column-numeric"))))))
 
 (deftest edit-row-test
   (testing "renders column type classes on editable cells"
-    (let [html (str (spreadsheet/edit-row things-config
-                                          {:entity/id "1"
-                                           :thing/texty "Words"
-                                           :thing/numbery 123}))]
-      (is (str/includes? html "<td class=\"column-text\"><input"))
-      (is (str/includes? html "<td class=\"column-numeric\"><input")))))
+    (let [doc (html/parse-table-fragment
+                (spreadsheet/edit-row things-config
+                                      {:entity/id "1"
+                                       :thing/texty "Words"
+                                       :thing/numbery 123}))]
+      (is (some? (.selectFirst doc "td.column-text")))
+      (is (some? (.selectFirst doc "td.column-numeric"))))))

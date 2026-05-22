@@ -70,3 +70,14 @@
         "spacing, block elements")
     (is (= "x A Bz" (html/visualize-html "x<span data-test-icon=\"A\" data-test-content=\"B\">y</span>z"))
         "spacing, inline elements")))
+
+(deftest parse-fragment-test
+  (testing "enables selecting elements and reading their attributes"
+    (let [input (-> (html/parse-fragment "<input type=\"text\" value=\"foo\">")
+                    (.selectFirst "input"))]
+      (is (= "text" (.attr input "type")))
+      (is (= "foo" (.attr input "value")))))
+
+  (testing "wraps table rows in a valid table context"
+    (let [doc (html/parse-table-fragment "<tr><td class=\"example\">Words</td></tr>")]
+      (is (= "Words" (.text (.selectFirst doc "table tbody td.example")))))))

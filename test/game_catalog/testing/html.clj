@@ -3,7 +3,9 @@
             [clojure.test :refer :all])
   (:import (com.microsoft.playwright Locator)
            (org.jsoup Jsoup)
-           (org.jsoup.nodes Element Node TextNode)))
+           (org.jsoup.nodes Document Element Node TextNode)))
+
+;;;; HTML visualization
 
 (def ^:private hidden-tags #{"style" "script" "noscript"})
 (def ^:private inline-tags #{"a" "abbr" "b" "big" "cite" "code" "em" "i" "small" "span" "strong" "tt"})
@@ -55,3 +57,12 @@
                      (visualize-html-element (.body (Jsoup/parse ^String html))))
     (instance? Locator html) (recur (.evaluate ^Locator html "(element) => element.outerHTML"))
     :else ""))
+
+
+;;;; HTML parsing helpers
+
+(defn parse-fragment ^Document [html]
+  (Jsoup/parseBodyFragment (str html)))
+
+(defn parse-table-fragment ^Document [html]
+  (parse-fragment (str "<table><tbody>" html "</tbody></table>")))
