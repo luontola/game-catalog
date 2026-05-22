@@ -4,34 +4,35 @@
             [game-catalog.testing.html :as html]
             [game-catalog.ui.spreadsheet.numeric :as numeric]))
 
+(def column {:column/entity-key :thing/foo})
+
 (deftest viewer-test
   (testing "renders numeric values"
-    (is (= "1986"
-           (html/visualize-html (str (numeric/viewer {:value 1986})))))
+    (is (= "123"
+           (html/visualize-html (str (numeric/viewer {:value 123})))))
     (is (= ""
            (html/visualize-html (str (numeric/viewer {:value nil})))))))
 
 (deftest editor-test
   (testing "renders numeric editor input"
-    (let [html (str (numeric/editor {:column {:column/entity-key :game/release}
-                                     :value 2017
-                                     :form-id "games-form-1"
+    (let [html (str (numeric/editor {:column column
+                                     :value 123
+                                     :form-id "things-form-1"
                                      :focus? true}))]
       (is (str/includes? html " type=\"number\""))
-      (is (str/includes? html " form=\"games-form-1\""))
-      (is (str/includes? html " name=\"game/release\""))
-      (is (str/includes? html " value=\"2017\""))
-      (is (str/includes? html " data-test-content=\"[2017]\"")))))
+      (is (str/includes? html " form=\"things-form-1\""))
+      (is (str/includes? html " name=\"thing/foo\""))
+      (is (str/includes? html " value=\"123\""))
+      (is (str/includes? html " data-test-content=\"[123]\"")))))
 
 (deftest parse-form-params-test
-  (let [column {:column/entity-key :game/release}]
-    (testing "parses submitted numeric values"
-      (is (= {:game/release 2017}
-             (numeric/parse-form-params {"game/release" "2017"} column))))
+  (testing "parses submitted numeric values"
+    (is (= {:thing/foo 123}
+           (numeric/parse-form-params {"thing/foo" "123"} column))))
 
-    (testing "parses blank values as nil"
-      (is (= {:game/release nil}
-             (numeric/parse-form-params {"game/release" ""} column))))
+  (testing "parses blank values as nil"
+    (is (= {:thing/foo nil}
+           (numeric/parse-form-params {"thing/foo" ""} column))))
 
-    (testing "ignores missing inputs"
-      (is (nil? (numeric/parse-form-params {} column))))))
+  (testing "ignores missing inputs"
+    (is (nil? (numeric/parse-form-params {} column)))))
