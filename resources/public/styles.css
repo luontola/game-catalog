@@ -115,6 +115,21 @@ main {
             content: counter(row-number);
         }
     }
+
+    /* Column type specific styling */
+
+    td.column-numeric {
+        input[type="number"] {
+            /* Hide the spinner arrows */
+            -moz-appearance: textfield; /* Firefox compatibility */
+
+            &::-webkit-outer-spin-button,
+            &::-webkit-inner-spin-button { /* All other browsers */
+                -webkit-appearance: none;
+                margin: 0;
+            }
+        }
+    }
 }
 
 .context-menu {

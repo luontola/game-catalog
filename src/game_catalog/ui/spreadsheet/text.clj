@@ -26,6 +26,7 @@
         {(:column/entity-key column) value}))))
 
 (def column-defaults
-  {:column/viewer viewer
+  {:column/type :text
+   :column/viewer viewer
    :column/editor editor
    :column/parse-form-params parse-form-params})

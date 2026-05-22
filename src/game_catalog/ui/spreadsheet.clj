@@ -14,6 +14,10 @@
 (defn- with-defaults [column]
   (merge text/column-defaults column))
 
+(defn- column-type-class [column]
+  (when-some [column-type (:column/type column)]
+    (str "column-" (name column-type))))
+
 (defn view-row
   ([config entity]
    (view-row config entity nil))
@@ -29,7 +33,8 @@
                 ctx {:value value}
                 viewer (:column/viewer column)]
             (h/html
-              [:td {:tabindex 0
+              [:td {:class (column-type-class column)
+                    :tabindex 0
                     :autofocus focus?
                     :auto-scroll-into-view focus?}
                (viewer ctx)])))
@@ -62,9 +67,9 @@
                            (:column/viewer column)
                            (:column/editor column))]
               (h/html
-                [:td (when read-only?
-                       {:tabindex 0
-                        :autofocus focus?})
+                [:td (cond-> {:class (column-type-class column)}
+                       read-only? (assoc :tabindex 0
+                                         :autofocus focus?))
                  (editor ctx)])))
           (:columns config))
         ;; HTML doesn't allow <form> between <table> and <td> elements,
