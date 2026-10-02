@@ -294,8 +294,8 @@ if (contextMenu) {
             return
         }
         const row = cell.closest('tr')
-        // Don't show context menu for the adding row
-        if (row.classList.contains('adding')) {
+        // Don't show context menu for rows in edit mode (including the adding row)
+        if (row.classList.contains('editing')) {
             return
         }
         e.preventDefault()

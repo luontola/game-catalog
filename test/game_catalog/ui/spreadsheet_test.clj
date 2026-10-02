@@ -444,7 +444,17 @@
 
       (browser/right-click (browser/locator "tr.adding td >> nth=1"))
 
-      (is (not (context-menu-visible?))))))
+      (is (not (context-menu-visible?))))
+
+    (testing "context menu does not appear on a row in edit mode"
+      (.dblclick (browser/locator "text=Cell 2A"))
+      (wait-for-edit-mode)
+
+      (browser/right-click (browser/locator "tr.editing:not(.adding) input >> nth=0"))
+
+      (is (not (context-menu-visible?)))
+      (.press keyboard "Escape")
+      (wait-for-view-mode))))
 
 (deftest delete-row-test
   (let [delete-button (browser/locator "#context-menu-delete")]
