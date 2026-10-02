@@ -82,4 +82,11 @@
       (is (= ["Foo" "Bar"]
              (:thing/multiy (db/get-by-id :things "1"))))
       (is (= "Foo, Bar"
-             (html/visualize-html (browser/locator "td.column-multiselect:text-is('Foo, Bar')")))))))
+             (html/visualize-html (browser/locator "td.column-multiselect:text-is('Foo, Bar')")))))
+
+    (testing "Cmd-Enter focuses the select, not the hidden input, on the adding row"
+      (.click (browser/locator "td.column-multiselect:text-is('Foo, Bar')"))
+      (.press keyboard "ControlOrMeta+Enter")
+
+      (is (browser/has-focus? (browser/locator "tr.adding select[name='thing/multiy']"))
+          (browser/focused-element)))))

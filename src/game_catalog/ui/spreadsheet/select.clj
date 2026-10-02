@@ -17,7 +17,8 @@
 
 (defn editor [{:keys [column value form-id focus?]}]
   (h/html
-    [:select {:form form-id
+    [:select {:class "editor-entry-point"
+              :form form-id
               :name (form-field-name column)
               :autofocus focus?
               :autocomplete "off"

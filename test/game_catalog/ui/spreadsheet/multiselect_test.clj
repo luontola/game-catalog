@@ -37,10 +37,12 @@
                                      :focus? true}))
           hidden (.selectFirst doc "input[type=hidden]")
           select (.selectFirst doc "select")]
+      (is (not (.hasClass hidden "editor-entry-point")))
       (is (= "things-form-1" (.attr hidden "form")))
       (is (= "thing/foo" (.attr hidden "name")))
       (is (= "" (.attr hidden "value")))
 
+      (is (.hasClass select "editor-entry-point"))
       (is (= "things-form-1" (.attr select "form")))
       (is (= "thing/foo" (.attr select "name")))
       (is (= "[[\"Bar\" \"Gazonk\"]]" (.attr select "data-test-content")))

@@ -21,6 +21,7 @@
                     (html/parse-fragment)
                     (.selectFirst "input"))]
       (is (= "number" (.attr input "type")))
+      (is (.hasClass input "editor-entry-point"))
       (is (= "things-form-1" (.attr input "form")))
       (is (= "thing/foo" (.attr input "name")))
       (is (= "123" (.attr input "value")))

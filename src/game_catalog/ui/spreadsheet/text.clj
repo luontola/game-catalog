@@ -13,7 +13,10 @@
 (defn editor [{:keys [column value form-id focus? input-attrs]}]
   (let [value (value->string value)]
     (h/html
+      ;; XXX: merge lets input-attrs replace any default attribute. For example, a custom :class
+      ;;      would remove "editor-entry-point" and break focusing the cell, without any error.
       [:input (merge {:type "text"
+                      :class "editor-entry-point"
                       :form form-id
                       :name (form-field-name column)
                       :value value

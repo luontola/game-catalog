@@ -30,6 +30,7 @@
                                      :focus? true})
                      (html/parse-fragment)
                      (.selectFirst "select"))]
+      (is (.hasClass select "editor-entry-point"))
       (is (= "things-form-1" (.attr select "form")))
       (is (= "thing/foo" (.attr select "name")))
       (is (= "[Bar]" (.attr select "data-test-content")))

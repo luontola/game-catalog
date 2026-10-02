@@ -80,12 +80,9 @@ function cancelEditMode(row, cell = null) {
 }
 
 function focusCell(cell) {
-    const field = cell.querySelector(formFieldSelector)
-    if (field) {
-        field.focus()
-    } else {
-        cell.focus()
-    }
+    // In edit mode, editors mark their main form element with the class.
+    // In view mode and for read-only cells, the cell itself is focusable.
+    (cell.querySelector('.editor-entry-point') ?? cell).focus()
 }
 
 // Cmd-Enter moves focus to the adding row

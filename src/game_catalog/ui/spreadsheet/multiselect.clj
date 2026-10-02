@@ -34,7 +34,8 @@
                :form form-id
                :name field-name
                :value ""}]
-      [:select {:form form-id
+      [:select {:class "editor-entry-point"
+                :form form-id
                 :name field-name
                 :multiple true
                 :size 1
