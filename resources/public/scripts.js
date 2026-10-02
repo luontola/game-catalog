@@ -225,8 +225,8 @@ document.addEventListener('focusin', (e) => {
 document.addEventListener('focusin', e => {
     const node = e.target;
     if (node.hasAttribute('autofocus')) {
-        if (node.matches('input')) {
-            // When autofocus focuses a text input element, the cursor will be
+        if (typeof node.select === 'function') {
+            // When autofocus focuses an element with selectable text, the cursor will be
             // in the front of any existing text. We want to select all the text.
             // Then the user can easily replace it or press the right arrow to append text.
             node.select()
