@@ -73,7 +73,9 @@
                  (editor ctx)])))
           (:columns config))
         ;; HTML doesn't allow <form> between <table> and <td> elements,
-        ;; so it must be inside one of the <td>s and referred using IDs
+        ;; so it must be inside one of the <td>s and referred using IDs.
+        ;; It must be the last <td>, so that the cell indexes match the column
+        ;; indexes, which the focusIndex parameter is based on.
         [:td.form-element-container
          [:form {:id form-id}]]]))))
 

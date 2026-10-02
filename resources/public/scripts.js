@@ -1,7 +1,3 @@
-function getCellIndex(row, cell) {
-    return Array.from(row.children).indexOf(cell);
-}
-
 // Track when forms are modified
 function markSpreadsheetRowModified(e) {
     const row = e.target.closest('.spreadsheet tr.editing')
@@ -25,7 +21,7 @@ function getEntityInfo(row) {
 
 function enterEditMode(row, cell) {
     const {entityType, entityId} = getEntityInfo(row)
-    const cellIndex = getCellIndex(row, cell)
+    const cellIndex = cell.cellIndex
     htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/edit`, {
         target: row,
         swap: 'outerHTML',
@@ -46,7 +42,7 @@ function saveAndExitEditMode(row, cell = null) {
     const form = row.querySelector('form')
     const values = {}
     if (cell) {
-        values.focusIndex = getCellIndex(row, cell)
+        values.focusIndex = cell.cellIndex
     }
 
     htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/save`, {
@@ -66,7 +62,7 @@ function cancelEditMode(row, cell = null) {
     const {entityType, entityId} = getEntityInfo(row)
     const values = {}
     if (cell) {
-        values.focusIndex = getCellIndex(row, cell)
+        values.focusIndex = cell.cellIndex
     }
     htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/view`, {
         target: row,
@@ -99,9 +95,9 @@ document.addEventListener('keydown', (e) => {
     if (addingRow.contains(e.target)) {
         return
     }
-    const cellIndex = cell ? getCellIndex(cell.closest('tr'), cell) : 0
+    const cellIndex = cell ? cell.cellIndex : 0
     // Focus loss will save or cancel any row which is in edit mode
-    focusCell(addingRow.children[cellIndex])
+    focusCell(addingRow.cells[cellIndex])
 })
 
 // Spreadsheet arrow key navigation
@@ -136,9 +132,9 @@ document.addEventListener('keydown', (e) => {
             if (row.classList.contains('adding') && lastRow) {
                 // The adding row is always in edit mode,
                 // so move focus to the grid to let the user navigate it
-                const cellIndex = getCellIndex(row, cell)
+                const cellIndex = cell.cellIndex
                 cancelEditMode(row)
-                focusCell(lastRow.children[cellIndex])
+                focusCell(lastRow.cells[cellIndex])
             } else {
                 cancelEditMode(row, cell)
             }
@@ -163,11 +159,11 @@ document.addEventListener('keydown', (e) => {
     } else if (e.key === 'ArrowRight') {
         targetCell = cell.nextElementSibling
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        const cellIndex = getCellIndex(row, cell)
+        const cellIndex = cell.cellIndex
         const targetRow = e.key === 'ArrowUp' ? row.previousElementSibling : row.nextElementSibling
         // The adding row is reachable only with Cmd-Enter
         if (targetRow && !targetRow.classList.contains('adding')) {
-            targetCell = targetRow.children[cellIndex]
+            targetCell = targetRow.cells[cellIndex]
         }
     }
 
