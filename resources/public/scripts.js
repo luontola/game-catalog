@@ -1,16 +1,12 @@
-const formFieldSelector = '.spreadsheet input, .spreadsheet select'
-
 function getCellIndex(row, cell) {
     return Array.from(row.children).indexOf(cell);
 }
 
 // Track when forms are modified
 function markSpreadsheetRowModified(e) {
-    if (e.target.matches(formFieldSelector)) {
-        const row = e.target.closest('tr')
-        if (row) {
-            row.dataset.modified = 'true'
-        }
+    const row = e.target.closest('.spreadsheet tr.editing')
+    if (row) {
+        row.dataset.modified = 'true'
     }
 }
 
