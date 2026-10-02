@@ -1,5 +1,6 @@
 html {
     --page-bottom-margin: 5rem;
+    --marked-modified: #ffa033;
     /* Account for sticky adding row at the bottom, when scrolling the just added row into view */
     scroll-padding-bottom: var(--page-bottom-margin);
 }
@@ -100,6 +101,10 @@ main {
 
     tr.editing:focus-within {
         background-color: var(--marked);
+
+        &[data-modified="true"] {
+            background-color: var(--marked-modified);
+        }
     }
 
     /* Row number counter */
