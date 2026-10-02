@@ -94,11 +94,11 @@ main {
 
     /* Highlight the focused row */
 
-    tr.viewing:has(td:focus) {
+    tr.viewing:focus-within {
         background-color: var(--accent-bg);
     }
 
-    tr.editing:has(td:focus, input:focus, select:focus) {
+    tr.editing:focus-within {
         background-color: var(--marked);
     }
 
