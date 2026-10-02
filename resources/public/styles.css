@@ -99,7 +99,8 @@ main {
         background-color: var(--accent-bg);
     }
 
-    tr.editing:focus-within {
+    /* While a select's dropdown is open, the row may lose :focus-within */
+    tr.editing:is(:focus-within, :has(:open)) {
         background-color: var(--marked);
 
         &[data-modified="true"] {
