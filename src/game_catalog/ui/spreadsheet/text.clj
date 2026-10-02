@@ -5,12 +5,13 @@
   (subs (str (:column/entity-key column)) 1)) ; namespaced keyword without the ":" prefix
 
 ;; Attributes which every editor's main form element requires
-(defn editor-attrs [{:keys [column form-id focus?]}]
+(defn editor-attrs [{:keys [column value form-id focus?]}]
   {:class "editor-entry-point"
    :form form-id
    :name (form-field-name column)
    :autofocus focus?
-   :autocomplete "off"})
+   :autocomplete "off"
+   :data-test-content (str "[" value "]")})
 
 (defn- value->string [value]
   (str value))
@@ -23,7 +24,6 @@
     (h/html
       [:input (merge {:type "text"
                       :value value
-                      :data-test-content (str "[" value "]")
                       :data-1p-ignore true} ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
                      input-attrs
                      (editor-attrs ctx))])))

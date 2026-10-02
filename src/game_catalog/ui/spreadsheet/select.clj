@@ -15,8 +15,7 @@
 
 (defn editor [{:keys [column value] :as ctx}]
   (h/html
-    [:select (merge (text/editor-attrs ctx)
-                    {:data-test-content (str "[" value "]")})
+    [:select (text/editor-attrs ctx)
      (for [option (option-values column value)]
        [:option {:value option
                  :selected (= option value)}

@@ -36,8 +36,7 @@
                :value ""}]
       [:select (merge (text/editor-attrs ctx)
                       {:multiple true
-                       :size 1
-                       :data-test-content (str "[" value "]")})
+                       :size 1})
        (for [option (option-values column value)]
          [:option {:value option
                    :selected (contains? selected-values option)}
