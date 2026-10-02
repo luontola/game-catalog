@@ -79,6 +79,38 @@ function cancelEditMode(row, cell = null) {
     })
 }
 
+function focusCell(cell) {
+    const field = cell.querySelector(formFieldSelector)
+    if (field) {
+        field.focus()
+    } else {
+        cell.focus()
+    }
+}
+
+// Cmd-Enter moves focus to the adding row
+document.addEventListener('keydown', (e) => {
+    if (!(e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey)) {
+        return
+    }
+    const cell = e.target.closest('.spreadsheet td')
+    const table = cell?.closest('.spreadsheet') ?? document.querySelector('.spreadsheet')
+    if (!table) {
+        return
+    }
+    const addingRow = table.querySelector('tr.adding')
+    if (!addingRow) {
+        return
+    }
+    e.preventDefault()
+    if (addingRow.contains(e.target)) {
+        return
+    }
+    const cellIndex = cell ? getCellIndex(cell.closest('tr'), cell) : 0
+    // Focus loss will save or cancel any row which is in edit mode
+    focusCell(addingRow.children[cellIndex])
+})
+
 // Spreadsheet arrow key navigation
 document.addEventListener('keydown', (e) => {
     // Don't intercept if any modifier keys are held down
@@ -107,33 +139,20 @@ document.addEventListener('keydown', (e) => {
             return
         } else if (e.key === 'Escape') {
             // Cancel edit mode without saving
-            cancelEditMode(row, cell)
+            const lastRow = row.previousElementSibling
+            if (row.classList.contains('adding') && lastRow) {
+                // The adding row is always in edit mode,
+                // so move focus to the grid to let the user navigate it
+                const cellIndex = getCellIndex(row, cell)
+                cancelEditMode(row)
+                focusCell(lastRow.children[cellIndex])
+            } else {
+                cancelEditMode(row, cell)
+            }
             e.preventDefault()
             return
-        } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-            if (e.target.matches('select')) {
-                // Arrow up/down is used in select fields to select a value.
-                // Without this, the user would need to press Space to open/close
-                // the dropdown menu. Consider whether this or that feels better.
-                return
-            }
-
-            // Move focus to adjacent row (focusout handler will save/cancel as needed)
-            const cellIndex = getCellIndex(row, cell)
-            const targetRow = e.key === 'ArrowUp' ? row.previousElementSibling : row.nextElementSibling
-            if (targetRow) {
-                const targetCell = targetRow.children[cellIndex]
-                const field = targetCell.querySelector(formFieldSelector)
-                if (field) {
-                    field.focus()
-                } else {
-                    targetCell.focus()
-                }
-                e.preventDefault()
-                return
-            }
         }
-        // For other keys in edit mode (like arrow left/right in inputs), let browser handle
+        // For other keys in edit mode (like arrow keys in inputs), let browser handle
         return
     }
 
@@ -153,19 +172,15 @@ document.addEventListener('keydown', (e) => {
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         const cellIndex = getCellIndex(row, cell)
         const targetRow = e.key === 'ArrowUp' ? row.previousElementSibling : row.nextElementSibling
-        if (targetRow) {
+        // The adding row is reachable only with Cmd-Enter
+        if (targetRow && !targetRow.classList.contains('adding')) {
             targetCell = targetRow.children[cellIndex]
         }
     }
 
     if (targetCell) {
         e.preventDefault()
-        const field = targetCell.querySelector(formFieldSelector)
-        if (field) {
-            field.focus()
-        } else {
-            targetCell.focus()
-        }
+        focusCell(targetCell)
     }
 })
 
