@@ -24,7 +24,7 @@
        distinct
        vec))
 
-(defn editor [{:keys [column value form-id focus?]}]
+(defn editor [{:keys [column value form-id] :as ctx}]
   (let [field-name (form-field-name column)
         selected-values (set (value->vector value))]
     (h/html
@@ -34,14 +34,10 @@
                :form form-id
                :name field-name
                :value ""}]
-      [:select {:class "editor-entry-point"
-                :form form-id
-                :name field-name
-                :multiple true
-                :size 1
-                :autofocus focus?
-                :autocomplete "off"
-                :data-test-content (str "[" value "]")}
+      [:select (merge (text/editor-attrs ctx)
+                      {:multiple true
+                       :size 1
+                       :data-test-content (str "[" value "]")})
        (for [option (option-values column value)]
          [:option {:value option
                    :selected (contains? selected-values option)}

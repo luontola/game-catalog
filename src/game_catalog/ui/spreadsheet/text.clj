@@ -4,27 +4,29 @@
 (defn form-field-name [column]
   (subs (str (:column/entity-key column)) 1)) ; namespaced keyword without the ":" prefix
 
+;; Attributes which every editor's main form element requires
+(defn editor-attrs [{:keys [column form-id focus?]}]
+  {:class "editor-entry-point"
+   :form form-id
+   :name (form-field-name column)
+   :autofocus focus?
+   :autocomplete "off"})
+
 (defn- value->string [value]
   (str value))
 
 (defn viewer [{:keys [value]}]
   (h/html (value->string value)))
 
-(defn editor [{:keys [column value form-id focus? input-attrs]}]
+(defn editor [{:keys [value input-attrs] :as ctx}]
   (let [value (value->string value)]
     (h/html
-      ;; XXX: merge lets input-attrs replace any default attribute. For example, a custom :class
-      ;;      would remove "editor-entry-point" and break focusing the cell, without any error.
       [:input (merge {:type "text"
-                      :class "editor-entry-point"
-                      :form form-id
-                      :name (form-field-name column)
                       :value value
                       :data-test-content (str "[" value "]")
-                      :autofocus focus?
-                      :autocomplete "off"
                       :data-1p-ignore true} ; for 1Password, https://developer.1password.com/docs/web/compatible-website-design/
-                     input-attrs)])))
+                     input-attrs
+                     (editor-attrs ctx))])))
 
 (defn parse-form-params [params column]
   (let [field-name (form-field-name column)]

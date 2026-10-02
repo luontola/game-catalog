@@ -38,7 +38,20 @@
                     (html/parse-fragment)
                     (.selectFirst "input"))]
       (is (= "[\"foo\" \"bar\"]" (.attr input "value")))
-      (is (= "[[\"foo\" \"bar\"]]" (.attr input "data-test-content"))))))
+      (is (= "[[\"foo\" \"bar\"]]" (.attr input "data-test-content")))))
+
+  (testing "input-attrs can replace the input type, but not the attributes which all editors require"
+    (let [input (-> (text/editor {:column column
+                                  :value "gazonk"
+                                  :form-id "things-form-1"
+                                  :input-attrs {:type "number"
+                                                :class "foo"
+                                                :name "bar"}})
+                    (html/parse-fragment)
+                    (.selectFirst "input"))]
+      (is (= "number" (.attr input "type")))
+      (is (= "editor-entry-point" (.attr input "class")))
+      (is (= "thing/foo" (.attr input "name"))))))
 
 (deftest parse-form-params-test
   (testing "parses submitted text values"

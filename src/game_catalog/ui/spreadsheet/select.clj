@@ -15,14 +15,10 @@
            (not (some #(= value %) options)))
       (conj value))))
 
-(defn editor [{:keys [column value form-id focus?]}]
+(defn editor [{:keys [column value] :as ctx}]
   (h/html
-    [:select {:class "editor-entry-point"
-              :form form-id
-              :name (form-field-name column)
-              :autofocus focus?
-              :autocomplete "off"
-              :data-test-content (str "[" value "]")}
+    [:select (merge (text/editor-attrs ctx)
+                    {:data-test-content (str "[" value "]")})
      (for [option (option-values column value)]
        [:option {:value option
                  :selected (= option value)}
