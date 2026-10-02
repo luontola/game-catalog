@@ -80,11 +80,11 @@ main {
             outline-offset: -2px;
         }
 
-        &:has(input, select) {
+        &:has(.editor-entry-point) {
             padding: 2px;
         }
 
-        input, select {
+        .editor-entry-point {
             width: 100%;
             box-sizing: border-box;
             padding: 0.5rem;
