@@ -100,6 +100,15 @@ document.addEventListener('keydown', (e) => {
     focusCell(addingRow.cells[cellIndex])
 })
 
+function isDropdownOpen(element) {
+    // When a multiselect dropdown is open, the focus is on one of its options
+    try {
+        return element.closest(':open') !== null
+    } catch {
+        return false // the browser doesn't support :open
+    }
+}
+
 // Spreadsheet arrow key navigation
 document.addEventListener('keydown', (e) => {
     // Don't intercept if any modifier keys are held down
@@ -117,6 +126,10 @@ document.addEventListener('keydown', (e) => {
 
     // Handle edit mode (both inputs and read-only cells)
     if (inEditMode) {
+        if (isDropdownOpen(e.target)) {
+            // Let the dropdown handle the keys, e.g. Escape only closes the dropdown
+            return
+        }
         if (e.key === 'Enter' || e.key === 'F2') {
             // Exit edit mode and save changes (only if modified)
             if (isFormModified(row)) {

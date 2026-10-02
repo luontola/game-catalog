@@ -90,3 +90,46 @@
 
       (is (browser/has-focus? (browser/locator "tr.adding select[name='thing/multiy']"))
           (browser/focused-element)))))
+
+(deftest multiselect-dropdown-test
+  (let [keyboard (.keyboard browser/*page*)
+        row (browser/locator "tr.editing:not(.adding)")
+        select (browser/locator "tr.editing:not(.adding) select[name='thing/multiy']")
+        dropdown-open? #(.evaluate select "el => el.matches(':open')")
+        exiting-edit-mode? #(= "true" (.getAttribute row "data-exiting"))]
+    (db/init-collection! :things [{:entity/id "1"
+                                   :thing/name "Example"
+                                   :thing/multiy ["Foo"]}])
+    (browser/navigate! "/")
+    (.dblclick (browser/locator "td.column-multiselect:text-is('Foo')"))
+    (wait-for-edit-mode)
+
+    (testing "Escape closes the dropdown, but does not exit edit mode"
+      (.evaluate select "el => el.showPicker()")
+      (is (dropdown-open?))
+
+      (.press keyboard "Escape")
+
+      (is (not (dropdown-open?)))
+      (is (not (exiting-edit-mode?)))
+      (is (browser/has-focus? select) (browser/focused-element)))
+
+    (testing "Enter in the dropdown does not exit edit mode"
+      (.evaluate select "el => el.showPicker()")
+      (is (dropdown-open?))
+
+      (.press keyboard "Enter")
+
+      (is (dropdown-open?))
+      (is (not (exiting-edit-mode?))))
+
+    (testing "Escape exits edit mode after the dropdown is closed"
+      (.press keyboard "Escape")
+      (is (not (dropdown-open?)))
+      (reset! browser/*request-log [])
+
+      (.press keyboard "Escape")
+      (wait-for-view-mode)
+
+      (is (= [{:method "POST", :path "/spreadsheet/things/1/view"}]
+             @browser/*request-log)))))
