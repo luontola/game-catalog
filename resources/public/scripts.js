@@ -159,6 +159,10 @@ document.addEventListener('keydown', (e) => {
     }
 
     // Handle view mode
+    if (e.key === 'Enter' && e.target !== cell && e.target.matches('a[href]')) {
+        // Let the browser follow the focused link
+        return
+    }
     if (e.key === 'Enter' || e.key === 'F2') {
         enterEditMode(row, cell)
         e.preventDefault()
