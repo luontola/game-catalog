@@ -2,18 +2,23 @@
   (:require [clojure.data.csv :as csv]
             [clojure.java.io :as io]
             [game-catalog.ui.spreadsheet :as spreadsheet]
+            [game-catalog.ui.spreadsheet.reference :as reference]
             [game-catalog.ui.spreadsheet.row-number :as row-number]))
 
 (def config
   {:collection-key :dlcs
    :id-generator spreadsheet/uuid-id-generator
    :sort-by (comp clojure.string/lower-case :dlc/name)
+   :reference-label :dlc/name
    :columns [(assoc row-number/column-defaults
                :column/name "#")
              {:column/name "Name"
               :column/entity-key :dlc/name}
-             {:column/name "Base Game"
-              :column/entity-key :dlc/base-game}
+             (assoc reference/column-defaults
+               :column/name "Base Game"
+               :column/entity-key :dlc/base-game
+               :column/target-collection :games
+               :column/multiple? false)
              {:column/name "Year"
               :column/entity-key :dlc/year}
              {:column/name "Purchases"

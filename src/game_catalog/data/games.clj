@@ -19,6 +19,7 @@
   {:collection-key :games
    :id-generator spreadsheet/uuid-id-generator
    :sort-by (comp clojure.string/lower-case :game/name)
+   :reference-label :game/name
    :columns [(assoc row-number/column-defaults
                :column/name "#")
              {:column/name "Name"

@@ -1,9 +1,11 @@
 (ns game-catalog.data.purchases
   (:require [clojure.data.csv :as csv]
             [clojure.java.io :as io]
+            [clojure.string :as str]
             [game-catalog.data.csv-fields :as csv-fields]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.multiselect :as multiselect]
+            [game-catalog.ui.spreadsheet.reference :as reference]
             [game-catalog.ui.spreadsheet.row-number :as row-number]))
 
 (def known-shops
@@ -35,6 +37,13 @@
   {:collection-key :purchases
    :id-generator spreadsheet/uuid-id-generator
    :sort-by :purchase/date
+   :reference-label (fn [purchase]
+                      (str/join ", " (:purchase/shop purchase)))
+   :reference-tooltip (fn [purchase]
+                        (->> [(:purchase/date purchase) (:purchase/cost purchase)]
+                             (remove str/blank?)
+                             (str/join ", ")
+                             (not-empty)))
    :columns [(assoc row-number/column-defaults
                :column/name "#")
              (assoc multiselect/column-defaults
@@ -45,10 +54,14 @@
               :column/entity-key :purchase/date}
              {:column/name "Cost"
               :column/entity-key :purchase/cost}
-             {:column/name "Base Games"
-              :column/entity-key :purchase/base-games}
-             {:column/name "DLCs"
-              :column/entity-key :purchase/dlcs}
+             (assoc reference/column-defaults
+               :column/name "Base Games"
+               :column/entity-key :purchase/base-games
+               :column/target-collection :games)
+             (assoc reference/column-defaults
+               :column/name "DLCs"
+               :column/entity-key :purchase/dlcs
+               :column/target-collection :dlcs)
              {:column/name "Bundle Name"
               :column/entity-key :purchase/bundle-name}]})
 

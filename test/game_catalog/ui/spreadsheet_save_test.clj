@@ -4,6 +4,7 @@
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.multiselect :as multiselect]
             [game-catalog.ui.spreadsheet.numeric :as numeric]
+            [game-catalog.ui.spreadsheet.reference :as reference]
             [game-catalog.ui.spreadsheet.select :as select]
             [mount.core :as mount]))
 
@@ -25,7 +26,11 @@
              (assoc multiselect/column-defaults
                :column/name "Multiy"
                :column/entity-key :thing/multiy
-               :column/options ["Foo" "Bar" "Gazonk"])]})
+               :column/options ["Foo" "Bar" "Gazonk"])
+             (assoc reference/column-defaults
+               :column/name "Refy"
+               :column/entity-key :thing/refy
+               :column/target-collection :things)]})
 
 (defn reset-collections-fixture [f]
   (mount/start #'db/*collections)
@@ -42,18 +47,21 @@
                                    :thing/texty "Old"
                                    :thing/numbery 100
                                    :thing/selecty "Bad"
-                                   :thing/multiy ["Foo"]}])
+                                   :thing/multiy ["Foo"]
+                                   :thing/refy ["1"]}])
 
     ((spreadsheet/save-row-handler things-config)
      {:path-params {:entity-id "1"}
       :params {"thing/texty" "New"
                "thing/numbery" "200"
                "thing/selecty" "Good"
-               "thing/multiy" ["Foo" "Bar"]}})
+               "thing/multiy" ["Foo" "Bar"]
+               "thing/refy" ["" "1" "2"]}})
 
     (is (= {:entity/id "1"
             :thing/texty "New"
             :thing/numbery 200
             :thing/selecty "Good"
-            :thing/multiy ["Foo" "Bar"]}
+            :thing/multiy ["Foo" "Bar"]
+            :thing/refy ["1" "2"]}
            (db/get-by-id :things "1")))))
