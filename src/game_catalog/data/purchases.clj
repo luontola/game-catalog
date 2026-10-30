@@ -2,11 +2,9 @@
   (:require [clojure.data.csv :as csv]
             [clojure.java.io :as io]
             [game-catalog.data.csv-fields :as csv-fields]
-            [game-catalog.data.db :as db]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.multiselect :as multiselect]
-            [game-catalog.ui.spreadsheet.row-number :as row-number]
-            [mount.core :as mount]))
+            [game-catalog.ui.spreadsheet.row-number :as row-number]))
 
 (def known-shops
   [;; primary distributors
@@ -71,6 +69,3 @@
                 (update :purchase/shop csv-fields/parse-string-vector)
                 (assoc :entity/id (spreadsheet/uuid-id-generator nil)))
            rows))))
-
-(mount/defstate purchases-loader
-  :start (db/init-collection! (:collection-key config) (read-purchases-from-csv)))

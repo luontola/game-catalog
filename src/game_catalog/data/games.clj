@@ -2,13 +2,11 @@
   (:require [clojure.data.csv :as csv]
             [clojure.java.io :as io]
             [game-catalog.data.csv-fields :as csv-fields]
-            [game-catalog.data.db :as db]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.multiselect :as multiselect]
             [game-catalog.ui.spreadsheet.numeric :as numeric]
             [game-catalog.ui.spreadsheet.row-number :as row-number]
-            [game-catalog.ui.spreadsheet.select :as select]
-            [mount.core :as mount]))
+            [game-catalog.ui.spreadsheet.select :as select]))
 
 (def known-tags
   ["Local Co-Op"
@@ -68,6 +66,3 @@
                 (update :game/tags csv-fields/parse-string-vector)
                 (assoc :entity/id (spreadsheet/uuid-id-generator nil)))
            rows))))
-
-(mount/defstate games-loader
-  :start (db/init-collection! (:collection-key config) (read-games-from-csv)))

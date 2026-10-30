@@ -1,5 +1,6 @@
 (ns game-catalog.main
   (:require [clojure.tools.logging :as log]
+            [game-catalog.data.catalog] ; loads the catalog-loader mount state
             [game-catalog.webapp :as webapp]
             [mount.core :as mount]
             [ring.adapter.jetty :as httpd]

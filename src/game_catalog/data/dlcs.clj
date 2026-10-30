@@ -1,10 +1,8 @@
 (ns game-catalog.data.dlcs
   (:require [clojure.data.csv :as csv]
             [clojure.java.io :as io]
-            [game-catalog.data.db :as db]
             [game-catalog.ui.spreadsheet :as spreadsheet]
-            [game-catalog.ui.spreadsheet.row-number :as row-number]
-            [mount.core :as mount]))
+            [game-catalog.ui.spreadsheet.row-number :as row-number]))
 
 (def config
   {:collection-key :dlcs
@@ -35,6 +33,3 @@
       (map #(-> (zipmap csv-column-keys %)
                 (assoc :entity/id (spreadsheet/uuid-id-generator nil)))
            rows))))
-
-(mount/defstate dlcs-loader
-  :start (db/init-collection! (:collection-key config) (read-dlcs-from-csv)))
