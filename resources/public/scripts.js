@@ -277,6 +277,11 @@ if (contextMenu) {
 
         const deleteButton = contextMenu.querySelector('#context-menu-delete')
         deleteButton.clickHandler = () => {
+            row.addEventListener('htmx:response:error', (e) => {
+                // htmx swaps also error responses, which would remove the row
+                e.detail.ctx.swap = 'none'
+                alert(e.detail.ctx.text)
+            }, {once: true})
             htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/delete`, {
                 target: row,
                 swap: 'delete'

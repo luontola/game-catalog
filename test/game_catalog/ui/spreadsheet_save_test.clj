@@ -73,3 +73,32 @@
             :thing/multiy ["Foo" "Bar"]
             :thing/refy ["1" "2"]}
            (db/get-by-id :things "1")))))
+
+(deftest delete-row-handler-test
+  (let [config (assoc things-config :target-configs {:things things-config})
+        delete! (fn [entity-id]
+                  ((spreadsheet/delete-row-handler config)
+                   {:path-params {:entity-id entity-id}}))]
+    (db/init-collection! :things [{:entity/id "1"
+                                   :thing/texty "Foo"
+                                   :thing/refy ["2"]}
+                                  {:entity/id "2"
+                                   :thing/texty "Bar"}])
+
+    (testing "rows which other rows refer to cannot be deleted"
+      (let [response (delete! "2")]
+        (is (= 409 (:status response)))
+        (is (= "Cannot delete this row, because other rows refer to it:\n- things: 1"
+               (:body response)))
+        (is (some? (db/get-by-id :things "2")))))
+
+    (testing "rows which no other rows refer to can be deleted"
+      (is (= 200 (:status (delete! "1"))))
+      (is (nil? (db/get-by-id :things "1"))))
+
+    (testing "after the referring row was deleted, the referred row can be deleted"
+      (is (= 200 (:status (delete! "2"))))
+      (is (nil? (db/get-by-id :things "2"))))
+
+    (testing "unknown rows"
+      (is (= 404 (:status (delete! "3")))))))

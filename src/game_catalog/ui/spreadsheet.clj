@@ -1,8 +1,10 @@
 (ns game-catalog.ui.spreadsheet
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [game-catalog.data.db :as db]
             [game-catalog.infra.hiccup :as h]
             [game-catalog.infra.html :as html]
+            [game-catalog.ui.spreadsheet.reference :as reference]
             [game-catalog.ui.spreadsheet.text :as text]
             [ring.util.http-response :as http-response]
             [ring.util.response :as response])
@@ -190,14 +192,28 @@
   (fn [request]
     (let [collection-key (:collection-key config)
           entity-id (get-in request [:path-params :entity-id])
-          entity (db/get-by-id collection-key entity-id)]
-      (if entity
+          entity (db/get-by-id collection-key entity-id)
+          referring-entities (when entity
+                               (reference/referring-entities config entity-id))]
+      (cond
+        (nil? entity)
+        (-> (html/response "Row not found")
+            (response/status 404))
+
+        (seq referring-entities)
+        (-> (response/response (str "Cannot delete this row, because other rows refer to it:\n"
+                                    (->> referring-entities
+                                         (map (fn [{:keys [collection-key label]}]
+                                                (str "- " (name collection-key) ": " label)))
+                                         (str/join "\n"))))
+            (response/status 409)
+            (response/content-type "text/plain; charset=utf-8"))
+
+        :else
         (do
           (db/delete! collection-key entity-id)
           (log/info (str "Deleted " (name collection-key) " " entity-id))
-          (http-response/ok ""))
-        (-> (html/response "Row not found")
-            (response/status 404))))))
+          (http-response/ok ""))))))
 
 (defn make-routes [config]
   (let [entity-type (entity-type config)]

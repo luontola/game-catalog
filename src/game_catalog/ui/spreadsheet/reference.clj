@@ -144,6 +144,22 @@
                                        ids
                                        (first ids))}))))
 
+(defn referring-entities
+  "Returns descriptions of the entities whose forward references refer
+   to the given entity. Deleting the entity would break those references."
+  [config entity-id]
+  (let [collection-key (:collection-key config)]
+    (distinct
+      (for [[source-collection source-config] (:target-configs config)
+            column (:columns source-config)
+            :when (and (= collection-key (:column/target-collection column))
+                       (not (:column/back-reference column)))
+            entity (db/get-all source-collection)
+            :when (some #(= entity-id %) (value->ids (get entity (:column/entity-key column))))]
+        {:collection-key source-collection
+         :entity-id (:entity/id entity)
+         :label (entity-label source-config entity)}))))
+
 (def column-defaults
   {:column/type :reference
    :column/value-fn value
