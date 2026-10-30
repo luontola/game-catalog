@@ -18,6 +18,14 @@
   (when-some [column-type (:column/type column)]
     (str "column-" (name column-type))))
 
+(defn- with-value
+  "Adds the cell's value to ctx. Columns may compute it with :column/value-fn,
+   for example from other collections, instead of reading it from the entity."
+  [{:keys [column entity] :as ctx}]
+  (assoc ctx :value (if-some [value-fn (:column/value-fn column)]
+                      (value-fn ctx)
+                      (get entity (:column/entity-key column)))))
+
 (defn view-row
   ([config entity]
    (view-row config entity nil))
@@ -34,10 +42,12 @@
       (map-indexed
         (fn [idx column]
           (let [column (with-defaults column)
-                value (get entity (:column/entity-key column))
                 focus? (= idx focus-index)
-                ctx {:value value
-                     :row-number row-number}
+                ctx (with-value {:mode :view
+                                 :config config
+                                 :entity entity
+                                 :column column
+                                 :row-number row-number})
                 viewer (:column/viewer column)]
             (h/html
               [:td {:class (column-type-class column)
@@ -65,13 +75,14 @@
         (map-indexed
           (fn [idx column]
             (let [column (with-defaults column)
-                  value (get entity (:column/entity-key column))
                   read-only? (:column/read-only? column)
                   focus? (= idx focus-index)
-                  ctx {:value value
-                       :column column
-                       :form-id form-id
-                       :focus? focus?}
+                  ctx (with-value {:mode :edit
+                                   :config config
+                                   :entity entity
+                                   :column column
+                                   :form-id form-id
+                                   :focus? focus?})
                   editor (if read-only?
                            (:column/viewer column)
                            (:column/editor column))]

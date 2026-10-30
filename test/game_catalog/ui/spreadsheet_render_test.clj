@@ -19,6 +19,27 @@
    :thing/texty "Words"
    :thing/numbery 123})
 
+(def computed-config
+  {:collection-key :things
+   :columns [{:column/name "Computed"
+              :column/entity-key :thing/computed
+              :column/value-fn (fn [{:keys [entity config column mode]}]
+                                 (str (:thing/texty entity) " "
+                                      (name (:collection-key config)) " "
+                                      (:column/name column) " "
+                                      (name mode)))}]})
+
+(deftest computed-value-test
+  (testing "view mode uses the column's value function"
+    (is (= "Words things Computed view"
+           (html/visualize-html (str (spreadsheet/view-row computed-config entity))))))
+
+  (testing "edit mode uses the column's value function"
+    (is (= "Words things Computed edit"
+           (-> (html/parse-table-fragment (spreadsheet/edit-row computed-config entity))
+               (.selectFirst "input")
+               (.attr "value"))))))
+
 (deftest view-row-test
   (testing "the row ID is the entity ID, for linking to the row"
     (let [doc (html/parse-table-fragment
