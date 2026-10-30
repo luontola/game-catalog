@@ -20,6 +20,11 @@
    :thing/numbery 123})
 
 (deftest view-row-test
+  (testing "the row ID is the entity ID, for linking to the row"
+    (let [doc (html/parse-table-fragment
+                (spreadsheet/view-row config entity))]
+      (is (= "1" (.attr (.selectFirst doc "tr") "id")))))
+
   (testing "renders column type classes on cells"
     (let [doc (html/parse-table-fragment
                 (spreadsheet/view-row config entity))]
@@ -27,6 +32,16 @@
       (is (some? (.selectFirst doc "td.column-numeric"))))))
 
 (deftest edit-row-test
+  (testing "the row ID is the entity ID, for linking to the row"
+    (let [doc (html/parse-table-fragment
+                (spreadsheet/edit-row config entity))]
+      (is (= "1" (.attr (.selectFirst doc "tr") "id")))))
+
+  (testing "the adding row has no ID"
+    (let [doc (html/parse-table-fragment
+                (spreadsheet/add-row config))]
+      (is (not (.hasAttr (.selectFirst doc "tr") "id")))))
+
   (testing "renders column type classes on editable cells"
     (let [doc (html/parse-table-fragment
                 (spreadsheet/edit-row config entity))]

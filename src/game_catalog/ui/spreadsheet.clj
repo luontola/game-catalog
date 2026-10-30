@@ -25,7 +25,8 @@
    (view-row config entity focus-index nil))
   ([config entity focus-index row-number]
    (h/html
-     [:tr.viewing {:data-entity-type (entity-type config)
+     [:tr.viewing {:id (:entity/id entity) ; for linking to the row
+                   :data-entity-type (entity-type config)
                    :data-entity-id (:entity/id entity)
                    ;; Rows after this one can continue the numbering with CSS
                    :style (when row-number
@@ -55,7 +56,9 @@
          entity-id (if adding? "new" (:entity/id entity))
          form-id (str entity-type "-form-" entity-id)]
      (h/html
-       [:tr.editing {:data-entity-type entity-type
+       [:tr.editing {:id (when-not adding?
+                           (:entity/id entity))
+                     :data-entity-type entity-type
                      :data-entity-id entity-id
                      :class (when adding?
                               "adding")}
