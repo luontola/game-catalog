@@ -108,7 +108,10 @@ main {
         }
     }
 
-    /* Row number counter */
+    /* Row number counter.
+       The full page has the row numbers rendered by the backend, and they
+       set the counter, so that rows which were added or re-rendered later
+       (backend doesn't know their row number) will continue the numbering with CSS. */
 
     tbody {
         counter-reset: row-number;
@@ -117,7 +120,7 @@ main {
     tr:not(.adding) {
         counter-increment: row-number;
 
-        .row-number::before {
+        .row-number:empty::before {
             content: counter(row-number);
         }
     }

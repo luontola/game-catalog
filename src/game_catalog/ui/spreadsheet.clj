@@ -22,15 +22,21 @@
   ([config entity]
    (view-row config entity nil))
   ([config entity focus-index]
+   (view-row config entity focus-index nil))
+  ([config entity focus-index row-number]
    (h/html
      [:tr.viewing {:data-entity-type (entity-type config)
-                   :data-entity-id (:entity/id entity)}
+                   :data-entity-id (:entity/id entity)
+                   ;; Rows after this one can continue the numbering with CSS
+                   :style (when row-number
+                            (str "counter-set: row-number " row-number))}
       (map-indexed
         (fn [idx column]
           (let [column (with-defaults column)
                 value (get entity (:column/entity-key column))
                 focus? (= idx focus-index)
-                ctx {:value value}
+                ctx {:value value
+                     :row-number row-number}
                 viewer (:column/viewer column)]
             (h/html
               [:td {:class (column-type-class column)
@@ -95,8 +101,8 @@
          (for [column (:columns config)]
            [:th (:column/name column)])]]
        [:tbody
-        (for [entity entities]
-          (view-row config entity))
+        (for [[idx entity] (map-indexed vector entities)]
+          (view-row config entity nil (inc idx)))
         (add-row config nil)]]
       [:menu#context-menu {:class "context-menu"}
        [:li
