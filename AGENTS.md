@@ -17,3 +17,5 @@ Run tests after writing or modifying code, including after adding new tests:
 ```
 lein test
 ```
+
+If you create files, but leave it to the user to commit them, use `git add --intent-to-add` on them.
