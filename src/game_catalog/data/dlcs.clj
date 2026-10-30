@@ -21,8 +21,12 @@
                :column/multiple? false)
              {:column/name "Year"
               :column/entity-key :dlc/year}
-             {:column/name "Purchases"
-              :column/entity-key :dlc/purchases}]})
+             (assoc reference/column-defaults
+               :column/name "Purchases"
+               :column/entity-key :dlc/purchases
+               :column/target-collection :purchases
+               :column/back-reference :purchase/dlcs
+               :column/read-only? true)]})
 
 (def csv-column-keys
   [:entity/id

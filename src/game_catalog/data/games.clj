@@ -5,6 +5,7 @@
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.multiselect :as multiselect]
             [game-catalog.ui.spreadsheet.numeric :as numeric]
+            [game-catalog.ui.spreadsheet.reference :as reference]
             [game-catalog.ui.spreadsheet.row-number :as row-number]
             [game-catalog.ui.spreadsheet.select :as select]))
 
@@ -36,16 +37,24 @@
                :column/name "Tags"
                :column/entity-key :game/tags
                :column/options known-tags)
-             {:column/name "Purchases"
-              :column/entity-key :game/purchases}
+             (assoc reference/column-defaults
+               :column/name "Purchases"
+               :column/entity-key :game/purchases
+               :column/target-collection :purchases
+               :column/back-reference :purchase/base-games
+               :column/read-only? true)
              (assoc select/column-defaults
                :column/name "Status"
                :column/entity-key :game/status
                :column/options ["" "Backlog" "Started" "Completed" "Dropped"])
              {:column/name "Content"
               :column/entity-key :game/content}
-             {:column/name "DLCs"
-              :column/entity-key :game/dlcs}]})
+             (assoc reference/column-defaults
+               :column/name "DLCs"
+               :column/entity-key :game/dlcs
+               :column/target-collection :dlcs
+               :column/back-reference :dlc/base-game
+               :column/read-only? true)]})
 
 (def csv-column-keys
   [:entity/id

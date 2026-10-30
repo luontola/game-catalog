@@ -49,7 +49,7 @@
              1  Hollow Knight                            2017                     Metroidvania, Indie             Backlog
              2  Portal 2                                 2011             Portal                                  Playing
              3  The Legend of Zelda: Breath of the Wild  2017             Zelda                                   Completed
-                []                                       []       []      []      []                   []         []         []       []")
+                []                                       []       []      []      []                              []         []")
              (html/visualize-html table)))))
 
   ;; TODO: should be tested for spreadsheet infra, not for games

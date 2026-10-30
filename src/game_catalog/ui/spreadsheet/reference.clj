@@ -8,6 +8,10 @@
 ;; With :column/multiple? it's a vector of IDs, otherwise a single ID.
 ;; The target collection's config determines how the entities are shown,
 ;; using its :reference-label and :reference-tooltip functions.
+;;
+;; With :column/back-reference, the value is computed on read: it's the
+;; target entities whose :column/back-reference field refers to this entity.
+;; Back reference columns should also be :column/read-only?
 
 (def form-field-name text/form-field-name)
 
@@ -20,6 +24,23 @@
                              vec)
     (str/blank? value) []
     :else [(str value)]))
+
+(defn- back-reference-ids [{:keys [column entity]}]
+  (let [target-collection (:column/target-collection column)
+        back-reference (:column/back-reference column)]
+    (when-some [id (:entity/id entity)]
+      (->> (db/get-all target-collection)
+           (filter (fn [target-entity]
+                     (let [value (get target-entity back-reference)]
+                       (if (sequential? value)
+                         (some #(= id %) value)
+                         (= id value)))))
+           (mapv :entity/id)))))
+
+(defn value [{:keys [column entity] :as ctx}]
+  (if (:column/back-reference column)
+    (back-reference-ids ctx)
+    (get entity (:column/entity-key column))))
 
 (defn- target-config [{:keys [column config]}]
   (get-in config [:target-configs (:column/target-collection column)]))
@@ -125,6 +146,7 @@
 
 (def column-defaults
   {:column/type :reference
+   :column/value-fn value
    :column/viewer viewer
    :column/editor editor
    :column/parse-form-params parse-form-params

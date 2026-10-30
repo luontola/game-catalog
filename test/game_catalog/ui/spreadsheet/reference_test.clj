@@ -79,6 +79,39 @@
       (is (= "Bar, Foo" (html/visualize-html (str (.body doc)))))
       (is (empty? (links doc))))))
 
+(deftest value-test
+  (testing "forward references are read from the entity"
+    (is (= ["w1"] (reference/value {:column column
+                                    :entity {:thing/widgets ["w1"]}}))))
+
+  (testing "back references are computed from the target collection,"
+    (db/init-collection! :things [{:entity/id "t1", :thing/widgets ["w1" "w2"], :thing/widget "w1"}
+                                  {:entity/id "t2", :thing/widgets ["w2"], :thing/widget "w2"}
+                                  {:entity/id "t3"}])
+    (let [back-reference-column (assoc reference/column-defaults
+                                  :column/entity-key :widget/things
+                                  :column/target-collection :things
+                                  :column/read-only? true)
+          back-references (fn [back-reference widget-id]
+                            (->> (reference/value {:column (assoc back-reference-column
+                                                             :column/back-reference back-reference)
+                                                   :entity {:entity/id widget-id}})
+                                 sort))]
+      (testing "from multiple references"
+        (is (= ["t1"] (back-references :thing/widgets "w1")))
+        (is (= ["t1" "t2"] (back-references :thing/widgets "w2")))
+        (is (= [] (back-references :thing/widgets "w3"))))
+
+      (testing "from single references"
+        (is (= ["t1"] (back-references :thing/widget "w1")))
+        (is (= ["t2"] (back-references :thing/widget "w2")))
+        (is (= [] (back-references :thing/widget "w3"))))
+
+      (testing "the adding row has no back references"
+        (is (empty? (reference/value {:column (assoc back-reference-column
+                                                :column/back-reference :thing/widgets)
+                                      :entity nil})))))))
+
 (defn- options [^Element select]
   (->> (.select select "option")
        (mapv (fn [^Element option]

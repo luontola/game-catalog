@@ -30,7 +30,13 @@
              (assoc reference/column-defaults
                :column/name "Refy"
                :column/entity-key :thing/refy
-               :column/target-collection :things)]})
+               :column/target-collection :things)
+             (assoc reference/column-defaults
+               :column/name "Back Refy"
+               :column/entity-key :thing/back-refy
+               :column/target-collection :things
+               :column/back-reference :thing/refy
+               :column/read-only? true)]})
 
 (defn reset-collections-fixture [f]
   (mount/start #'db/*collections)
@@ -56,7 +62,9 @@
                "thing/numbery" "200"
                "thing/selecty" "Good"
                "thing/multiy" ["Foo" "Bar"]
-               "thing/refy" ["" "1" "2"]}})
+               "thing/refy" ["" "1" "2"]
+               ;; back references are computed on read, so they are never saved
+               "thing/back-refy" ["" "1"]}})
 
     (is (= {:entity/id "1"
             :thing/texty "New"
