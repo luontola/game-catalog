@@ -4,7 +4,7 @@
             [game-catalog.testing.html :as html]
             [game-catalog.ui.spreadsheet.reference :as reference]
             [mount.core :as mount])
-  (:import (org.jsoup.nodes Element)))
+  (:import (org.jsoup.nodes Document Element)))
 
 (def widgets-config
   {:collection-key :widgets
@@ -39,11 +39,11 @@
 
 (use-fixtures :each reset-collections-fixture)
 
-(defn- render-viewer [ctx]
+(defn- render-viewer ^Document [ctx]
   (html/parse-fragment
     (reference/viewer (merge {:config config, :column column, :mode :view} ctx))))
 
-(defn- links [doc]
+(defn- links [^Document doc]
   (->> (.select doc "a")
        (mapv (fn [^Element a]
                (cond-> {:href (.attr a "href")
@@ -122,7 +122,7 @@
        (mapv (fn [^Element option]
                (.attr option "value")))))
 
-(defn- render-editor [ctx]
+(defn- render-editor ^Document [ctx]
   (html/parse-fragment
     (reference/editor (merge {:config config, :column column, :form-id "things-form-1"} ctx))))
 
