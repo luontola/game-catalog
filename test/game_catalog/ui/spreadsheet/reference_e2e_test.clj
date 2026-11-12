@@ -159,7 +159,7 @@
 
     (is (= "/things#1" (wait-for-url "/things#1")))
     (is (= "1:TD:Bravo, Charlie" (wait-for-focus "1:TD:Bravo, Charlie")))
-    ;; Chrome clears the focus a few milliseconds after the hashchange event
+    ;; htmx history restore used to replace the page body a few milliseconds after the hashchange event
     (Thread/sleep 20)
     (is (= "1:TD:Bravo, Charlie" (focused))
         "ensure focus was not lost soon after setting it"))

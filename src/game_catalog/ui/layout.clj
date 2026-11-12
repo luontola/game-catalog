@@ -15,6 +15,9 @@
            [:link {:rel "stylesheet", :href "/reset.css"}]
            [:link {:rel "stylesheet", :href "/simple.css"}]
            [:link {:rel "stylesheet", :href "/styles.css"}]
+           ;; We don't use htmx history. With it enabled, going back in history
+           ;; would reload the whole page body, and the focused element is lost.
+           [:meta {:name "htmx-config", :content "{\"history\": false}"}]
            [:script {:type "module"
                      :src "https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3/dist/htmx.esm.js"
                      :integrity "sha384-X/TaewiqShi/ztjAUmWNAFs+E7vl5V1CBtA+nTap/2HzeMxuI2e68oX63ebr5E6X"
