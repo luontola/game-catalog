@@ -1,3 +1,8 @@
+// The reference picker has a table inside the spreadsheet's cells,
+// so these selectors must not match its rows and cells
+const spreadsheetRow = '.spreadsheet > tbody > tr'
+const spreadsheetCell = `${spreadsheetRow} > td`
+
 // A row is modified when its form data differs from when the row got focus.
 // Comparing the data instead of tracking input events also notices changes
 // made by scripts, and ignores inputs which are not part of the form.
@@ -9,7 +14,7 @@ function serializeForm(row) {
 }
 
 document.addEventListener('focusin', (e) => {
-    const row = e.target.closest('.spreadsheet tr.editing')
+    const row = e.target.closest(`${spreadsheetRow}.editing`)
     if (row && !initialFormData.has(row)) {
         initialFormData.set(row, serializeForm(row))
     }
@@ -22,7 +27,7 @@ function isFormModified(row) {
 // Highlight modified rows. Scripts which change the form should dispatch
 // a change event, but saving the row doesn't depend on it.
 function updateModifiedHighlight(e) {
-    const row = e.target.closest('.spreadsheet tr.editing')
+    const row = e.target.closest(`${spreadsheetRow}.editing`)
     if (row) {
         row.dataset.modified = isFormModified(row)
     }
@@ -109,7 +114,7 @@ function focusCellFromHistory() {
     }
     // Entity IDs are not always valid CSS selectors, so avoid querySelector
     const row = document.getElementById(decodeURIComponent(location.hash.slice(1)))
-    if (row?.matches('.spreadsheet tr')) {
+    if (row?.matches(spreadsheetRow)) {
         const cellIndex = history.state?.[cellIndexKey] ?? 0
         focusCell(row.cells[cellIndex] ?? row.cells[0])
     }
@@ -147,7 +152,7 @@ function cancelSaveFocusToHistory() {
 }
 
 document.addEventListener('focusin', (e) => {
-    const cell = e.target.closest('.spreadsheet td')
+    const cell = e.target.closest(spreadsheetCell)
     if (!cell) {
         return
     }
@@ -175,7 +180,7 @@ document.addEventListener('keydown', (e) => {
     if (!(e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey)) {
         return
     }
-    const cell = e.target.closest('.spreadsheet td')
+    const cell = e.target.closest(spreadsheetCell)
     const table = cell?.closest('.spreadsheet') ?? document.querySelector('.spreadsheet')
     if (!table) {
         return
@@ -194,6 +199,9 @@ document.addEventListener('keydown', (e) => {
 })
 
 function isDropdownOpen(element) {
+    if (element.closest('dialog[open]')) {
+        return true
+    }
     // When a multiselect dropdown is open, the focus is on one of its options
     try {
         return element.closest(':open') !== null
@@ -210,7 +218,7 @@ document.addEventListener('keydown', (e) => {
     }
 
     // Determine if we're in a spreadsheet context
-    const cell = e.target.closest('.spreadsheet td')
+    const cell = e.target.closest(spreadsheetCell)
     if (!cell) {
         return
     }
@@ -289,7 +297,7 @@ document.addEventListener('keydown', (e) => {
 
 // Exit edit mode when focus leaves the row
 document.addEventListener('focusout', (e) => {
-    const row = e.target.closest('.spreadsheet tr.editing')
+    const row = e.target.closest(`${spreadsheetRow}.editing`)
     if (!row) {
         return
     }
@@ -309,7 +317,11 @@ document.addEventListener('focusout', (e) => {
 // Clicking a button in some browsers (e.g. Safari) doesn't focus it,
 // so the focus would leave the row, which would exit edit mode.
 document.addEventListener('mousedown', (e) => {
-    if (e.target.closest('.spreadsheet tr.editing button')) {
+    if (e.target.closest(`${spreadsheetRow}.editing button`)) {
+        e.preventDefault()
+    }
+    // Clicking the picker's non-focusable content would move the focus out of the row
+    if (e.target.closest('.reference-picker') && !e.target.matches('input')) {
         e.preventDefault()
     }
 })
@@ -331,9 +343,118 @@ document.addEventListener('click', (e) => {
     cell.dispatchEvent(new Event('change', {bubbles: true}))
 })
 
+// Reference picker: a dialog for searching the target collection
+
+function openReferencePicker(editor) {
+    const dialog = editor.querySelector('.reference-picker')
+    const search = dialog.querySelector('.reference-search')
+    search.value = ''
+    // Closing the dialog returns the focus to the element which had it before opening.
+    // Clicking the button doesn't focus it, so focus it explicitly.
+    editor.querySelector('.pill-button').focus()
+    dialog.showModal()
+    positionBelow(dialog, editor.closest('td'))
+    search.focus()
+    search.dispatchEvent(new Event('reference-picker-open'))
+}
+
+function positionBelow(dialog, anchor) {
+    const margin = 8
+    const rect = anchor.getBoundingClientRect()
+    const left = Math.max(margin, Math.min(rect.left, window.innerWidth - dialog.offsetWidth - margin))
+    dialog.style.left = `${left}px`
+    dialog.style.top = `${rect.bottom}px`
+    dialog.style.maxHeight = `${window.innerHeight - rect.bottom - margin}px`
+}
+
+function pickerOptions(dialog) {
+    return Array.from(dialog.querySelectorAll('.reference-results tbody tr'))
+}
+
+function highlightPickerOption(dialog, option) {
+    for (const o of pickerOptions(dialog)) {
+        o.classList.toggle('highlighted', o === option)
+    }
+    option?.scrollIntoView({block: 'nearest'})
+}
+
+function highlightedPickerOption(dialog) {
+    return dialog.querySelector('.reference-results .highlighted')
+}
+
+function pickReference(dialog, option) {
+    const editor = dialog.closest('.reference-editor')
+    const pill = option.querySelector('template').content.cloneNode(true)
+    if (editor.dataset.multiple === 'false') {
+        editor.querySelectorAll('.pill').forEach(p => p.remove())
+    }
+    editor.querySelector('.pill-button').before(pill)
+    dialog.close()
+    editor.dispatchEvent(new Event('change', {bubbles: true}))
+}
+
+document.addEventListener('click', (e) => {
+    const button = e.target.closest('.reference-editor > .pill-button')
+    if (button) {
+        openReferencePicker(button.closest('.reference-editor'))
+        return
+    }
+    const dialog = e.target.closest('.reference-picker')
+    if (!dialog) {
+        return
+    }
+    if (e.target === dialog) {
+        // The dialog has no padding, so only clicks on the backdrop target it
+        dialog.close()
+        return
+    }
+    const option = e.target.closest('.reference-results tbody tr')
+    if (option) {
+        pickReference(dialog, option)
+    }
+})
+
+document.addEventListener('keydown', (e) => {
+    const dialog = e.target.closest('.reference-picker')
+    if (!dialog) {
+        return
+    }
+    const options = pickerOptions(dialog)
+    const index = options.indexOf(highlightedPickerOption(dialog))
+    if (e.key === 'ArrowDown') {
+        highlightPickerOption(dialog, options[Math.min(index + 1, options.length - 1)])
+        e.preventDefault()
+    } else if (e.key === 'ArrowUp') {
+        highlightPickerOption(dialog, options[Math.max(index - 1, 0)])
+        e.preventDefault()
+    } else if (e.key === 'Enter') {
+        const option = highlightedPickerOption(dialog)
+        if (option) {
+            pickReference(dialog, option)
+        }
+        e.preventDefault()
+    }
+})
+
+// Highlight the first search result
+document.addEventListener('htmx:after:swap', (e) => {
+    const dialog = e.target.closest?.('.reference-picker')
+    if (dialog) {
+        highlightPickerOption(dialog, pickerOptions(dialog)[0])
+    }
+})
+
+// Don't leave old search results in the DOM.
+// The close event doesn't bubble, so it must be captured.
+document.addEventListener('close', (e) => {
+    if (e.target.matches?.('.reference-picker')) {
+        e.target.querySelector('.reference-results').replaceChildren()
+    }
+}, {capture: true})
+
 // Enter edit mode on double-click
 document.addEventListener('dblclick', (e) => {
-    const cell = e.target.closest('.spreadsheet td')
+    const cell = e.target.closest(spreadsheetCell)
     if (!cell) {
         return
     }
@@ -347,7 +468,7 @@ document.addEventListener('dblclick', (e) => {
 
 // Scroll to bottom when the adding row receives focus
 document.addEventListener('focusin', (e) => {
-    if (e.target.closest('.spreadsheet tr.adding')) {
+    if (e.target.closest(`${spreadsheetRow}.adding`)) {
         window.scrollTo({
             top: document.documentElement.scrollHeight,
             behavior: 'instant'
@@ -422,7 +543,7 @@ if (contextMenu) {
 
     // Open context menu by right-clicking a table cell
     document.addEventListener('contextmenu', (e) => {
-        const cell = e.target.closest('.spreadsheet td')
+        const cell = e.target.closest(spreadsheetCell)
         if (!cell) {
             return
         }

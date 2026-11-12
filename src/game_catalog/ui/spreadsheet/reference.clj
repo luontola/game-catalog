@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [game-catalog.data.db :as db]
             [game-catalog.infra.hiccup :as h]
+            [game-catalog.infra.json :as json]
             [game-catalog.ui.spreadsheet.text :as text]))
 
 ;; The value is entity IDs referring to the :column/target-collection.
@@ -66,13 +67,16 @@
     {:entities (sort-entities (target-config ctx) entities)
      :missing-ids (remove found-ids ids)}))
 
+(defn entity-item [target-config entity]
+  {:id (:entity/id entity)
+   :label (entity-label target-config entity)
+   :tooltip (entity-tooltip target-config entity)})
+
 (defn- items [ctx]
   (let [target-config (target-config ctx)
         {:keys [entities missing-ids]} (resolve-references ctx)]
     (concat (for [entity entities]
-              {:id (:entity/id entity)
-               :label (entity-label target-config entity)
-               :tooltip (entity-tooltip target-config entity)})
+              (entity-item target-config entity))
             (for [id missing-ids]
               {:id id
                :missing? true}))))
@@ -80,8 +84,9 @@
 (defn viewer [{:keys [column mode] :as ctx}]
   (let [target-collection (:column/target-collection column)
         items (items ctx)
-        ;; Links in edit mode would make it too easy to lose unsaved changes
-        links? (not= :edit mode)]
+        ;; Links in edit mode, or in the picker of edit mode, would make it
+        ;; too easy to lose unsaved changes
+        links? (= :view mode)]
     (h/html
       (for [[idx {:keys [id label tooltip missing?]}] (map-indexed vector items)]
         (list
@@ -95,7 +100,7 @@
                label]
               label)))))))
 
-(defn- pill [{:keys [column form-id]} {:keys [id label tooltip missing?]}]
+(defn pill [{:keys [column form-id]} {:keys [id label tooltip missing?]}]
   (let [label (if missing? id label)]
     (h/html
       [:span.pill {:class (when missing? "missing")
@@ -108,6 +113,44 @@
        [:button.pill-remove {:type "button"
                              :aria-label (str "Remove " label)}
         "×"]])))
+
+(def search-limit 50)
+
+(defn search
+  "Returns the target entities whose label contains the query, excluding
+   the already referred entities. Returns at most search-limit entities,
+   and the number of the other matches."
+  [ctx query exclude-ids]
+  (let [target-config (target-config ctx)
+        target-collection (get-in ctx [:column :column/target-collection])
+        exclude-ids (set (value->ids exclude-ids))
+        query (str/lower-case (str/trim (str query)))
+        matches (->> (db/get-all target-collection)
+                     (remove #(contains? exclude-ids (:entity/id %)))
+                     (filter #(str/includes? (str/lower-case (entity-label target-config %)) query))
+                     (sort-entities target-config))]
+    {:entities (take search-limit matches)
+     :more (max 0 (- (count matches) search-limit))}))
+
+(defn- picker [{:keys [config column form-id]}]
+  (h/html
+    [:dialog.reference-picker {:aria-label (str "Search " (name (:column/target-collection column)))}
+     [:div.reference-picker-content
+      [:input.reference-search {:type "search"
+                                :name "q"
+                                :placeholder "Search"
+                                :aria-label "Search"
+                                :autocomplete "off"
+                                :data-1p-ignore true
+                                :hx-post (str "/spreadsheet/" (name (:collection-key config)) "/reference-search")
+                                :hx-trigger "input changed delay:150ms, reference-picker-open"
+                                ;; Includes the referred entities, so that the search can exclude them
+                                :hx-include "closest .reference-editor"
+                                :hx-vals (json/write-value-as-string {:column (form-field-name column)
+                                                                      :form form-id})
+                                :hx-target "next .reference-results"
+                                :hx-swap "innerHTML"}]
+      [:div.reference-results]]]))
 
 (defn editor [{:keys [column form-id focus?] :as ctx}]
   (h/html
@@ -125,7 +168,8 @@
       ;; CSS shows only one icon, depending on whether a single-value column has a value
       [:span.reference-add {:role "img", :aria-label "Add"} "+"]
       (when-not (:column/multiple? column)
-        [:span.reference-replace {:role "img", :aria-label "Replace"} "⇄"])]]))
+        [:span.reference-replace {:role "img", :aria-label "Replace"} "⇄"])]
+     (picker ctx)]))
 
 (defn parse-form-params [params column]
   (let [field-name (form-field-name column)]

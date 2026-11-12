@@ -28,6 +28,15 @@
                       (value-fn ctx)
                       (get entity (:column/entity-key column)))))
 
+(defn- view-cell [ctx td-attrs]
+  (let [ctx (with-value (update ctx :column with-defaults))
+        column (:column ctx)
+        viewer (:column/viewer column)]
+    (h/html
+      [:td (merge {:class (column-type-class column)}
+                  td-attrs)
+       (viewer ctx)])))
+
 (defn view-row
   ([config entity]
    (view-row config entity nil))
@@ -43,21 +52,41 @@
                             (str "counter-set: row-number " row-number))}
       (map-indexed
         (fn [idx column]
-          (let [column (with-defaults column)
-                focus? (= idx focus-index)
-                ctx (with-value {:mode :view
-                                 :config config
-                                 :entity entity
-                                 :column column
-                                 :row-number row-number})
-                viewer (:column/viewer column)]
-            (h/html
-              [:td {:class (column-type-class column)
-                    :tabindex 0
-                    :autofocus focus?
-                    :auto-scroll-into-view focus?}
-               (viewer ctx)])))
+          (let [focus? (= idx focus-index)]
+            (view-cell {:mode :view
+                        :config config
+                        :entity entity
+                        :column column
+                        :row-number row-number}
+                       {:tabindex 0
+                        :autofocus focus?
+                        :auto-scroll-into-view focus?})))
         (:columns config))])))
+
+(defn- pick-columns [config]
+  ;; Row numbers would be meaningless in search results
+  (remove #(= :row-number (:column/type %)) (:columns config)))
+
+(defn pick-table
+  "Renders the entities for picking a whole row, without editing support.
+   The pick-template function returns content for each row's <template>."
+  [config entities pick-template]
+  (h/html
+    [:table.spreadsheet-picker
+     [:thead
+      [:tr
+       (for [column (pick-columns config)]
+         [:th (:column/name column)])]]
+     [:tbody
+      (for [entity entities]
+        [:tr {:data-entity-id (:entity/id entity)}
+         [:template (pick-template entity)]
+         (for [column (pick-columns config)]
+           (view-cell {:mode :pick
+                       :config config
+                       :entity entity
+                       :column column}
+                      {}))])]]))
 
 (defn edit-row
   ([config entity]
@@ -215,9 +244,39 @@
           (log/info (str "Deleted " (name collection-key) " " entity-id))
           (http-response/ok ""))))))
 
+(defn- find-reference-column [config field-name]
+  (->> (:columns config)
+       (map with-defaults)
+       (filter #(and (= :reference (:column/type %))
+                     (not (:column/read-only? %))
+                     (= field-name (text/form-field-name %))))
+       first))
+
+(defn reference-search-handler [config]
+  (fn [request]
+    (let [params (:params request)
+          column (or (find-reference-column config (:column params))
+                     (http-response/not-found! "Column not found"))
+          target-config (-> (get-in config [:target-configs (:column/target-collection column)])
+                            ;; For the reference columns in the search results
+                            (assoc :target-configs (:target-configs config)))
+          ctx {:config config
+               :column column
+               :form-id (:form params)}
+          {:keys [entities more]} (reference/search ctx (:q params) (get params (text/form-field-name column)))]
+      (html/response
+        (h/html
+          (if (empty? entities)
+            [:p.reference-no-matches "No matches"]
+            (pick-table target-config entities #(reference/pill ctx (reference/entity-item target-config %))))
+          (when (pos? more)
+            [:p.reference-more more " more, type to refine"]))))))
+
 (defn make-routes [config]
   (let [entity-type (entity-type config)]
-    [[(str "/spreadsheet/" entity-type "/:entity-id/view")
+    [[(str "/spreadsheet/" entity-type "/reference-search")
+      {:post {:handler (reference-search-handler config)}}]
+     [(str "/spreadsheet/" entity-type "/:entity-id/view")
       {:post {:handler (view-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/edit")
       {:post {:handler (edit-row-handler config)}}]

@@ -27,6 +27,9 @@
   (testing "hides script elements"
     (is (= "" (html/visualize-html "<script>foo()</script>"))))
 
+  (testing "hides template elements"
+    (is (= "" (html/visualize-html "<template><p>foo</p></template>"))))
+
   (testing "hides noscript elements"
     (is (= "" (html/visualize-html "<noscript>foo</noscript>"))))
 

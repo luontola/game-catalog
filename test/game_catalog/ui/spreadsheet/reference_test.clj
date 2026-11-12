@@ -77,6 +77,11 @@
   (testing "edit mode shows plain text without links, so that unsaved changes are not lost"
     (let [doc (render-viewer {:value ["w1" "w2"], :mode :edit})]
       (is (= "Bar, Foo" (html/visualize-html (str (.body doc)))))
+      (is (empty? (links doc)))))
+
+  (testing "the picker shows plain text without links, because it's used in edit mode"
+    (let [doc (render-viewer {:value ["w1" "w2"], :mode :pick})]
+      (is (= "Bar, Foo" (html/visualize-html (str (.body doc)))))
       (is (empty? (links doc))))))
 
 (deftest value-test
@@ -181,6 +186,33 @@
               {:value "w404", :text "w404 ×", :title "Missing reference"}]
              (pills doc)))
       (is (.hasClass (.selectFirst doc ".pill:last-of-type") "missing")))))
+
+(deftest search-test
+  (let [ctx {:config config, :column column}
+        search (fn [query exclude-ids]
+                 (update (reference/search ctx query exclude-ids) :entities #(mapv :entity/id %)))]
+    (testing "an empty query matches all entities, in the target collection's order"
+      (is (= {:entities ["w4" "w2" "w1" "w3"], :more 0}
+             (search "" nil))))
+
+    (testing "matches a part of the label, ignoring case and surrounding whitespace"
+      (is (= {:entities ["w1"], :more 0}
+             (search " fO " nil)))
+      (is (= {:entities ["w3"], :more 0}
+             (search "zon" nil))))
+
+    (testing "excludes the already referred entities"
+      (is (= {:entities ["w4" "w3"], :more 0}
+             (search "" ["" "w1" "w2"]))))
+
+    (testing "no matches"
+      (is (= {:entities [], :more 0}
+             (search "xyz" nil))))
+
+    (testing "returns a limited number of matches, and the number of the others"
+      (with-redefs [reference/search-limit 3]
+        (is (= {:entities ["w4" "w2" "w1"], :more 1}
+               (search "" nil)))))))
 
 (deftest parse-form-params-test
   (testing "multiple references"

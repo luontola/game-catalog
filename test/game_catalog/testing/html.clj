@@ -7,7 +7,7 @@
 
 ;;;; HTML visualization
 
-(def ^:private hidden-tags #{"style" "script" "noscript"})
+(def ^:private hidden-tags #{"style" "script" "noscript" "template"})
 (def ^:private inline-tags #{"a" "abbr" "b" "big" "cite" "code" "em" "i" "small" "span" "strong" "tt"})
 
 (defn normalize-whitespace [^String s]

@@ -3,6 +3,7 @@
             [game-catalog.data.db :as db]
             [game-catalog.infra.html :as infra.html]
             [game-catalog.testing.browser :as browser]
+            [game-catalog.testing.html :as html]
             [game-catalog.ui.layout :as layout]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.reference :as reference])
@@ -47,7 +48,9 @@
                                                     {:entity/id "2"
                                                      :thing/name "Bravo"}
                                                     {:entity/id "3"
-                                                     :thing/name "Charlie"}])
+                                                     :thing/name "Charlie"}
+                                                    {:entity/id "4"
+                                                     :thing/name "Delta"}])
                       (browser/navigate! "/things")
                       (f)))
 
@@ -243,8 +246,8 @@
   (wait-for-edit-mode)
   (reset! browser/*request-log [])
   (let [row (browser/locator "tr.editing:not(.adding)")
-        refs-cell (.locator row "td.column-reference >> nth=0")
-        ref-cell (.locator row "td.column-reference >> nth=1")]
+        refs-cell (.locator row ":scope > td.column-reference >> nth=0")
+        ref-cell (.locator row ":scope > td.column-reference >> nth=1")]
 
     (testing "the referred entities are pills, and the add button has the focus"
       (is (= ["Bravo×" "Charlie×"] (vec (.allTextContents (.locator refs-cell ".pill")))))
@@ -275,4 +278,105 @@
       (is (= [{:method "POST", :path "/spreadsheet/things/1/save"}]
              (post-requests)))
       (is (= {:thing/refs ["2"], :thing/ref nil}
+             (select-keys (db/get-by-id :things "1") [:thing/refs :thing/ref]))))))
+
+(defn- picker-results []
+  (html/visualize-html (browser/locator ".reference-picker[open] .reference-results")))
+
+(defn- wait-for-picker-results [expected]
+  (try
+    (.waitForFunction browser/*page*
+                      "expected => document.querySelector('.reference-picker[open] .reference-results')?.textContent.replace(/\\s+/g, ' ').trim() === expected"
+                      expected
+                      (-> (Page$WaitForFunctionOptions.)
+                          (.setTimeout 1000)))
+    (catch TimeoutError _))
+  (picker-results))
+
+(defn- highlighted-result []
+  (.textContent (browser/locator ".reference-picker[open] tr.highlighted td >> nth=0")))
+
+(defn- wait-for-picker-closed []
+  (.waitFor (browser/locator ".reference-picker[open]")
+            (-> (Locator$WaitForOptions.)
+                (.setState WaitForSelectorState/DETACHED))))
+
+(deftest picker-test
+  (.click (browser/locator "td:text-is('Alfa')"))
+  (press! "ArrowRight")
+  (press! "Enter")
+  (wait-for-edit-mode)
+  (reset! browser/*request-log [])
+  (let [row (browser/locator "tr.editing:not(.adding)")
+        refs-cell (.locator row ":scope > td.column-reference >> nth=0")
+        ref-cell (.locator row ":scope > td.column-reference >> nth=1")
+        search (browser/locator ".reference-picker[open] .reference-search")]
+
+    (testing "Enter on the add button opens the picker, which lists the entities which are not yet referred"
+      (press! "Enter")
+      (is (= "Name Refs Ref Alfa Bravo, Charlie Bravo Delta"
+             (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie Bravo Delta")))
+      (is (browser/has-focus? search) (browser/focused-element))
+      (is (= "Alfa" (highlighted-result)) "highlights the first result"))
+
+    (testing "arrow keys move the highlight"
+      (press! "ArrowDown")
+      (is (= "Delta" (highlighted-result)))
+      (press! "ArrowDown")
+      (is (= "Delta" (highlighted-result)) "stays at the last result")
+      (press! "ArrowUp")
+      (is (= "Alfa" (highlighted-result))))
+
+    (testing "typing filters the results"
+      (.type (.keyboard browser/*page*) "del")
+      (is (= "Name Refs Ref Delta" (wait-for-picker-results "Name Refs Ref Delta")))
+      (is (= "Delta" (highlighted-result))))
+
+    (testing "no matches"
+      (.type (.keyboard browser/*page*) "x")
+      (is (= "No matches" (wait-for-picker-results "No matches")))
+      (press! "Backspace")
+      (is (= "Name Refs Ref Delta" (wait-for-picker-results "Name Refs Ref Delta"))))
+
+    (testing "Enter adds the highlighted entity, and closes the picker"
+      (press! "Enter")
+      (wait-for-picker-closed)
+      (is (= ["Bravo×" "Charlie×" "Delta×"] (vec (.allTextContents (.locator refs-cell ".pill")))))
+      (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
+      (is (= "true" (.getAttribute row "data-modified"))))
+
+    (testing "Escape closes the picker, but does not exit edit mode"
+      (press! "Enter")
+      (is (= "Name Refs Ref Alfa Bravo, Charlie Bravo"
+             (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie Bravo")))
+      (press! "Escape")
+      (wait-for-picker-closed)
+      (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
+      (is (= 1 (.count row))))
+
+    (testing "clicking outside the picker closes it, but does not exit edit mode"
+      (.click (.locator refs-cell ".pill-button"))
+      (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie Bravo")
+      (.click (.mouse browser/*page*) 1 1)
+      (wait-for-picker-closed)
+      (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
+      (is (= 1 (.count row))))
+
+    (testing "clicking a result in a single-value column replaces the value"
+      (.click (.locator ref-cell ".pill-button"))
+      (is (= "Name Refs Ref Alfa Bravo, Charlie Bravo Charlie Delta"
+             (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie Bravo Charlie Delta")))
+      (.click (browser/locator ".reference-picker[open] tr:has(td:text-is('Charlie'))"))
+      (wait-for-picker-closed)
+      (is (= ["Charlie×"] (vec (.allTextContents (.locator ref-cell ".pill")))))
+      (is (browser/has-focus? (.locator ref-cell ".pill-button")) (browser/focused-element)))
+
+    (testing "picking does not make requests other than searching"
+      (is (= #{"/spreadsheet/things/reference-search"}
+             (set (map :path (post-requests))))))
+
+    (testing "exiting edit mode saves the picked references"
+      (press! "F2")
+      (wait-for-view-mode)
+      (is (= {:thing/refs ["2" "3" "4"], :thing/ref "3"}
              (select-keys (db/get-by-id :things "1") [:thing/refs :thing/ref]))))))
