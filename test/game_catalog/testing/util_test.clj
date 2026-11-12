@@ -4,8 +4,8 @@
 
 (deftest with-fixtures-test
   (testing "calls fixtures and body in the right order"
-    (let [calls (atom [])
-          spy! #(swap! calls conj %)
+    (let [*calls (atom [])
+          spy! #(swap! *calls conj %)
           fixture-1 (fn [f]
                       (spy! :fixture-1-before)
                       (f)
@@ -24,4 +24,4 @@
               :body-2
               :fixture-2-after
               :fixture-1-after]
-             @calls)))))
+             @*calls)))))

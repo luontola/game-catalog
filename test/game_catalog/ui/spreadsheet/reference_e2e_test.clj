@@ -90,23 +90,24 @@
     (is (= "/things" (.evaluate browser/*page* "() => location.pathname + location.hash")))))
 
 (deftest blocked-delete-test
-  (let [dialog-messages (atom [])]
+  (let [*dialog-messages (atom [])]
     (.onceDialog browser/*page* (fn [^Dialog dialog]
-                                  (swap! dialog-messages conj (.message dialog))
+                                  (swap! *dialog-messages conj (.message dialog))
                                   (.accept dialog)))
 
     (testing "deleting a row which other rows refer to shows an error, and the row stays"
       (browser/right-click (browser/locator "td:text-is('Bravo')"))
       (.click (browser/locator "#context-menu-delete"))
-      (.waitForCondition browser/*page* #(boolean (seq @dialog-messages)))
+      (.waitForCondition browser/*page* #(boolean (seq @*dialog-messages)))
       (is (= ["Cannot delete this row, because other rows refer to it:\n- things: Alfa"]
-             @dialog-messages))
+             @*dialog-messages))
       (is (= 1 (.count (browser/locator "tr[id='2']")))))
 
+    (reset! *dialog-messages [])
     (testing "deleting a row which no other rows refer to works"
       (browser/right-click (browser/locator "td:text-is('Alfa')"))
       (.click (browser/locator "#context-menu-delete"))
       (.waitFor (browser/locator "tr[id='1']")
                 (-> (Locator$WaitForOptions.)
                     (.setState WaitForSelectorState/DETACHED)))
-      (is (= 1 (count @dialog-messages))))))
+      (is (= 0 (count @*dialog-messages))))))
