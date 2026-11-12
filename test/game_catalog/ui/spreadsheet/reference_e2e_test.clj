@@ -116,7 +116,14 @@
     (is (= "2:TD:Bravo" (wait-for-focus "2:TD:Bravo"))))
 
   (testing "a link to a row on another page focuses the row's first cell"
+    (.navigate browser/*page* "about:blank")
     (browser/navigate! "/things#3")
+    (is (= "3:TD:Charlie" (wait-for-focus "3:TD:Charlie")))
+    ;; the browser's own fragment navigation must not steal the focus afterwards
+    (.waitForTimeout browser/*page* 500)
+    (is (= "3:TD:Charlie" (focused))))
+
+  (testing "reloading the page focuses the row's first cell"
     (.reload browser/*page*)
     (is (= "3:TD:Charlie" (wait-for-focus "3:TD:Charlie"))))
 

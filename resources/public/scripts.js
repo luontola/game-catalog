@@ -89,7 +89,7 @@ function focusRowFromHash() {
     }
 }
 
-focusRowFromHash()
+window.addEventListener('load', focusRowFromHash)
 window.addEventListener('hashchange', focusRowFromHash)
 
 // The URL hash follows the focused row, so that reloading or sharing the URL
