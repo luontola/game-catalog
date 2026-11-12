@@ -8,7 +8,7 @@
             [reitit.ring :as ring]
             [ring.util.http-response :as http-response]
             [unilog.config :refer [start-logging!]])
-  (:import (com.microsoft.playwright Browser BrowserContext BrowserType$LaunchOptions Locator Locator$ClickOptions Page Page$EmulateMediaOptions Playwright Request Tracing$StartOptions Tracing$StopOptions)
+  (:import (com.microsoft.playwright Browser BrowserContext BrowserType BrowserType$LaunchOptions Locator Locator$ClickOptions Page Page$EmulateMediaOptions Playwright Request Tracing$StartOptions Tracing$StopOptions)
            (com.microsoft.playwright.options MouseButton ReducedMotion)
            (java.awt Desktop)
            (java.io File)
@@ -24,6 +24,15 @@
 (def ^:dynamic ^Page *page* nil)
 (def *request-log (atom []))
 
+(defn- browser-type
+  "Chromium by default. Other browsers can be tested by setting
+   the BROWSER environment variable to firefox or webkit."
+  ^BrowserType [^Playwright playwright]
+  (case (or (System/getenv "BROWSER") "chromium")
+    "chromium" (.chromium playwright)
+    "firefox" (.firefox playwright)
+    "webkit" (.webkit playwright)))
+
 (defn- run-fixture [f]
   (start-logging! {:level :info
                    :console true
@@ -36,7 +45,7 @@
   (try
     (let [port (.getLocalPort ^NetworkConnector (first (.getConnectors main/http-server)))]
       (with-open [playwright (Playwright/create)
-                  browser (.launch (.chromium playwright)
+                  browser (.launch (browser-type playwright)
                                    (-> (BrowserType$LaunchOptions.)
                                        (.setHeadless true)))
                   context (.newContext browser)
