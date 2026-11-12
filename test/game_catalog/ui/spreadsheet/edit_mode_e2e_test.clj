@@ -119,8 +119,9 @@
     (.click (browser/locator "td:text-is('Qux')"))
     (is (= "1:1:TD" (focused)))
 
+    ;; Leaving the adding row in the previous step replaces it with a new one
     (press! "ControlOrMeta+Enter")
-    (is (= "new:1:INPUT" (focused))))
+    (is (= "new:1:INPUT" (wait-for-focus "new:1:INPUT"))))
 
   (testing "saves the row which was being edited"
     (.dblclick (browser/locator "td:text-is('Baz')"))
@@ -136,6 +137,30 @@
            (post-requests)))
     (is (= "Grault" (:thing/foo (db/get-by-id :things "1"))))
     (is (= "new:0:INPUT" (focused)) "focus stays in the adding row")))
+
+(deftest cmd-enter-while-the-adding-row-is-being-replaced-test
+  (testing "focuses the new adding row, instead of the old row which is being replaced"
+    (press! "ControlOrMeta+Enter")
+    (is (= "new:0:INPUT" (focused)))
+    ;; Leaving the adding row replaces it with a new one, so delay that
+    (.evaluate browser/*page* "() => {
+      const fetch = window.fetch;
+      window.fetch = async (url, ...args) => {
+        if (String(url).includes('/new/view')) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        return fetch(url, ...args);
+      };
+    }")
+    (.click (browser/locator "td:text-is('Baz')"))
+    (.waitForFunction browser/*page* "() => {
+      window.oldAddingRow = document.querySelector('tr.adding');
+      return window.oldAddingRow.dataset.exiting === 'true';
+    }")
+
+    (press! "ControlOrMeta+Enter")
+    (.waitForFunction browser/*page* "() => !window.oldAddingRow.isConnected")
+    (is (= "new:0:INPUT" (wait-for-focus "new:0:INPUT")))))
 
 (deftest escape-in-the-adding-row-test
   (testing "discards the new row and moves focus to the last row"

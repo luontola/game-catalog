@@ -195,8 +195,19 @@ document.addEventListener('keydown', (e) => {
     }
     const cellIndex = cell ? cell.cellIndex : 0
     // Focus loss will save or cancel any row which is in edit mode
-    focusCell(addingRow.cells[cellIndex])
+    focusAddingRow(table, cellIndex)
 })
+
+function focusAddingRow(table, cellIndex) {
+    const addingRow = table.querySelector('tr.adding')
+    if (addingRow.dataset.exiting === 'true') {
+        // The adding row was saved or canceled, and it will soon be replaced
+        // with a new one. Focusing the old row would lose the focus on swap.
+        document.addEventListener('htmx:after:swap', () => focusAddingRow(table, cellIndex), {once: true})
+        return
+    }
+    focusCell(addingRow.cells[cellIndex])
+}
 
 function isDropdownOpen(element) {
     if (element.closest('dialog[open]')) {
