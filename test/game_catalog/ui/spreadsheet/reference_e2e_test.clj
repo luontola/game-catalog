@@ -6,7 +6,7 @@
             [game-catalog.ui.layout :as layout]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.reference :as reference])
-  (:import (com.microsoft.playwright Dialog Keyboard Locator$WaitForOptions Page$WaitForFunctionOptions TimeoutError)
+  (:import (com.microsoft.playwright Dialog Keyboard Locator Locator$WaitForOptions Page$WaitForFunctionOptions TimeoutError)
            (com.microsoft.playwright.options WaitForSelectorState)))
 
 (def things-config
@@ -19,7 +19,12 @@
                           (assoc reference/column-defaults
                             :column/name "Refs"
                             :column/entity-key :thing/refs
-                            :column/target-collection :things)]}]
+                            :column/target-collection :things)
+                          (assoc reference/column-defaults
+                            :column/name "Ref"
+                            :column/entity-key :thing/ref
+                            :column/target-collection :things
+                            :column/multiple? false)]}]
     (assoc config :target-configs {:things config})))
 
 (defn things-page-handler [_request]
@@ -37,7 +42,8 @@
 (use-fixtures :each (fn [f]
                       (db/init-collection! :things [{:entity/id "1"
                                                      :thing/name "Alfa"
-                                                     :thing/refs ["3" "2"]}
+                                                     :thing/refs ["3" "2"]
+                                                     :thing/ref "2"}
                                                     {:entity/id "2"
                                                      :thing/name "Bravo"}
                                                     {:entity/id "3"
@@ -214,3 +220,59 @@
                 (-> (Locator$WaitForOptions.)
                     (.setState WaitForSelectorState/DETACHED)))
       (is (= 0 (count @*dialog-messages))))))
+
+(defn- wait-for-edit-mode []
+  (.waitFor (browser/locator "tr.editing:not(.adding)")))
+
+(defn- wait-for-view-mode []
+  (.waitFor (browser/locator "tr.editing:not(.adding)")
+            (-> (Locator$WaitForOptions.)
+                (.setState WaitForSelectorState/HIDDEN))))
+
+(defn- post-requests []
+  (filterv #(= "POST" (:method %)) @browser/*request-log))
+
+(defn- visible-icons [^Locator cell]
+  (mapv #(.getAttribute ^Locator % "aria-label")
+        (.all (.locator cell ".pill-button [role=img]:visible"))))
+
+(deftest pills-test
+  (.click (browser/locator "td:text-is('Alfa')"))
+  (press! "ArrowRight")
+  (press! "Enter")
+  (wait-for-edit-mode)
+  (reset! browser/*request-log [])
+  (let [row (browser/locator "tr.editing:not(.adding)")
+        refs-cell (.locator row "td.column-reference >> nth=0")
+        ref-cell (.locator row "td.column-reference >> nth=1")]
+
+    (testing "the referred entities are pills, and the add button has the focus"
+      (is (= ["Bravo×" "Charlie×"] (vec (.allTextContents (.locator refs-cell ".pill")))))
+      (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element)))
+
+    (testing "the button of a single-value column shows the replace icon when it has a value"
+      (is (= ["Replace"] (visible-icons ref-cell))))
+
+    (testing "Enter on a remove button removes the pill, and does not exit edit mode"
+      (press! "Shift+Tab")
+      (is (browser/has-focus? (.locator refs-cell ".pill-remove[aria-label='Remove Charlie']")) (browser/focused-element))
+      (press! "Enter")
+      (is (= 1 (.count (.locator refs-cell ".pill"))))
+      (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
+      (is (= "true" (.getAttribute row "data-modified")))
+      (is (= 0 (count (post-requests)))))
+
+    (testing "clicking a remove button removes the pill, and does not exit edit mode"
+      (.click (.locator ref-cell ".pill-remove"))
+      (is (= 0 (.count (.locator ref-cell ".pill"))))
+      (is (browser/has-focus? (.locator ref-cell ".pill-button")) (browser/focused-element))
+      (is (= ["Add"] (visible-icons ref-cell)))
+      (is (= 0 (count (post-requests)))))
+
+    (testing "exiting edit mode saves the removals"
+      (press! "F2")
+      (wait-for-view-mode)
+      (is (= [{:method "POST", :path "/spreadsheet/things/1/save"}]
+             (post-requests)))
+      (is (= {:thing/refs ["2"], :thing/ref nil}
+             (select-keys (db/get-by-id :things "1") [:thing/refs :thing/ref]))))))

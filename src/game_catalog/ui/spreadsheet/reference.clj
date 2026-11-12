@@ -66,17 +66,20 @@
     {:entities (sort-entities (target-config ctx) entities)
      :missing-ids (remove found-ids ids)}))
 
-(defn viewer [{:keys [column mode] :as ctx}]
+(defn- items [ctx]
   (let [target-config (target-config ctx)
-        target-collection (:column/target-collection column)
-        {:keys [entities missing-ids]} (resolve-references ctx)
-        items (concat (for [entity entities]
-                        {:id (:entity/id entity)
-                         :label (entity-label target-config entity)
-                         :tooltip (entity-tooltip target-config entity)})
-                      (for [id missing-ids]
-                        {:id id
-                         :missing? true}))
+        {:keys [entities missing-ids]} (resolve-references ctx)]
+    (concat (for [entity entities]
+              {:id (:entity/id entity)
+               :label (entity-label target-config entity)
+               :tooltip (entity-tooltip target-config entity)})
+            (for [id missing-ids]
+              {:id id
+               :missing? true}))))
+
+(defn viewer [{:keys [column mode] :as ctx}]
+  (let [target-collection (:column/target-collection column)
+        items (items ctx)
         ;; Links in edit mode would make it too easy to lose unsaved changes
         links? (not= :edit mode)]
     (h/html
@@ -92,43 +95,37 @@
                label]
               label)))))))
 
-(defn- options [ctx]
-  (let [target-config (target-config ctx)
-        target-collection (get-in ctx [:column :column/target-collection])
-        {:keys [missing-ids]} (resolve-references ctx)]
-    (concat (for [entity (sort-entities target-config (db/get-all target-collection))]
-              {:id (:entity/id entity)
-               :label (entity-label target-config entity)})
-            ;; Don't lose the old value, even if it refers to a missing entity
-            (for [id missing-ids]
-              {:id id
-               :label id}))))
+(defn- pill [{:keys [column form-id]} {:keys [id label tooltip missing?]}]
+  (let [label (if missing? id label)]
+    (h/html
+      [:span.pill {:class (when missing? "missing")
+                   :title (if missing? "Missing reference" tooltip)}
+       [:input {:type "hidden"
+                :form form-id
+                :name (form-field-name column)
+                :value id}]
+       label
+       [:button.pill-remove {:type "button"
+                             :aria-label (str "Remove " label)}
+        "×"]])))
 
-(defn editor [{:keys [column value form-id] :as ctx}]
-  (let [field-name (form-field-name column)
-        selected-ids (set (value->ids value))]
-    (if (:column/multiple? column)
-      (h/html
-        ;; Ensures that clearing all selections submits an empty value;
-        ;; otherwise browsers omit the field entirely, which means "no change".
-        [:input {:type "hidden"
-                 :form form-id
-                 :name field-name
-                 :value ""}]
-        [:select (merge (text/editor-attrs ctx)
-                        {:multiple true
-                         :size 1})
-         (for [{:keys [id label]} (options ctx)]
-           [:option {:value id
-                     :selected (contains? selected-ids id)}
-            label])])
-      (h/html
-        [:select (text/editor-attrs ctx)
-         [:option {:value ""}]
-         (for [{:keys [id label]} (options ctx)]
-           [:option {:value id
-                     :selected (contains? selected-ids id)}
-            label])]))))
+(defn editor [{:keys [column form-id focus?] :as ctx}]
+  (h/html
+    [:span.reference-editor {:data-multiple (str (boolean (:column/multiple? column)))}
+     ;; Ensures that removing all references submits an empty value;
+     ;; otherwise browsers omit the field entirely, which means "no change".
+     [:input {:type "hidden"
+              :form form-id
+              :name (form-field-name column)
+              :value ""}]
+     (for [item (items ctx)]
+       (pill ctx item))
+     [:button.pill-button.editor-entry-point {:type "button"
+                                              :autofocus focus?}
+      ;; CSS shows only one icon, depending on whether a single-value column has a value
+      [:span.reference-add {:role "img", :aria-label "Add"} "+"]
+      (when-not (:column/multiple? column)
+        [:span.reference-replace {:role "img", :aria-label "Replace"} "⇄"])]]))
 
 (defn parse-form-params [params column]
   (let [field-name (form-field-name column)]

@@ -92,7 +92,7 @@ main {
             padding: 2px;
         }
 
-        .editor-entry-point {
+        .editor-entry-point:is(input, select) {
             width: 100%;
             box-sizing: border-box;
             padding: 0.5rem;
@@ -133,6 +133,14 @@ main {
     }
 
     /* Column type specific styling */
+
+    td.column-reference {
+        /* Single-value columns replace the value instead of adding to it */
+        .reference-editor[data-multiple="false"]:has(.pill) .reference-add,
+        .reference-editor:not(:has(.pill)) .reference-replace {
+            display: none;
+        }
+    }
 
     td.column-numeric {
         input[type="number"] {
@@ -178,4 +186,45 @@ main {
             background-color: var(--accent-bg);
         }
     }
+}
+
+/* Pills show the values of multi-value fields */
+
+.pill, .pill-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin: 0.125rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    background-color: var(--accent-bg);
+    border: var(--border-width) solid var(--border);
+    color: var(--text);
+    font-size: inherit;
+    line-height: inherit;
+    vertical-align: middle;
+}
+
+.pill.missing {
+    color: var(--text-light);
+    font-style: italic;
+}
+
+.pill-remove {
+    margin: 0;
+    padding: 0 0.125rem;
+    border: none;
+    background: none;
+    color: var(--text-light);
+    font-size: inherit;
+    line-height: 1;
+
+    &:enabled:hover {
+        background: none;
+        color: var(--text);
+    }
+}
+
+.pill-button {
+    cursor: pointer;
 }

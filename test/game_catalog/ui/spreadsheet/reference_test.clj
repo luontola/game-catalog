@@ -112,54 +112,75 @@
                                                 :column/back-reference :thing/widgets)
                                       :entity nil})))))))
 
-(defn- options [^Element select]
-  (->> (.select select "option")
-       (mapv (fn [^Element option]
-               [(.attr option "value") (.text option)]))))
-
-(defn- selected-option-values [^Element select]
-  (->> (.select select "option[selected]")
-       (mapv (fn [^Element option]
-               (.attr option "value")))))
-
 (defn- render-editor ^Document [ctx]
   (html/parse-fragment
     (reference/editor (merge {:config config, :column column, :form-id "things-form-1"} ctx))))
 
+(defn- pills [^Document doc]
+  (->> (.select doc ".pill")
+       (mapv (fn [^Element pill]
+               (let [input (.selectFirst pill "input[type=hidden]")]
+                 (cond-> {:value (.attr input "value")
+                          :text (.text pill)}
+                   (.hasAttr pill "title") (assoc :title (.attr pill "title"))))))))
+
+(defn- icons [^Document doc]
+  (->> (.select doc ".pill-button [role=img]")
+       (mapv (fn [^Element icon]
+               (.attr icon "aria-label")))))
+
 (deftest editor-test
   (testing "multiple references:"
-    (let [doc (render-editor {:value ["w1" "w3"], :focus? true})
-          hidden (.selectFirst doc "input[type=hidden]")
-          select (.selectFirst doc "select")]
-      (testing "an empty hidden value lets clearing all selections be saved"
+    (let [doc (render-editor {:value ["w3" "w1"], :focus? true})
+          hidden (.selectFirst doc ".reference-editor > input[type=hidden]")
+          button (.selectFirst doc ".pill-button")]
+      (testing "an empty hidden value lets removing all references be saved"
         (is (= "things-form-1" (.attr hidden "form")))
         (is (= "thing/widgets" (.attr hidden "name")))
         (is (= "" (.attr hidden "value"))))
 
-      (testing "options are the target collection's entities, in its order"
-        (is (.hasClass select "editor-entry-point"))
-        (is (.hasAttr select "multiple"))
-        (is (= "thing/widgets" (.attr select "name")))
-        (is (= [["w4" "(no label)"] ["w2" "Bar"] ["w1" "Foo"] ["w3" "Gazonk"]]
-               (options select)))
-        (is (= ["w1" "w3"] (selected-option-values select))))))
+      (testing "the referred entities are pills, in the target collection's order"
+        (is (= [{:value "w1", :text "Foo ×", :title "Size 1"}
+                {:value "w3", :text "Gazonk ×"}]
+               (pills doc)))
+        (is (= ["things-form-1" "things-form-1"]
+               (mapv #(.attr ^Element % "form") (.select doc ".pill input"))))
+        (is (= ["thing/widgets" "thing/widgets"]
+               (mapv #(.attr ^Element % "name") (.select doc ".pill input")))))
 
-  (testing "single reference:"
-    (let [doc (render-editor {:column single-column, :value "w2"})
-          select (.selectFirst doc "select")]
-      (testing "has no hidden input, because a single select is always submitted"
-        (is (nil? (.selectFirst doc "input[type=hidden]"))))
+      (testing "each pill has a remove button"
+        (is (= ["Remove Foo" "Remove Gazonk"]
+               (mapv #(.attr ^Element % "aria-label") (.select doc ".pill-remove"))))
+        (is (= ["button" "button"]
+               (mapv #(.attr ^Element % "type") (.select doc ".pill-remove")))))
 
-      (testing "has an empty option for no reference"
-        (is (not (.hasAttr select "multiple")))
-        (is (= [["" ""] ["w4" "(no label)"] ["w2" "Bar"] ["w1" "Foo"] ["w3" "Gazonk"]]
-               (options select)))
-        (is (= ["w2"] (selected-option-values select))))))
+      (testing "the add button is the entry point, so it gets the focus"
+        (is (.hasClass button "editor-entry-point"))
+        (is (.hasAttr button "autofocus"))
+        (is (= "button" (.attr button "type")))
+        (is (= ["Add"] (icons doc))))))
 
-  (testing "missing entities are kept as options, so that saving will not lose them"
-    (let [select (.selectFirst (render-editor {:value ["w404" "w1"]}) "select")]
-      (is (= ["w404" "w404"] (last (options select))))
-      (is (= ["w1" "w404"] (selected-option-values select))))))
+  (testing "no references"
+    (let [doc (render-editor {:value []})]
+      (is (empty? (pills doc)))
+      (is (not (.hasAttr (.selectFirst doc ".pill-button") "autofocus")))))
+
+  (testing "single reference has also a replace icon, and CSS shows only one of them"
+    (let [doc (render-editor {:column single-column, :value "w2"})]
+      (is (= "false" (.attr (.selectFirst doc ".reference-editor") "data-multiple")))
+      (is (= [{:value "w2", :text "Bar ×"}] (pills doc)))
+      (is (= ["Add" "Replace"] (icons doc)))))
+
+  (testing "a blank label is replaced with a placeholder"
+    (is (= [{:value "w4", :text "(no label) ×"}]
+           (pills (render-editor {:value ["w4"]})))))
+
+  (testing "missing entities are kept as pills with their IDs, so that saving will not lose them"
+    (let [doc (render-editor {:value ["w404" "w1"]})]
+      (is (= [{:value "w1", :text "Foo ×", :title "Size 1"}
+              {:value "w404", :text "w404 ×", :title "Missing reference"}]
+             (pills doc)))
+      (is (.hasClass (.selectFirst doc ".pill:last-of-type") "missing")))))
 
 (deftest parse-form-params-test
   (testing "multiple references"
@@ -173,6 +194,8 @@
   (testing "single reference"
     (is (= {:thing/widgets "w1"}
            (reference/parse-form-params {"thing/widgets" "w1"} single-column)))
+    (is (= {:thing/widgets "w1"}
+           (reference/parse-form-params {"thing/widgets" ["" "w1"]} single-column)))
     (is (= {:thing/widgets nil}
            (reference/parse-form-params {"thing/widgets" ""} single-column))))
 

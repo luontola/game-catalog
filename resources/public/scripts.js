@@ -223,6 +223,10 @@ document.addEventListener('keydown', (e) => {
             // Let the dropdown handle the keys, e.g. Escape only closes the dropdown
             return
         }
+        if (e.key === 'Enter' && e.target.matches('button')) {
+            // Let the browser click the focused button
+            return
+        }
         if (e.key === 'Enter' || e.key === 'F2') {
             // Exit edit mode and save changes (only if modified)
             if (isFormModified(row)) {
@@ -300,6 +304,31 @@ document.addEventListener('focusout', (e) => {
             }
         }
     }, 0)
+})
+
+// Clicking a button in some browsers (e.g. Safari) doesn't focus it,
+// so the focus would leave the row, which would exit edit mode.
+document.addEventListener('mousedown', (e) => {
+    if (e.target.closest('.spreadsheet tr.editing button')) {
+        e.preventDefault()
+    }
+})
+
+// Remove a pill by clicking its remove button
+document.addEventListener('click', (e) => {
+    const button = e.target.closest('.spreadsheet .pill-remove')
+    if (!button) {
+        return
+    }
+    const pill = button.closest('.pill')
+    const cell = button.closest('td')
+    // Move the focus before removing the focused button,
+    // so that the focus doesn't leave the row, which would exit edit mode
+    const nextFocus = pill.nextElementSibling?.querySelector('.pill-remove')
+        ?? cell.querySelector('.editor-entry-point')
+    nextFocus.focus()
+    pill.remove()
+    cell.dispatchEvent(new Event('change', {bubbles: true}))
 })
 
 // Enter edit mode on double-click
