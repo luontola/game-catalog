@@ -102,6 +102,22 @@ window.addEventListener('hashchange', () => {
     // The pending focus belongs to the previous history entry
     cancelSaveFocusToHistory()
     focusCellFromHistory()
+    refocusDeadline = performance.now() + 500
+})
+
+// When going back in history, Chrome clears the focus a few milliseconds
+// after the hashchange event, so restore the focus if that happens.
+let refocusDeadline = 0
+document.addEventListener('focusout', (e) => {
+    if (e.relatedTarget !== null || performance.now() > refocusDeadline) {
+        return
+    }
+    refocusDeadline = 0
+    setTimeout(() => {
+        if (document.activeElement === document.body) {
+            focusCellFromHistory()
+        }
+    }, 0)
 })
 
 // Browsers limit how often the history can be modified (e.g. Safari throws
