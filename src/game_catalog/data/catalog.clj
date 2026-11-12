@@ -1,62 +1,45 @@
 (ns game-catalog.data.catalog
-  (:require [clojure.string :as str]
-            [game-catalog.data.csv-fields :as csv-fields]
+  (:require [clojure.tools.logging :as log]
+            [game-catalog.data.baserow :as baserow]
             [game-catalog.data.db :as db]
             [game-catalog.data.dlcs :as dlcs]
             [game-catalog.data.games :as games]
             [game-catalog.data.purchases :as purchases]
             [mount.core :as mount]))
 
-(defn- index-by-name [entities name-key]
-  (-> (group-by #(str/trim (str (get % name-key))) entities)
-      (update-vals #(mapv :entity/id %))))
+(defn- column-values [entity column]
+  (let [value (get entity (:column/entity-key column))]
+    (if (sequential? value)
+      value
+      [value])))
 
-(defn- resolve-name [index name {:keys [entity field]}]
-  (let [ids (get index name)]
-    (case (count ids)
-      1 (first ids)
-      0 (throw (ex-info (str "Unknown name in " field ": " (pr-str name))
-                        {:field field, :name name, :entity entity}))
-      (throw (ex-info (str "Ambiguous name in " field ": " (pr-str name))
-                      {:field field, :name name, :entity entity})))))
+(defn validate-options!
+  "Throws if the entities have values which are not in the options of the
+   config's columns. The options must be updated before importing new values."
+  [config entities]
+  (doseq [column (:columns config)
+          :when (seq (:column/options column))
+          :let [options (set (:column/options column))]
+          entity entities
+          value (column-values entity column)
+          :when (and (some? value)
+                     (not (contains? options value)))]
+    (throw (ex-info (str "Unknown option in " (:column/entity-key column) ": " (pr-str value))
+                    {:column (:column/entity-key column), :value value, :entity entity}))))
 
-(defn- resolve-names [entity field index]
-  (->> (csv-fields/parse-string-vector (str (get entity field)))
-       (mapv #(resolve-name index % {:entity entity, :field field}))))
-
-(defn- resolve-name-vector [entity field index]
-  (assoc entity field (resolve-names entity field index)))
-
-(defn- resolve-single-name [entity field index]
-  (let [ids (resolve-names entity field index)]
-    (when (< 1 (count ids))
-      (throw (ex-info (str "Expected at most one name in " field ": " (pr-str (get entity field)))
-                      {:field field, :entity entity})))
-    (assoc entity field (first ids))))
-
-(defn resolve-references
-  "Converts the name references in the CSV data to entity ID references.
-   Removes the back reference columns, because they are computed on read."
-  [{:keys [games dlcs purchases]}]
-  (let [games-by-name (index-by-name games :game/name)
-        dlcs-by-name (index-by-name dlcs :dlc/name)]
-    {:games (mapv #(dissoc % :game/purchases :game/dlcs) games)
-     :dlcs (mapv #(-> %
-                      (dissoc :dlc/purchases)
-                      (resolve-single-name :dlc/base-game games-by-name))
-                 dlcs)
-     :purchases (mapv #(-> %
-                           (resolve-name-vector :purchase/base-games games-by-name)
-                           (resolve-name-vector :purchase/dlcs dlcs-by-name))
-                      purchases)}))
-
-(defn read-catalog-from-csv []
-  (resolve-references {:games (games/read-games-from-csv)
-                       :dlcs (dlcs/read-dlcs-from-csv)
-                       :purchases (purchases/read-purchases-from-csv)}))
+(defn read-catalog [database]
+  (let [catalog {:games (games/read-games database)
+                 :dlcs (dlcs/read-dlcs database)
+                 :purchases (purchases/read-purchases database)}]
+    (validate-options! games/config (:games catalog))
+    (validate-options! dlcs/config (:dlcs catalog))
+    (validate-options! purchases/config (:purchases catalog))
+    catalog))
 
 (defn load-catalog! []
-  (let [{:keys [games dlcs purchases]} (read-catalog-from-csv)]
+  (let [file (baserow/find-export-file "data")
+        _ (log/info "Importing" (str file))
+        {:keys [games dlcs purchases]} (read-catalog (baserow/read-export file))]
     (db/init-collection! (:collection-key games/config) games)
     (db/init-collection! (:collection-key dlcs/config) dlcs)
     (db/init-collection! (:collection-key purchases/config) purchases)))

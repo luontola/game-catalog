@@ -10,7 +10,6 @@
                  [mount "0.1.23"]
                  [org.apache.commons/commons-lang3 "3.20.0"]
                  [org.clojure/clojure "1.12.4"]
-                 [org.clojure/data.csv "1.1.1"]
                  [org.clojure/tools.logging "1.3.1"]
                  [org.jsoup/jsoup "1.18.3"]
                  [ring "1.15.3"]

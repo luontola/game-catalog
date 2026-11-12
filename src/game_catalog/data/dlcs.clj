@@ -1,6 +1,5 @@
 (ns game-catalog.data.dlcs
-  (:require [clojure.data.csv :as csv]
-            [clojure.java.io :as io]
+  (:require [game-catalog.data.baserow :as baserow]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.reference :as reference]
             [game-catalog.ui.spreadsheet.row-number :as row-number]))
@@ -28,17 +27,19 @@
                :column/back-reference :purchase/dlcs
                :column/read-only? true)]})
 
-(def csv-column-keys
-  [:entity/id
-   :dlc/name
-   :dlc/base-game
-   :dlc/year
-   :dlc/purchases])
+(def baserow-field-keys
+  {"Name" :dlc/name
+   "Base Game" :dlc/base-game
+   "Year" :dlc/year
+   "Purchases" nil}) ; back reference
 
-(defn read-dlcs-from-csv []
-  (with-open [reader (io/reader "data/DLCs.csv")]
-    (let [csv-data (doall (csv/read-csv reader))
-          rows (rest csv-data)]
-      (map #(-> (zipmap csv-column-keys %)
-                (assoc :entity/id (spreadsheet/uuid-id-generator nil)))
-           rows))))
+(defn- single-reference [entity field]
+  (let [ids (get entity field)]
+    (when (< 1 (count ids))
+      (throw (ex-info (str "Expected at most one reference in " field ": " (pr-str ids))
+                      {:field field, :entity entity})))
+    (assoc entity field (first ids))))
+
+(defn read-dlcs [database]
+  (->> (baserow/read-table database "DLCs" baserow-field-keys)
+       (mapv #(single-reference % :dlc/base-game))))

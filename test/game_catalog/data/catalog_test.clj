@@ -1,18 +1,14 @@
 (ns game-catalog.data.catalog-test
   (:require [clojure.test :refer :all]
+            [game-catalog.data.baserow :as baserow]
             [game-catalog.data.catalog :as catalog]))
 
-(def games
-  [{:entity/id "g1", :game/name "Game One", :game/purchases "Steam", :game/dlcs "DLC One"}
-   {:entity/id "g2", :game/name "Game, Two "}])
-
-(def dlcs
-  [{:entity/id "d1", :dlc/name "DLC One", :dlc/base-game "Game One", :dlc/purchases "Steam"}
-   {:entity/id "d2", :dlc/name "DLC Two", :dlc/base-game ""}])
-
-(def purchases
-  [{:entity/id "p1", :purchase/base-games "Game One,\"Game, Two\"", :purchase/dlcs "DLC One"}
-   {:entity/id "p2", :purchase/base-games "", :purchase/dlcs ""}])
+(def config
+  {:columns [{:column/entity-key :game/name}
+             {:column/entity-key :game/status
+              :column/options ["" "Backlog" "Completed"]}
+             {:column/entity-key :game/tags
+              :column/options ["VR" "PvP"]}]})
 
 (defn- thrown-message [f]
   (try
@@ -21,55 +17,30 @@
     (catch clojure.lang.ExceptionInfo e
       (ex-message e))))
 
-(deftest resolve-references-test
-  (let [result (catalog/resolve-references {:games games, :dlcs dlcs, :purchases purchases})]
-    (testing "resolves purchase references to vectors of IDs"
-      (is (= [{:entity/id "p1", :purchase/base-games ["g1" "g2"], :purchase/dlcs ["d1"]}
-              {:entity/id "p2", :purchase/base-games [], :purchase/dlcs []}]
-             (:purchases result))))
+(deftest validate-options-test
+  (testing "accepts known options and empty values"
+    (is (nil? (catalog/validate-options! config [{:game/name "Game One", :game/status "Backlog", :game/tags ["VR" "PvP"]}
+                                                 {:game/name "Game Two", :game/status nil, :game/tags []}
+                                                 {:game/name "Game Three"}]))))
 
-    (testing "resolves the DLC base game to a single ID"
-      (is (= [{:entity/id "d1", :dlc/name "DLC One", :dlc/base-game "g1"}
-              {:entity/id "d2", :dlc/name "DLC Two", :dlc/base-game nil}]
-             (:dlcs result))))
+  (testing "throws on unknown single option"
+    (is (= "Unknown option in :game/status: \"Dropped\""
+           (thrown-message #(catalog/validate-options! config [{:game/status "Dropped"}])))))
 
-    (testing "removes the back reference columns, because they are computed on read"
-      (is (= [{:entity/id "g1", :game/name "Game One"}
-              {:entity/id "g2", :game/name "Game, Two "}]
-             (:games result)))))
+  (testing "throws on unknown multiple option"
+    (is (= "Unknown option in :game/tags: \"LAN Co-Op\""
+           (thrown-message #(catalog/validate-options! config [{:game/tags ["VR" "LAN Co-Op"]}]))))))
 
-  (testing "a quoted DLC base game is a single name"
-    (is (= "g2" (-> (catalog/resolve-references {:games games
-                                                 :dlcs [{:entity/id "d1", :dlc/base-game "\"Game, Two\""}]
-                                                 :purchases []})
-                    :dlcs first :dlc/base-game))))
-
-  (testing "throws on more than one DLC base game"
-    (is (= "Expected at most one name in :dlc/base-game: \"Game One,Game One\""
-           (thrown-message #(catalog/resolve-references {:games games
-                                                         :dlcs [{:entity/id "d1", :dlc/base-game "Game One,Game One"}]
-                                                         :purchases []})))))
-
-  (testing "throws on unknown names"
-    (is (= "Unknown name in :purchase/dlcs: \"No Such DLC\""
-           (thrown-message #(catalog/resolve-references {:games games
-                                                         :dlcs dlcs
-                                                         :purchases [{:entity/id "p1", :purchase/dlcs "No Such DLC"}]})))))
-
-  (testing "throws on ambiguous names"
-    (is (= "Ambiguous name in :purchase/base-games: \"Game One\""
-           (thrown-message #(catalog/resolve-references {:games (conj games {:entity/id "g3", :game/name "Game One"})
-                                                         :dlcs []
-                                                         :purchases [{:entity/id "p1", :purchase/base-games "Game One"}]})))))
-
-  (testing "duplicate names are allowed when nothing refers to them"
-    (is (some? (catalog/resolve-references {:games (conj games {:entity/id "g3", :game/name "Game One"})
-                                            :dlcs []
-                                            :purchases []})))))
-
-(deftest read-catalog-from-csv-test
-  (testing "all references in the CSV data can be resolved"
-    (let [{:keys [games dlcs purchases]} (catalog/read-catalog-from-csv)]
+(deftest read-catalog-test
+  (testing "the Baserow export can be imported"
+    (let [{:keys [games dlcs purchases]} (catalog/read-catalog (baserow/read-export (baserow/find-export-file "data")))
+          game-ids (set (map :entity/id games))
+          dlc-ids (set (map :entity/id dlcs))]
       (is (seq games))
       (is (seq dlcs))
-      (is (seq purchases)))))
+      (is (seq purchases))
+
+      (testing "- all references point to existing entities"
+        (is (every? game-ids (keep :dlc/base-game dlcs)))
+        (is (every? game-ids (mapcat :purchase/base-games purchases)))
+        (is (every? dlc-ids (mapcat :purchase/dlcs purchases)))))))

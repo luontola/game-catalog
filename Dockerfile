@@ -7,7 +7,7 @@ WORKDIR /app
 
 COPY target/uberjar/game-catalog.jar /app/game-catalog.jar
 
-COPY data/*.csv /app/data/
+COPY data/export_*.zip /app/data/
 
 RUN chown -R app:app /app
 

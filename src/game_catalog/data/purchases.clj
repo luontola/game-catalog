@@ -1,8 +1,6 @@
 (ns game-catalog.data.purchases
-  (:require [clojure.data.csv :as csv]
-            [clojure.java.io :as io]
-            [clojure.string :as str]
-            [game-catalog.data.csv-fields :as csv-fields]
+  (:require [clojure.string :as str]
+            [game-catalog.data.baserow :as baserow]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.multiselect :as multiselect]
             [game-catalog.ui.spreadsheet.reference :as reference]
@@ -65,20 +63,13 @@
              {:column/name "Bundle Name"
               :column/entity-key :purchase/bundle-name}]})
 
-(def csv-column-keys
-  [:entity/id
-   :purchase/shop
-   :purchase/date
-   :purchase/cost
-   :purchase/base-games
-   :purchase/dlcs
-   :purchase/bundle-name])
+(def baserow-field-keys
+  {"Shop" :purchase/shop
+   "Date" :purchase/date
+   "Cost" :purchase/cost
+   "Base Games" :purchase/base-games
+   "DLCs" :purchase/dlcs
+   "Bundle Name" :purchase/bundle-name})
 
-(defn read-purchases-from-csv []
-  (with-open [reader (io/reader "data/Purchases.csv")]
-    (let [csv-data (doall (csv/read-csv reader))
-          rows (rest csv-data)]
-      (map #(-> (zipmap csv-column-keys %)
-                (update :purchase/shop csv-fields/parse-string-vector)
-                (assoc :entity/id (spreadsheet/uuid-id-generator nil)))
-           rows))))
+(defn read-purchases [database]
+  (baserow/read-table database "Purchases" baserow-field-keys))

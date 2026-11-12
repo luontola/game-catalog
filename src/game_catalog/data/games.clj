@@ -1,7 +1,5 @@
 (ns game-catalog.data.games
-  (:require [clojure.data.csv :as csv]
-            [clojure.java.io :as io]
-            [game-catalog.data.csv-fields :as csv-fields]
+  (:require [game-catalog.data.baserow :as baserow]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.multiselect :as multiselect]
             [game-catalog.ui.spreadsheet.numeric :as numeric]
@@ -13,6 +11,7 @@
   ["Local Co-Op"
    "Local Multiplayer"
    "Online Co-Op"
+   "LAN Co-Op"
    "PvP"
    "VR"])
 
@@ -56,23 +55,16 @@
                :column/back-reference :dlc/base-game
                :column/read-only? true)]})
 
-(def csv-column-keys
-  [:entity/id
-   :game/name
-   :game/release
-   :game/remake
-   :game/series
-   :game/tags
-   :game/purchases
-   :game/status
-   :game/content
-   :game/dlcs])
+(def baserow-field-keys
+  {"Name" :game/name
+   "Release" :game/release
+   "Remake" :game/remake
+   "Series" :game/series
+   "Tags" :game/tags
+   "Purchases" nil ; back reference
+   "Status" :game/status
+   "Content" :game/content
+   "DLCs" nil}) ; back reference
 
-(defn read-games-from-csv []
-  (with-open [reader (io/reader "data/Games.csv")]
-    (let [csv-data (doall (csv/read-csv reader))
-          rows (rest csv-data)]
-      (map #(-> (zipmap csv-column-keys %)
-                (update :game/tags csv-fields/parse-string-vector)
-                (assoc :entity/id (spreadsheet/uuid-id-generator nil)))
-           rows))))
+(defn read-games [database]
+  (baserow/read-table database "Games" baserow-field-keys))
