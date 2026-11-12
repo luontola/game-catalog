@@ -41,3 +41,15 @@ Run tests once or automatically
 
     lein kaocha
     lein autotest
+
+Check for dependency updates, including plugins and profiles
+
+    lein ancient :all :check-clojure
+
+Upgrade all dependencies, then run the tests
+
+    lein ancient upgrade :all :check-clojure :no-tests
+    lein test
+
+The htmx library is loaded from a CDN in `src/game_catalog/ui/layout.clj`, so lein-ancient doesn't check it.
+Check for its new versions at https://www.npmjs.com/package/htmx.org?activeTab=versions
