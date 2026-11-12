@@ -76,6 +76,18 @@
 (defn- url []
   (.evaluate browser/*page* "() => location.pathname + location.hash"))
 
+(defn- wait-for-url
+  "Waits until the URL path and hash are the expected, and returns them."
+  [expected]
+  (try
+    (.waitForFunction browser/*page*
+                      "expected => location.pathname + location.hash === expected"
+                      expected
+                      (-> (Page$WaitForFunctionOptions.)
+                          (.setTimeout 1000)))
+    (catch TimeoutError _))
+  (url))
+
 (deftest keyboard-navigation-to-links-test
   (.click (browser/locator "td:text-is('Alfa')"))
   (press! "ArrowRight")
@@ -108,9 +120,9 @@
   (testing "Enter on the cell itself still enters edit mode"
     (press! "Enter")
     (.waitFor (browser/locator "tr.editing:not(.adding)"))
-    (is (= "/things#1" (url)))))
+    (is (= "/things#1" (wait-for-url "/things#1")))))
 
-(deftest url-hash-follows-focus-test
+(deftest focus-in-history-test
   (testing "a link to a row on the same page focuses the row's first cell"
     (browser/navigate! "/things#2")
     (is (= "2:TD:Bravo" (wait-for-focus "2:TD:Bravo"))))
@@ -120,22 +132,56 @@
     (browser/navigate! "/things#3")
     (is (= "3:TD:Charlie" (wait-for-focus "3:TD:Charlie"))))
 
-  (testing "reloading the page focuses the row's first cell"
-    (.reload browser/*page*)
-    (is (= "3:TD:Charlie" (wait-for-focus "3:TD:Charlie"))))
-
-  (testing "moving the focus changes the URL hash, without new history entries"
+  (testing "moving the focus changes the URL hash and history state, without new history entries"
     (let [history-length (.evaluate browser/*page* "() => history.length")]
       (.click (browser/locator "td:text-is('Alfa')"))
-      (is (= "/things#1" (url)))
+      (is (= "/things#1" (wait-for-url "/things#1")))
       (press! "ArrowDown")
-      (is (= "/things#2" (url)))
+      (press! "ArrowRight")
+      (is (= "/things#2" (wait-for-url "/things#2")))
+      (.waitForFunction browser/*page* "() => history.state?.spreadsheetCellIndex === 1")
       (is (= history-length (.evaluate browser/*page* "() => history.length")))))
+
+  (testing "reloading the page focuses the same cell"
+    (.reload browser/*page*)
+    (is (= "2:TD:" (wait-for-focus "2:TD:"))))
+
+  (testing "going back after following a link focuses the cell which had the link"
+    (.click (browser/locator "td:text-is('Alfa')"))
+    (press! "ArrowRight")
+    (press! "Tab")
+    (press! "Tab")
+    (is (= "1:A:Charlie" (focused)))
+
+    (press! "Enter")
+    (is (= "3:TD:Charlie" (wait-for-focus "3:TD:Charlie")))
+    (.goBack browser/*page*)
+
+    (is (= "/things#1" (wait-for-url "/things#1")))
+    (is (= "1:TD:Bravo, Charlie" (wait-for-focus "1:TD:Bravo, Charlie"))))
+
+  (testing "the history is not modified on every focus change, because browsers rate limit it"
+    (.evaluate browser/*page* "() => {
+      window.replaceStateCount = 0;
+      const replaceState = history.replaceState.bind(history);
+      history.replaceState = (...args) => {
+        window.replaceStateCount++;
+        return replaceState(...args);
+      };
+    }")
+    (.click (browser/locator "td:text-is('Alfa')"))
+    (press! "ArrowDown")
+    (dotimes [_ 10]
+      (press! "ArrowUp")
+      (press! "ArrowDown"))
+    (is (= "/things#2" (wait-for-url "/things#2")))
+    (is (<= (.evaluate browser/*page* "() => window.replaceStateCount")
+            2)))
 
   (testing "the adding row has no hash"
     (.press ^Keyboard (.keyboard browser/*page*) "ControlOrMeta+Enter")
     (.waitForFunction browser/*page* "() => document.activeElement.closest('tr.adding') !== null")
-    (is (= "/things" (url))))
+    (is (= "/things" (wait-for-url "/things"))))
 
   (testing "a link to an unknown row focuses nothing"
     (browser/navigate! "/things#nope")

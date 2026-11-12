@@ -77,33 +77,80 @@ function focusCell(cell) {
     (cell.querySelector('.editor-entry-point') ?? cell).focus()
 }
 
-// Links to a row (e.g. /games#<entity-id>) focus the row's first cell
-function focusRowFromHash() {
+// The focused cell is stored in the history entry: the URL hash has the row's
+// entity ID and the history state has the column index. Reloading the page or
+// going back in history restores the focus to the same cell. Links to a row
+// (e.g. /games#<entity-id>) create a new history entry without state,
+// so they focus the row's first cell.
+
+const cellIndexKey = 'spreadsheetCellIndex'
+
+function focusCellFromHistory() {
     if (!location.hash) {
         return
     }
     // Entity IDs are not always valid CSS selectors, so avoid querySelector
     const row = document.getElementById(decodeURIComponent(location.hash.slice(1)))
     if (row?.matches('.spreadsheet tr')) {
-        focusCell(row.cells[0])
+        const cellIndex = history.state?.[cellIndexKey] ?? 0
+        focusCell(row.cells[cellIndex] ?? row.cells[0])
     }
 }
 
-window.addEventListener('load', focusRowFromHash)
-window.addEventListener('hashchange', focusRowFromHash)
+window.addEventListener('load', focusCellFromHistory)
+window.addEventListener('hashchange', () => {
+    // The pending focus belongs to the previous history entry
+    cancelSaveFocusToHistory()
+    focusCellFromHistory()
+})
 
-// The URL hash follows the focused row, so that reloading or sharing the URL
-// keeps the position. Replace the history entry to not pollute the history.
-document.addEventListener('focusin', (e) => {
-    const row = e.target.closest('.spreadsheet tr')
-    if (!row) {
+// Browsers limit how often the history can be modified (e.g. Safari throws
+// after 100 calls in 10 seconds), so holding down an arrow key must not
+// modify the history on every focus change.
+let pendingFocus = null
+let pendingFocusTimeout = null
+
+function saveFocusToHistory() {
+    const focus = pendingFocus
+    cancelSaveFocusToHistory()
+    if (!focus) {
         return
     }
-    const hash = row.id ? '#' + encodeURIComponent(row.id) : ''
-    if (location.hash !== hash) {
-        history.replaceState(history.state, '', location.pathname + location.search + hash)
+    const url = location.pathname + location.search + focus.hash
+    if (location.hash !== focus.hash || history.state?.[cellIndexKey] !== focus.cellIndex) {
+        history.replaceState({...history.state, [cellIndexKey]: focus.cellIndex}, '', url)
     }
+}
+
+function cancelSaveFocusToHistory() {
+    clearTimeout(pendingFocusTimeout)
+    pendingFocusTimeout = null
+    pendingFocus = null
+}
+
+document.addEventListener('focusin', (e) => {
+    const cell = e.target.closest('.spreadsheet td')
+    if (!cell) {
+        return
+    }
+    const row = cell.closest('tr')
+    pendingFocus = {
+        hash: row.id ? '#' + encodeURIComponent(row.id) : '',
+        cellIndex: cell.cellIndex
+    }
+    clearTimeout(pendingFocusTimeout)
+    pendingFocusTimeout = setTimeout(saveFocusToHistory, 200)
 })
+
+// Save the focus before following a link, so that it's saved to the history
+// entry which we are leaving, instead of being lost or saved to the new entry.
+// Saving on beforeunload or pagehide would be too late for a reload,
+// because the browser has already captured the history entry to reload.
+document.addEventListener('click', (e) => {
+    if (e.target.closest('a[href]')) {
+        saveFocusToHistory()
+    }
+}, {capture: true})
 
 // Cmd-Enter moves focus to the adding row
 document.addEventListener('keydown', (e) => {
