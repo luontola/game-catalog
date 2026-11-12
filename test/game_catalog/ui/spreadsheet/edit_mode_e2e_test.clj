@@ -151,3 +151,52 @@
            (post-requests)))
     (is (= 2 (count (db/get-all :things))))
     (is (= "2:1:TD" (focused)) "focus stays on the last row")))
+
+(deftest modified-detection-test
+  (testing "a value which was changed back to the original is not saved"
+    (.dblclick (browser/locator "td:text-is('Baz')"))
+    (wait-for-edit-mode)
+    (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
+    (press! "ArrowRight")
+    (.type (keyboard) "x")
+    (is (= "true" (.getAttribute (browser/locator "tr.editing:not(.adding)") "data-modified"))
+        "highlights the modified row")
+    (press! "Backspace")
+    (is (= "false" (.getAttribute (browser/locator "tr.editing:not(.adding)") "data-modified"))
+        "removes the highlight when the change is reverted")
+    (reset! browser/*request-log [])
+
+    (press! "Enter")
+    (wait-for-view-mode)
+    (is (= [{:method "POST", :path "/spreadsheet/things/1/view"}]
+           (post-requests))))
+
+  (testing "inputs which are not part of the form don't modify the row"
+    (.dblclick (browser/locator "td:text-is('Baz')"))
+    (wait-for-edit-mode)
+    (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
+    (.evaluate browser/*page* "() => {
+      const input = document.createElement('input');
+      document.querySelector('tr.editing:not(.adding) td').append(input);
+      input.focus();
+    }")
+    (.type (keyboard) "Grault")
+    (reset! browser/*request-log [])
+
+    (press! "Enter")
+    (wait-for-view-mode)
+    (is (= [{:method "POST", :path "/spreadsheet/things/1/view"}]
+           (post-requests))))
+
+  (testing "changes made by scripts are saved, even without input events"
+    (.dblclick (browser/locator "td:text-is('Baz')"))
+    (wait-for-edit-mode)
+    (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
+    (.evaluate browser/*page* "() => document.activeElement.value = 'Grault'")
+    (reset! browser/*request-log [])
+
+    (press! "Enter")
+    (wait-for-view-mode)
+    (is (= [{:method "POST", :path "/spreadsheet/things/1/save"}]
+           (post-requests)))
+    (is (= "Grault" (:thing/foo (db/get-by-id :things "1"))))))

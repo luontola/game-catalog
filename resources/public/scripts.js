@@ -1,17 +1,35 @@
-// Track when forms are modified
-function markSpreadsheetRowModified(e) {
+// A row is modified when its form data differs from when the row got focus.
+// Comparing the data instead of tracking input events also notices changes
+// made by scripts, and ignores inputs which are not part of the form.
+const initialFormData = new WeakMap()
+
+function serializeForm(row) {
+    const form = row.querySelector('form')
+    return new URLSearchParams(new FormData(form)).toString()
+}
+
+document.addEventListener('focusin', (e) => {
+    const row = e.target.closest('.spreadsheet tr.editing')
+    if (row && !initialFormData.has(row)) {
+        initialFormData.set(row, serializeForm(row))
+    }
+})
+
+function isFormModified(row) {
+    return initialFormData.has(row) && initialFormData.get(row) !== serializeForm(row)
+}
+
+// Highlight modified rows. Scripts which change the form should dispatch
+// a change event, but saving the row doesn't depend on it.
+function updateModifiedHighlight(e) {
     const row = e.target.closest('.spreadsheet tr.editing')
     if (row) {
-        row.dataset.modified = 'true'
+        row.dataset.modified = isFormModified(row)
     }
 }
 
-document.addEventListener('input', markSpreadsheetRowModified)
-document.addEventListener('change', markSpreadsheetRowModified)
-
-function isFormModified(row) {
-    return row.dataset.modified === 'true'
-}
+document.addEventListener('input', updateModifiedHighlight)
+document.addEventListener('change', updateModifiedHighlight)
 
 function getEntityInfo(row) {
     const entityType = row.dataset.entityType
