@@ -18,9 +18,11 @@
            ;; We don't use htmx history. With it enabled, going back in history
            ;; would reload the whole page body, and the focused element is lost.
            [:meta {:name "htmx-config", :content "{\"history\": false}"}]
+           ;; Don't upgrade to htmx 4.0.1, because every swap fails in Chrome 124–145:
+           ;; https://github.com/bigskysoftware/htmx/issues/4182
            [:script {:type "module"
-                     :src "https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3/dist/htmx.esm.js"
-                     :integrity "sha384-X/TaewiqShi/ztjAUmWNAFs+E7vl5V1CBtA+nTap/2HzeMxuI2e68oX63ebr5E6X"
+                     :src "https://cdn.jsdelivr.net/npm/htmx.org@4.0.0/dist/htmx.esm.js"
+                     :integrity "sha384-fh3WoeSX2U60P2sV0M8Y6xvhTB5cpTb+AAF28P71BzGUZ/KI7QYrzKfwTFD/OCr6"
                      :crossorigin "anonymous"}]
            [:script {:type "module"
                      :src "/scripts.js"}]]
