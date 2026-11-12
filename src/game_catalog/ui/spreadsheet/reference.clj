@@ -29,13 +29,7 @@
   (let [target-collection (:column/target-collection column)
         back-reference (:column/back-reference column)]
     (when-some [id (:entity/id entity)]
-      (->> (db/get-all target-collection)
-           (filter (fn [target-entity]
-                     (let [value (get target-entity back-reference)]
-                       (if (sequential? value)
-                         (some #(= id %) value)
-                         (= id value)))))
-           (mapv :entity/id)))))
+      (db/referring-ids target-collection back-reference id))))
 
 (defn value [{:keys [column entity] :as ctx}]
   (if (:column/back-reference column)
@@ -154,8 +148,8 @@
             column (:columns source-config)
             :when (and (= collection-key (:column/target-collection column))
                        (not (:column/back-reference column)))
-            entity (db/get-all source-collection)
-            :when (some #(= entity-id %) (value->ids (get entity (:column/entity-key column))))]
+            referring-id (db/referring-ids source-collection (:column/entity-key column) entity-id)
+            :let [entity (db/get-by-id source-collection referring-id)]]
         {:collection-key source-collection
          :entity-id (:entity/id entity)
          :label (entity-label source-config entity)}))))

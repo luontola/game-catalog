@@ -137,3 +137,42 @@
       (db/delete! :things "1")
       (is (nil? (db/get-by-id :things "1")))
       (is (= stuff (db/get-by-id :stuff "1"))))))
+
+(deftest referring-ids-test
+  (db/init-collection! :things [{:entity/id "t1", :thing/stuffs ["s1" "s2"], :thing/stuff "s1"}
+                                {:entity/id "t2", :thing/stuffs ["s2" "s2"], :thing/stuff "s2"}
+                                {:entity/id "t3", :thing/stuffs [], :thing/stuff nil}
+                                {:entity/id "t4"}])
+
+  (testing "finds references from multiple values"
+    (is (= ["t1"] (db/referring-ids :things :thing/stuffs "s1")))
+    (is (= #{"t1" "t2"} (set (db/referring-ids :things :thing/stuffs "s2")))))
+
+  (testing "finds references from single values"
+    (is (= ["t1"] (db/referring-ids :things :thing/stuff "s1")))
+    (is (= ["t2"] (db/referring-ids :things :thing/stuff "s2"))))
+
+  (testing "an entity which refers to the same target many times is returned once"
+    (is (= 2 (count (db/referring-ids :things :thing/stuffs "s2")))))
+
+  (testing "no references"
+    (is (= [] (db/referring-ids :things :thing/stuffs "s3")))
+    (is (= [] (db/referring-ids :things :thing/stuff nil)))
+    (is (= [] (db/referring-ids :nonexistent :thing/stuffs "s1"))))
+
+  (testing "the index is updated when the collection changes:"
+    (testing "save"
+      (db/save! :things {:entity/id "t3", :thing/stuffs ["s1"]})
+      (is (= #{"t1" "t3"} (set (db/referring-ids :things :thing/stuffs "s1")))))
+
+    (testing "delete"
+      (db/delete! :things "t1")
+      (is (= ["t3"] (db/referring-ids :things :thing/stuffs "s1"))))
+
+    (testing "init"
+      (db/init-collection! :things [{:entity/id "t5", :thing/stuffs ["s1"]}])
+      (is (= ["t5"] (db/referring-ids :things :thing/stuffs "s1")))))
+
+  (testing "the index is not affected by changes to other collections"
+    (db/init-collection! :stuff [{:entity/id "x", :thing/stuffs ["s1"]}])
+    (is (= ["t5"] (db/referring-ids :things :thing/stuffs "s1")))))
