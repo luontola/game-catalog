@@ -100,13 +100,6 @@ main {
         }
     }
 
-    /* Highlight the row which a link points to */
-
-    tr:target {
-        outline: 2px solid var(--accent);
-        outline-offset: -2px;
-    }
-
     /* Highlight the focused row */
 
     tr.viewing:focus-within {

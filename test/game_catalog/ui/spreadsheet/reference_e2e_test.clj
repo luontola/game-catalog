@@ -6,7 +6,7 @@
             [game-catalog.ui.layout :as layout]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.reference :as reference])
-  (:import (com.microsoft.playwright Dialog Keyboard Locator$WaitForOptions)
+  (:import (com.microsoft.playwright Dialog Keyboard Locator$WaitForOptions Page$WaitForFunctionOptions TimeoutError)
            (com.microsoft.playwright.options WaitForSelectorState)))
 
 (def things-config
@@ -48,12 +48,33 @@
 (defn- press! [key]
   (.press ^Keyboard (.keyboard browser/*page*) key))
 
+(def ^:private focused-js
+  "() => {
+     const el = document.activeElement;
+     const row = el.closest('tr');
+     if (!row) {
+       return el.tagName;
+     }
+     return row.dataset.entityId + ':' + el.tagName + ':' + el.textContent;
+   }")
+
 (defn- focused []
-  (.evaluate browser/*page* "() => {
-    const el = document.activeElement;
-    const row = el.closest('tr');
-    return row.dataset.entityId + ':' + el.tagName + ':' + el.textContent;
-  }"))
+  (.evaluate browser/*page* focused-js))
+
+(defn- wait-for-focus
+  "Waits until the focus is on the expected element, and returns the focused element."
+  [expected]
+  (try
+    (.waitForFunction browser/*page*
+                      (str "expected => (" focused-js ")() === expected")
+                      expected
+                      (-> (Page$WaitForFunctionOptions.)
+                          (.setTimeout 1000)))
+    (catch TimeoutError _))
+  (focused))
+
+(defn- url []
+  (.evaluate browser/*page* "() => location.pathname + location.hash"))
 
 (deftest keyboard-navigation-to-links-test
   (.click (browser/locator "td:text-is('Alfa')"))
@@ -78,7 +99,7 @@
     (is (= "1:A:Charlie" (focused)))
     (press! "Enter")
     (.waitForURL browser/*page* "**/things#3")
-    (is (= "3" (.evaluate browser/*page* "() => document.querySelector('tr:target')?.id")))))
+    (is (= "3:TD:Charlie" (wait-for-focus "3:TD:Charlie")))))
 
 (deftest keyboard-edit-mode-test
   (.click (browser/locator "td:text-is('Alfa')"))
@@ -87,7 +108,35 @@
   (testing "Enter on the cell itself still enters edit mode"
     (press! "Enter")
     (.waitFor (browser/locator "tr.editing:not(.adding)"))
-    (is (= "/things" (.evaluate browser/*page* "() => location.pathname + location.hash")))))
+    (is (= "/things#1" (url)))))
+
+(deftest url-hash-follows-focus-test
+  (testing "a link to a row on the same page focuses the row's first cell"
+    (browser/navigate! "/things#2")
+    (is (= "2:TD:Bravo" (wait-for-focus "2:TD:Bravo"))))
+
+  (testing "a link to a row on another page focuses the row's first cell"
+    (browser/navigate! "/things#3")
+    (.reload browser/*page*)
+    (is (= "3:TD:Charlie" (wait-for-focus "3:TD:Charlie"))))
+
+  (testing "moving the focus changes the URL hash, without new history entries"
+    (let [history-length (.evaluate browser/*page* "() => history.length")]
+      (.click (browser/locator "td:text-is('Alfa')"))
+      (is (= "/things#1" (url)))
+      (press! "ArrowDown")
+      (is (= "/things#2" (url)))
+      (is (= history-length (.evaluate browser/*page* "() => history.length")))))
+
+  (testing "the adding row has no hash"
+    (.press ^Keyboard (.keyboard browser/*page*) "ControlOrMeta+Enter")
+    (.waitForFunction browser/*page* "() => document.activeElement.closest('tr.adding') !== null")
+    (is (= "/things" (url))))
+
+  (testing "a link to an unknown row focuses nothing"
+    (browser/navigate! "/things#nope")
+    (.reload browser/*page*)
+    (is (= "BODY" (focused)))))
 
 (deftest blocked-delete-test
   (let [*dialog-messages (atom [])]

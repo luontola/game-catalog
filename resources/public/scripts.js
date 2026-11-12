@@ -77,6 +77,34 @@ function focusCell(cell) {
     (cell.querySelector('.editor-entry-point') ?? cell).focus()
 }
 
+// Links to a row (e.g. /games#<entity-id>) focus the row's first cell
+function focusRowFromHash() {
+    if (!location.hash) {
+        return
+    }
+    // Entity IDs are not always valid CSS selectors, so avoid querySelector
+    const row = document.getElementById(decodeURIComponent(location.hash.slice(1)))
+    if (row?.matches('.spreadsheet tr')) {
+        focusCell(row.cells[0])
+    }
+}
+
+focusRowFromHash()
+window.addEventListener('hashchange', focusRowFromHash)
+
+// The URL hash follows the focused row, so that reloading or sharing the URL
+// keeps the position. Replace the history entry to not pollute the history.
+document.addEventListener('focusin', (e) => {
+    const row = e.target.closest('.spreadsheet tr')
+    if (!row) {
+        return
+    }
+    const hash = row.id ? '#' + encodeURIComponent(row.id) : ''
+    if (location.hash !== hash) {
+        history.replaceState(history.state, '', location.pathname + location.search + hash)
+    }
+})
+
 // Cmd-Enter moves focus to the adding row
 document.addEventListener('keydown', (e) => {
     if (!(e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey)) {
