@@ -132,6 +132,27 @@
     {:entities (take search-limit matches)
      :more (max 0 (- (count matches) search-limit))}))
 
+(defn creatable?
+  "New target entities can be created from the search query, when the label
+   is a field which the query can populate."
+  [ctx]
+  (keyword? (:reference-label (target-config ctx))))
+
+(defn new-entity [ctx query]
+  {(:reference-label (target-config ctx)) (str/trim (str query))})
+
+(defn create-button [{:keys [config column form-id] :as ctx} query]
+  (let [query (str/trim (str query))]
+    (when (and (creatable? ctx)
+               (not (str/blank? query)))
+      (h/html
+        [:button.reference-create {:type "button"
+                                   :data-url (str "/spreadsheet/" (name (:collection-key config)) "/reference-create")
+                                   :hx-vals (json/write-value-as-string {:column (form-field-name column)
+                                                                         :form form-id
+                                                                         :q query})}
+         "Create " [:span.pill query]]))))
+
 (defn- picker [{:keys [config column form-id]}]
   (h/html
     [:dialog.reference-picker {:aria-label (str "Search " (name (:column/target-collection column)))}

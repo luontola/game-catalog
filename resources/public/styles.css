@@ -136,8 +136,8 @@ main {
 
     td.column-reference {
         /* Single-value columns replace the value instead of adding to it */
-        .reference-editor[data-multiple="false"]:has(.pill) .reference-add,
-        .reference-editor:not(:has(.pill)) .reference-replace {
+        .reference-editor[data-multiple="false"]:has(> .pill) .reference-add,
+        .reference-editor:not(:has(> .pill)) .reference-replace {
             display: none;
         }
     }
@@ -263,6 +263,23 @@ main {
             margin: 0.5rem;
         }
     }
+
+    .reference-create {
+        display: block;
+        width: 100%;
+        margin: 0.5rem 0 0;
+        padding: 0.25rem 0.5rem;
+        text-align: left;
+        color: var(--text);
+        background: none;
+        border: none;
+    }
+
+    .highlighted {
+        background-color: var(--accent-bg);
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+    }
 }
 
 .spreadsheet-picker {
@@ -277,11 +294,5 @@ main {
 
     tbody tr {
         cursor: pointer;
-
-        &.highlighted {
-            background-color: var(--accent-bg);
-            outline: 2px solid var(--accent);
-            outline-offset: -2px;
-        }
     }
 }

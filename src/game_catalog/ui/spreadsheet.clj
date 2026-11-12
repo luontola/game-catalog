@@ -270,12 +270,36 @@
             [:p.reference-no-matches "No matches"]
             (pick-table target-config entities #(reference/pill ctx (reference/entity-item target-config %))))
           (when (pos? more)
-            [:p.reference-more more " more, type to refine"]))))))
+            [:p.reference-more more " more, type to refine"])
+          (reference/create-button ctx (:q params)))))))
+
+(defn reference-create-handler [config]
+  (fn [request]
+    (let [params (:params request)
+          column (or (find-reference-column config (:column params))
+                     (http-response/not-found! "Column not found"))
+          target-collection (:column/target-collection column)
+          target-config (get-in config [:target-configs target-collection])
+          ctx {:config config
+               :column column
+               :form-id (:form params)}
+          _ (when-not (reference/creatable? ctx)
+              (http-response/bad-request! "Cannot create entities in the target collection"))
+          _ (when (str/blank? (:q params))
+              (http-response/bad-request! "Cannot create an entity without a label"))
+          entity (-> (reference/new-entity ctx (:q params))
+                     (assoc :entity/id ((:id-generator target-config) target-collection)))]
+      (db/save! target-collection entity)
+      (log/info (str "Saved " (name target-collection) " " (:entity/id entity) ":")
+                (pr-str entity))
+      (html/response (reference/pill ctx (reference/entity-item target-config entity))))))
 
 (defn make-routes [config]
   (let [entity-type (entity-type config)]
     [[(str "/spreadsheet/" entity-type "/reference-search")
       {:post {:handler (reference-search-handler config)}}]
+     [(str "/spreadsheet/" entity-type "/reference-create")
+      {:post {:handler (reference-create-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/view")
       {:post {:handler (view-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/edit")

@@ -367,8 +367,10 @@ function positionBelow(dialog, anchor) {
     dialog.style.maxHeight = `${window.innerHeight - rect.bottom - margin}px`
 }
 
+const pickerOption = '.reference-results tbody tr, .reference-results .reference-create'
+
 function pickerOptions(dialog) {
-    return Array.from(dialog.querySelectorAll('.reference-results tbody tr'))
+    return Array.from(dialog.querySelectorAll(pickerOption))
 }
 
 function highlightPickerOption(dialog, option) {
@@ -382,14 +384,23 @@ function highlightedPickerOption(dialog) {
     return dialog.querySelector('.reference-results .highlighted')
 }
 
-function pickReference(dialog, option) {
+async function pickReference(dialog, option) {
     const editor = dialog.closest('.reference-editor')
-    const pill = option.querySelector('template').content.cloneNode(true)
-    if (editor.dataset.multiple === 'false') {
-        editor.querySelectorAll('.pill').forEach(p => p.remove())
-    }
-    editor.querySelector('.pill-button').before(pill)
+    const button = editor.querySelector('.pill-button')
     dialog.close()
+    if (editor.dataset.multiple === 'false') {
+        editor.querySelectorAll(':scope > .pill').forEach(p => p.remove())
+    }
+    if (option.matches('.reference-create')) {
+        // The server creates the entity and returns its pill
+        await htmx.ajax('POST', option.dataset.url, {
+            source: option,
+            target: button,
+            swap: 'beforebegin'
+        })
+    } else {
+        button.before(option.querySelector('template').content.cloneNode(true))
+    }
     editor.dispatchEvent(new Event('change', {bubbles: true}))
 }
 
@@ -408,7 +419,7 @@ document.addEventListener('click', (e) => {
         dialog.close()
         return
     }
-    const option = e.target.closest('.reference-results tbody tr')
+    const option = e.target.closest(pickerOption)
     if (option) {
         pickReference(dialog, option)
     }

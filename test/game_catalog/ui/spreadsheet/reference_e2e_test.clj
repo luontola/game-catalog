@@ -250,7 +250,7 @@
         ref-cell (.locator row ":scope > td.column-reference >> nth=1")]
 
     (testing "the referred entities are pills, and the add button has the focus"
-      (is (= ["Bravo×" "Charlie×"] (vec (.allTextContents (.locator refs-cell ".pill")))))
+      (is (= ["Bravo×" "Charlie×"] (vec (.allTextContents (.locator refs-cell ".reference-editor > .pill")))))
       (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element)))
 
     (testing "the button of a single-value column shows the replace icon when it has a value"
@@ -260,14 +260,14 @@
       (press! "Shift+Tab")
       (is (browser/has-focus? (.locator refs-cell ".pill-remove[aria-label='Remove Charlie']")) (browser/focused-element))
       (press! "Enter")
-      (is (= 1 (.count (.locator refs-cell ".pill"))))
+      (is (= 1 (.count (.locator refs-cell ".reference-editor > .pill"))))
       (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
       (is (= "true" (.getAttribute row "data-modified")))
       (is (= 0 (count (post-requests)))))
 
     (testing "clicking a remove button removes the pill, and does not exit edit mode"
       (.click (.locator ref-cell ".pill-remove"))
-      (is (= 0 (.count (.locator ref-cell ".pill"))))
+      (is (= 0 (.count (.locator ref-cell ".reference-editor > .pill"))))
       (is (browser/has-focus? (.locator ref-cell ".pill-button")) (browser/focused-element))
       (is (= ["Add"] (visible-icons ref-cell)))
       (is (= 0 (count (post-requests)))))
@@ -329,19 +329,19 @@
 
     (testing "typing filters the results"
       (.type (.keyboard browser/*page*) "del")
-      (is (= "Name Refs Ref Delta" (wait-for-picker-results "Name Refs Ref Delta")))
+      (is (= "Name Refs Ref Delta Create del" (wait-for-picker-results "Name Refs Ref Delta Create del")))
       (is (= "Delta" (highlighted-result))))
 
     (testing "no matches"
       (.type (.keyboard browser/*page*) "x")
-      (is (= "No matches" (wait-for-picker-results "No matches")))
+      (is (= "No matches Create delx" (wait-for-picker-results "No matches Create delx")))
       (press! "Backspace")
-      (is (= "Name Refs Ref Delta" (wait-for-picker-results "Name Refs Ref Delta"))))
+      (is (= "Name Refs Ref Delta Create del" (wait-for-picker-results "Name Refs Ref Delta Create del"))))
 
     (testing "Enter adds the highlighted entity, and closes the picker"
       (press! "Enter")
       (wait-for-picker-closed)
-      (is (= ["Bravo×" "Charlie×" "Delta×"] (vec (.allTextContents (.locator refs-cell ".pill")))))
+      (is (= ["Bravo×" "Charlie×" "Delta×"] (vec (.allTextContents (.locator refs-cell ".reference-editor > .pill")))))
       (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
       (is (= "true" (.getAttribute row "data-modified"))))
 
@@ -368,7 +368,7 @@
              (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie Bravo Charlie Delta")))
       (.click (browser/locator ".reference-picker[open] tr:has(td:text-is('Charlie'))"))
       (wait-for-picker-closed)
-      (is (= ["Charlie×"] (vec (.allTextContents (.locator ref-cell ".pill")))))
+      (is (= ["Charlie×"] (vec (.allTextContents (.locator ref-cell ".reference-editor > .pill")))))
       (is (browser/has-focus? (.locator ref-cell ".pill-button")) (browser/focused-element)))
 
     (testing "picking does not make requests other than searching"
@@ -379,4 +379,57 @@
       (press! "F2")
       (wait-for-view-mode)
       (is (= {:thing/refs ["2" "3" "4"], :thing/ref "3"}
+             (select-keys (db/get-by-id :things "1") [:thing/refs :thing/ref]))))))
+
+(deftest create-test
+  (.click (browser/locator "td:text-is('Alfa')"))
+  (press! "ArrowRight")
+  (press! "Enter")
+  (wait-for-edit-mode)
+  (reset! browser/*request-log [])
+  (let [row (browser/locator "tr.editing:not(.adding)")
+        refs-cell (.locator row ":scope > td.column-reference >> nth=0")
+        ref-cell (.locator row ":scope > td.column-reference >> nth=1")]
+
+    (testing "the create option is not shown without a query"
+      (press! "Enter")
+      (is (= "Name Refs Ref Alfa Bravo, Charlie Bravo Delta"
+             (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie Bravo Delta"))))
+
+    (testing "the create option is shown after the matches"
+      (.type (.keyboard browser/*page*) "Del")
+      (is (= "Name Refs Ref Delta Create Del"
+             (wait-for-picker-results "Name Refs Ref Delta Create Del")))
+      (is (= "Delta" (highlighted-result)))
+      (press! "ArrowDown")
+      (is (= "Create Del" (.textContent (browser/locator ".reference-picker[open] .highlighted")))))
+
+    (testing "the create option is highlighted when there are no matches"
+      (.type (.keyboard browser/*page*) "ta Doe")
+      (is (= "No matches Create Delta Doe"
+             (wait-for-picker-results "No matches Create Delta Doe")))
+      (is (= "Create Delta Doe" (.textContent (browser/locator ".reference-picker[open] .highlighted")))))
+
+    (testing "Enter creates the entity and adds it as a pill"
+      (press! "Enter")
+      (wait-for-picker-closed)
+      (.waitFor (.locator refs-cell ".reference-editor > .pill:has-text('Delta Doe')"))
+      (is (= ["Bravo×" "Charlie×" "Delta Doe×"] (vec (.allTextContents (.locator refs-cell ".reference-editor > .pill")))))
+      (is (= {:entity/id "5", :thing/name "Delta Doe"} (db/get-by-id :things "5")))
+      (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
+      (is (= "true" (.getAttribute row "data-modified"))))
+
+    (testing "clicking the create option in a single-value column replaces the value"
+      (.click (.locator ref-cell ".pill-button"))
+      (.type (.keyboard browser/*page*) "Echo")
+      (wait-for-picker-results "No matches Create Echo")
+      (.click (browser/locator ".reference-picker[open] .reference-create"))
+      (wait-for-picker-closed)
+      (.waitFor (.locator ref-cell ".reference-editor > .pill:has-text('Echo')"))
+      (is (= ["Echo×"] (vec (.allTextContents (.locator ref-cell ".reference-editor > .pill"))))))
+
+    (testing "exiting edit mode saves the references to the created entities"
+      (press! "F2")
+      (wait-for-view-mode)
+      (is (= {:thing/refs ["2" "3" "5"], :thing/ref "6"}
              (select-keys (db/get-by-id :things "1") [:thing/refs :thing/ref]))))))

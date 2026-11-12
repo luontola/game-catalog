@@ -1,6 +1,7 @@
 (ns game-catalog.ui.spreadsheet.reference-test
   (:require [clojure.test :refer :all]
             [game-catalog.data.db :as db]
+            [game-catalog.infra.json :as json]
             [game-catalog.testing.html :as html]
             [game-catalog.ui.spreadsheet.reference :as reference]
             [mount.core :as mount])
@@ -213,6 +214,25 @@
       (with-redefs [reference/search-limit 3]
         (is (= {:entities ["w4" "w2" "w1"], :more 1}
                (search "" nil)))))))
+
+(deftest create-button-test
+  (let [ctx {:config config, :column column, :form-id "things-form-1"}]
+    (testing "creates a target entity with the query as its label"
+      (let [button (.selectFirst (html/parse-fragment (reference/create-button ctx " Qux ")) "button")]
+        (is (= "Create Qux" (.text button)))
+        (is (= "/spreadsheet/things/reference-create" (.attr button "data-url")))
+        (is (= {:column "thing/widgets", :form "things-form-1", :q "Qux"}
+               (json/read-value (.attr button "hx-vals"))))
+        (is (= {:widget/name "Qux"}
+               (reference/new-entity ctx " Qux "))))))
+
+  (testing "no button for a blank query"
+    (is (nil? (reference/create-button {:config config, :column column} " "))))
+
+  (testing "no button when the label is computed by a function"
+    (let [config (assoc-in config [:target-configs :widgets :reference-label] (comp str :widget/size))]
+      (is (not (reference/creatable? {:config config, :column column})))
+      (is (nil? (reference/create-button {:config config, :column column} "Qux"))))))
 
 (deftest parse-form-params-test
   (testing "multiple references"
