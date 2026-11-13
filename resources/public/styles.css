@@ -156,6 +156,22 @@ main {
     }
 }
 
+/* Floating button for adding rows. The page's bottom margin keeps it from covering the last row. */
+.add-row-button {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1rem;
+    z-index: 100;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin: 0;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 2rem;
+    line-height: 1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
 .context-menu {
     display: none;
     position: absolute;

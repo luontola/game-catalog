@@ -149,6 +149,13 @@
         (for [[idx entity] (map-indexed vector entities)]
           (view-row config entity nil (inc idx)))
         (add-row config nil)]]
+      [:button.add-row-button {:type "button"
+                               :aria-label "Add row"
+                               :title "Add row"
+                               :hx-post (str "/spreadsheet/" (entity-type config) "/create")
+                               :hx-target ".spreadsheet > tbody > tr.adding"
+                               :hx-swap "beforebegin"}
+       "+"]
       [:menu#context-menu {:class "context-menu"}
        [:li
         [:button#context-menu-delete {:onclick "this.clickHandler()"}
@@ -189,13 +196,44 @@
 (defn uuid-id-generator [_collection-key]
   (str (UUID/randomUUID)))
 
-(defn- form-updates [config params]
+(defn- editable-columns [config]
   (->> (:columns config)
        (map with-defaults)
-       (remove :column/read-only?)
+       (remove :column/read-only?)))
+
+(defn- form-updates [config params]
+  (->> (editable-columns config)
        (mapcat (fn [column]
                  ((:column/parse-form-params column) params column)))
        (into {})))
+
+(defn- blank-entity
+  "The same field values as saving a form where the user entered nothing."
+  [config]
+  (let [blank-params (->> (editable-columns config)
+                          (map (fn [column]
+                                 [(text/form-field-name column) ""]))
+                          (into {}))]
+    (form-updates config blank-params)))
+
+(defn- first-editable-index [config]
+  (->> (:columns config)
+       (map with-defaults)
+       (keep-indexed (fn [idx column]
+                       (when-not (:column/read-only? column)
+                         idx)))
+       first))
+
+(defn create-row-handler [config]
+  (fn [request]
+    (let [collection-key (:collection-key config)
+          focus-index (or (some-> (get-in request [:params :focusIndex]) parse-long)
+                          (first-editable-index config))
+          entity (assoc (blank-entity config)
+                   :entity/id ((:id-generator config) collection-key))]
+      (db/save! collection-key entity)
+      (log/info (str "Created " (name collection-key) " " (:entity/id entity)))
+      (html/response (edit-row config entity focus-index)))))
 
 (defn save-row-handler [config]
   (fn [request]
@@ -300,6 +338,8 @@
       {:post {:handler (reference-search-handler config)}}]
      [(str "/spreadsheet/" entity-type "/reference-create")
       {:post {:handler (reference-create-handler config)}}]
+     [(str "/spreadsheet/" entity-type "/create")
+      {:post {:handler (create-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/view")
       {:post {:handler (view-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/edit")

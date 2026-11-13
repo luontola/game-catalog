@@ -406,6 +406,60 @@
           (is (<= new-row-bottom adding-row-top)
               "new row should not overlap with the adding row"))))))
 
+(deftest add-row-button-test
+  (testing "clicking the button creates a blank row"
+    (reset! browser/*request-log [])
+
+    (.click (browser/locator ".add-row-button"))
+    (wait-for-edit-mode)
+
+    (is (= [{:method "POST", :path "/spreadsheet/things/create"}]
+           @browser/*request-log))
+    (is (= {:entity/id "4"
+            :thing/alfa ""
+            :thing/bravo ""
+            :thing/charlie ""}
+           (db/get-by-id :things "4"))))
+
+  (testing "the new row goes last in the table, in edit mode"
+    (is (= (html/normalize-whitespace "
+            ID  Alfa     Bravo    Charlie
+            1   Cell 1A  Cell 1B  Cell 1C
+            2   Cell 2A  Cell 2B  Cell 2C
+            3   Cell 3A  Cell 3B  Cell 3C
+            4   []       []       []
+                []       []       []")
+           (html/visualize-html (browser/locator "table")))))
+
+  (testing "the first editable cell of the new row is focused"
+    (is (browser/has-focus? (browser/locator "tr[id='4'] input[name='thing/alfa']"))
+        (browser/focused-element))))
+
+(deftest add-row-button-scroll-into-view-test
+  (let [many-entities (for [i (range 1 25)]
+                        {:entity/id (str i)
+                         :thing/alfa ""
+                         :thing/bravo ""
+                         :thing/charlie ""})]
+    (with-fixtures [(partial data-fixture many-entities)]
+      (let [viewport-height (.evaluate browser/*page* "window.innerHeight")
+            scrollable-height (.evaluate browser/*page* "document.documentElement.scrollHeight")]
+        (is (< viewport-height scrollable-height)
+            "the test should have more rows than fits on the screen")
+        (is (= 0 (.evaluate browser/*page* "window.scrollY"))
+            "the test should start scrolled to the top"))
+
+      (testing "the new row is scrolled into view, above the button"
+        (.click (browser/locator ".add-row-button"))
+        (wait-for-edit-mode)
+
+        (let [new-row (.boundingBox (browser/locator "tr[id='25']"))
+              new-row-bottom (+ (.y new-row) (.height new-row))
+              button-top (.y (.boundingBox (browser/locator ".add-row-button")))]
+          (is (<= 0 (.y new-row)))
+          (is (<= new-row-bottom button-top)
+              "the button should not cover the new row"))))))
+
 (defn context-menu-visible? []
   (.isVisible (browser/locator "#context-menu")))
 
