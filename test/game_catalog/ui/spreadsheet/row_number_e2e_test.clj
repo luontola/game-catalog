@@ -88,6 +88,8 @@
   (.click (browser/locator "#context-menu-delete"))
   (wait-for-row-deleted name))
 
+;; FIXME: fails on Firefox and WebKit, because visible-table-rows reads Chrome's
+;;        accessibility tree using a CDP session, which only Chromium has
 (deftest row-number-test
   (let [keyboard (.keyboard browser/*page*)]
     (db/init-collection! :things [{:entity/id "1" :thing/name "Charlie"}

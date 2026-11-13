@@ -101,6 +101,8 @@
     (catch TimeoutError _))
   (url))
 
+;; FIXME: fails on WebKit, because there the Tab key doesn't move the focus to links
+;;        (Safari's default is that only Option-Tab focuses links)
 (deftest keyboard-navigation-to-links-test
   (.click (browser/locator "td:text-is('Alfa')"))
   (press! "ArrowRight")
@@ -135,6 +137,9 @@
     (.waitFor (browser/locator "tr.editing"))
     (is (= "/things#1" (wait-for-url "/things#1")))))
 
+;; FIXME: fails on WebKit, starting from "going back after following a link",
+;;        because there the Tab key doesn't move the focus to links
+;;        (Safari's default is that only Option-Tab focuses links)
 (deftest focus-in-history-test
   (testing "a link to a row on the same page focuses the row's first cell"
     (browser/navigate! "/things#2")

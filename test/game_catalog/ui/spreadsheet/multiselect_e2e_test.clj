@@ -92,6 +92,9 @@
       (is (browser/has-focus? (browser/locator "tr.editing select[name='thing/multiy']"))
           (browser/focused-element)))))
 
+;; FIXME: fails on Firefox, because after select.showPicker() the select doesn't match
+;;        the :open selector, so the test thinks that the dropdown did not open
+;; FIXME: fails on WebKit, because its select elements have no showPicker function
 (deftest multiselect-dropdown-test
   (let [keyboard (.keyboard browser/*page*)
         row (browser/locator "tr.editing")
