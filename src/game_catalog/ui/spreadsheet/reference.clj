@@ -154,24 +154,31 @@
          "Create " [:span.pill query]]))))
 
 (defn- picker [{:keys [config column form-id]}]
-  (h/html
-    [:dialog.reference-picker {:aria-label (str "Search " (name (:column/target-collection column)))}
-     [:div.reference-picker-content
-      [:input.reference-search {:type "search"
-                                :name "q"
-                                :placeholder "Search"
-                                :aria-label "Search"
-                                :autocomplete "off"
-                                :data-1p-ignore true
-                                :hx-post (str "/spreadsheet/" (name (:collection-key config)) "/reference-search")
-                                :hx-trigger "input changed delay:150ms, reference-picker-open"
-                                ;; Includes the referred entities, so that the search can exclude them
-                                :hx-include "closest .reference-editor"
-                                :hx-vals (json/write-value-as-string {:column (form-field-name column)
-                                                                      :form form-id})
-                                :hx-target "next .reference-results"
-                                :hx-swap "innerHTML"}]
-      [:div.reference-results]]]))
+  (let [title (str "Search " (:column/name column))]
+    (h/html
+      [:dialog.reference-picker {:aria-label title}
+       [:div.reference-picker-header
+        [:input.reference-search {:type "search"
+                                  :name "q"
+                                  :placeholder title
+                                  :aria-label title
+                                  :autocomplete "off"
+                                  :data-1p-ignore true
+                                  ;; The Enter key on mobile keyboards picks the highlighted result
+                                  :enterkeyhint "go"
+                                  :hx-post (str "/spreadsheet/" (name (:collection-key config)) "/reference-search")
+                                  :hx-trigger "input changed delay:150ms, reference-picker-open"
+                                  ;; Includes the referred entities, so that the search can exclude them
+                                  :hx-include "closest .reference-editor"
+                                  :hx-vals (json/write-value-as-string {:column (form-field-name column)
+                                                                        :form form-id})
+                                  :hx-target "next .reference-results"
+                                  :hx-swap "innerHTML"}]
+        ;; Touch screens have no Escape key, and a full-screen dialog has no backdrop to click
+        [:button.reference-picker-close {:type "button"
+                                         :aria-label "Close"}
+         "×"]]
+       [:div.reference-results]])))
 
 (defn editor [{:keys [column form-id focus?] :as ctx}]
   (h/html

@@ -362,6 +362,15 @@
       (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
       (is (= 1 (.count row))))
 
+    (testing "the close button closes the picker, but does not exit edit mode"
+      (.click (.locator refs-cell ".pill-button"))
+      (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie Bravo")
+      (is (= "Search Refs" (.getAttribute search "placeholder")))
+      (.click (browser/locator ".reference-picker[open] .reference-picker-close"))
+      (wait-for-picker-closed)
+      (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
+      (is (= 1 (.count row))))
+
     (testing "clicking a result in a single-value column replaces the value"
       (.click (.locator ref-cell ".pill-button"))
       (is (= "Name Refs Ref Alfa Bravo, Charlie Bravo Charlie Delta"

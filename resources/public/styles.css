@@ -229,36 +229,82 @@ main {
     cursor: pointer;
 }
 
+/* Larger targets for fingers */
+@media (pointer: coarse) {
+    .pill-remove {
+        padding: 0.375rem 0.5rem;
+        margin: -0.25rem -0.375rem -0.25rem 0;
+    }
+
+    .pill-button {
+        padding: 0.375rem 0.75rem;
+    }
+}
+
 /* Reference picker */
 
 .reference-picker {
-    /* Positioned below the cell by JavaScript */
-    position: fixed;
-    inset: auto;
-    margin: 0;
+    /* The top edge stays in place, so that the search field
+       doesn't move when the number of results changes */
+    margin: 15vh auto auto;
     /* Clicks on the dialog itself are clicks on the backdrop */
     padding: 0;
     width: min(60rem, calc(100vw - 1rem));
     max-width: none;
+    max-height: 70vh;
+    overflow: hidden;
     border: var(--border-width) solid var(--border);
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 
-    &::backdrop {
-        background: none;
+    &[open] {
+        display: flex;
+        flex-direction: column;
     }
 
-    .reference-picker-content {
+    &::backdrop {
+        background-color: rgba(0, 0, 0, 0.2);
+        opacity: 1;
+    }
+
+    /* On narrow screens, use the full screen. The search field at the top
+       stays visible above the on-screen keyboard. */
+    @media (max-width: 40rem) {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        border: none;
+        border-radius: 0;
+    }
+
+    .reference-picker-header {
+        display: flex;
+        gap: 0.5rem;
         padding: 0.5rem;
     }
 
     .reference-search {
-        width: 100%;
-        box-sizing: border-box;
-        margin: 0 0 0.5rem;
+        flex: 1;
+        min-width: 0;
+        margin: 0;
+        /* iOS zooms the page when focusing an input with a smaller font */
+        font-size: max(16px, 1rem);
+    }
+
+    .reference-picker-close {
+        margin: 0;
+        padding: 0 0.75rem;
+        font-size: 1.25rem;
+        line-height: 1;
     }
 
     .reference-results {
+        /* Only the results scroll, so that the search field stays visible */
+        overflow: auto;
+        min-height: 0;
+        padding: 0 0.5rem 0.5rem;
+
         p {
             margin: 0.5rem;
         }

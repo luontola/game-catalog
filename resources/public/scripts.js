@@ -364,18 +364,8 @@ function openReferencePicker(editor) {
     // Clicking the button doesn't focus it, so focus it explicitly.
     editor.querySelector('.pill-button').focus()
     dialog.showModal()
-    positionBelow(dialog, editor.closest('td'))
     search.focus()
     search.dispatchEvent(new Event('reference-picker-open'))
-}
-
-function positionBelow(dialog, anchor) {
-    const margin = 8
-    const rect = anchor.getBoundingClientRect()
-    const left = Math.max(margin, Math.min(rect.left, window.innerWidth - dialog.offsetWidth - margin))
-    dialog.style.left = `${left}px`
-    dialog.style.top = `${rect.bottom}px`
-    dialog.style.maxHeight = `${window.innerHeight - rect.bottom - margin}px`
 }
 
 const pickerOption = '.reference-results tbody tr, .reference-results .reference-create'
@@ -425,7 +415,7 @@ document.addEventListener('click', (e) => {
     if (!dialog) {
         return
     }
-    if (e.target === dialog) {
+    if (e.target === dialog || e.target.closest('.reference-picker-close')) {
         // The dialog has no padding, so only clicks on the backdrop target it
         dialog.close()
         return
