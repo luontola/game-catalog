@@ -87,9 +87,9 @@
       (is (= ["thing/numbery"]
              (autofocused (create! {:focusIndex "2"})))))))
 
-(deftest save-row-handler-test
+(deftest save-and-continue-handler-test
   (let [save! (fn [entity-id params]
-                ((spreadsheet/save-row-handler things-config)
+                ((spreadsheet/save-and-continue-handler things-config)
                  {:path-params {:entity-id entity-id}
                   :params params}))]
     (db/init-collection! :things [{:entity/id "1"
@@ -141,9 +141,9 @@
              (save! "2" {"thing/texty" "New"})))
       (is (nil? (db/get-by-id :things "2"))))))
 
-(deftest view-row-handler-test
-  (let [view! (fn [entity-id params]
-                ((spreadsheet/view-row-handler things-config)
+(deftest save-row-handler-test
+  (let [save! (fn [entity-id params]
+                ((spreadsheet/save-row-handler things-config)
                  {:path-params {:entity-id entity-id}
                   :params params}))]
     (db/init-collection! :things [{:entity/id "1"
@@ -151,7 +151,7 @@
                                    :thing/numbery 100}])
 
     (testing "saves the form params, and returns the saved row in view mode"
-      (let [response (view! "1" {"thing/texty" "New"})
+      (let [response (save! "1" {"thing/texty" "New"})
             row (.selectFirst (html/parse-table-fragment (:body response)) "tr")]
         (is (= {:entity/id "1"
                 :thing/texty "New"
@@ -162,19 +162,19 @@
 
     (testing "without form params, only returns the row in view mode"
       (let [collections-before @db/*collections
-            response (view! "1" {})
+            response (save! "1" {})
             row (.selectFirst (html/parse-table-fragment (:body response)) "tr")]
         (is (identical? collections-before @db/*collections))
         (is (= "New 100" (html/visualize-html (str row))))))
 
     (testing "focuses the requested column"
-      (let [response (view! "1" {:focusIndex "1"})
+      (let [response (save! "1" {:focusIndex "1"})
             cells (.select (html/parse-table-fragment (:body response)) "td")]
         (is (= [false true false false false false]
                (map #(.hasAttr ^Element % "autofocus") cells)))))
 
     (testing "unknown rows"
-      (is (= 404 (:status (view! "2" {})))))))
+      (is (= 404 (:status (save! "2" {})))))))
 
 (deftest delete-row-handler-test
   (let [config (assoc things-config :target-configs {:things things-config})

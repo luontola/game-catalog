@@ -67,8 +67,8 @@
                 (-> (Locator$WaitForOptions.)
                     (.setState WaitForSelectorState/HIDDEN)))
 
-      (is (= [{:method "POST", :path "/spreadsheet/games/3/save"} ; changing the selection
-              {:method "POST", :path "/spreadsheet/games/3/view"}] ; exiting edit mode
+      (is (= [{:method "POST", :path "/spreadsheet/games/3/save-and-continue"} ; changing the selection
+              {:method "POST", :path "/spreadsheet/games/3/save"}] ; exiting edit mode
              @browser/*request-log))
       (is (= "Completed"
              (:game/status (db/get-by-id :games "3")))))))

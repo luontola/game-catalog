@@ -106,7 +106,7 @@
     (press! "Enter")
     (wait-for-view-mode)
     (is (= "1:0:TD" (wait-for-focus "1:0:TD")))
-    (is (= [{:method "POST", :path "/spreadsheet/things/1/view"}]
+    (is (= [{:method "POST", :path "/spreadsheet/things/1/save"}]
            (post-requests)))
 
     (press! "ArrowDown")
@@ -142,7 +142,7 @@
     (is (= "5:0:INPUT" (wait-for-focus "5:0:INPUT")))
     (.waitFor (browser/locator "tr.viewing[id='1']"))
     (is (= [{:method "POST", :path "/spreadsheet/things/create"}
-            {:method "POST", :path "/spreadsheet/things/1/view"}]
+            {:method "POST", :path "/spreadsheet/things/1/save"}]
            (post-requests)))
     (is (= "Grault" (:thing/foo (db/get-by-id :things "1"))))
     (is (= "5:0:INPUT" (focused)) "focus stays in the new row")))
@@ -159,8 +159,8 @@
       (catch TimeoutError _))
     (saved)))
 
-(def ^:private autosaved {:method "POST", :path "/spreadsheet/things/1/save"})
-(def ^:private exited {:method "POST", :path "/spreadsheet/things/1/view"})
+(def ^:private autosaved {:method "POST", :path "/spreadsheet/things/1/save-and-continue"})
+(def ^:private exited {:method "POST", :path "/spreadsheet/things/1/save"})
 
 (deftest autosave-test
   (.dblclick (browser/locator "td:text-is('Baz')"))
@@ -219,7 +219,7 @@
     window.activeSaves = 0;
     window.maxActiveSaves = 0;
     window.fetch = async (url, ...args) => {
-      if (!String(url).endsWith('/save')) {
+      if (!String(url).endsWith('/save-and-continue')) {
         return fetch(url, ...args);
       }
       window.activeSaves++;
@@ -323,7 +323,7 @@
   (.type (keyboard) "Grault")
 
   (testing "when the server cannot be reached, the row stays in edit mode with the user's changes"
-    (fail-requests! "**/spreadsheet/things/1/view" #(.abort ^Route %))
+    (fail-requests! "**/spreadsheet/things/1/save" #(.abort ^Route %))
     (press! "Enter")
     (is (= "Could not reach the server. The row is not saved." (wait-for-error-message)))
     (is (marked-as-not-saved?))
@@ -345,7 +345,7 @@
   (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
 
   (testing "error responses which are not plain text are not shown to the user"
-    (fail-requests! "**/spreadsheet/things/1/save"
+    (fail-requests! "**/spreadsheet/things/1/save-and-continue"
                     #(.fulfill ^Route % (-> (Route$FulfillOptions.)
                                             (.setStatus 500)
                                             (.setContentType "text/html")

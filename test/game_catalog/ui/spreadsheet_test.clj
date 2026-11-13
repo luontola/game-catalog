@@ -166,7 +166,7 @@
   (let [keyboard (.keyboard browser/*page*)
         cell-1a (browser/locator "text=Cell 1A")
         ;; Exiting edit mode saves the row in the same request
-        exited [{:method "POST", :path "/spreadsheet/things/1/view"}]]
+        exited [{:method "POST", :path "/spreadsheet/things/1/save"}]]
 
     (with-fixtures [data-fixture]
       (testing "double-click enters edit mode"

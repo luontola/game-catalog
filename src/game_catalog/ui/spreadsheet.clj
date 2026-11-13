@@ -200,7 +200,7 @@
 (defn- row-not-found []
   (error-response 404 "Row not found. It was probably deleted."))
 
-(defn save-row-handler
+(defn save-and-continue-handler
   "Saves the row, without changing what the user sees."
   [config]
   (fn [request]
@@ -208,7 +208,7 @@
       (http-response/no-content)
       (row-not-found))))
 
-(defn view-row-handler
+(defn save-row-handler
   "Saves the row, if the request has its form fields, and exits edit mode."
   [config]
   (fn [request]
@@ -354,11 +354,11 @@
       {:post {:handler (reference-create-handler config)}}]
      [(str "/spreadsheet/" entity-type "/create")
       {:post {:handler (create-row-handler config)}}]
-     [(str "/spreadsheet/" entity-type "/:entity-id/view")
-      {:post {:handler (view-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/edit")
       {:post {:handler (edit-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/save")
       {:post {:handler (save-row-handler config)}}]
+     [(str "/spreadsheet/" entity-type "/:entity-id/save-and-continue")
+      {:post {:handler (save-and-continue-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/delete")
       {:post {:handler (delete-row-handler config)}}]]))

@@ -245,7 +245,7 @@
       (catch TimeoutError _))
     (saved)))
 
-(def ^:private autosaved {:method "POST", :path "/spreadsheet/things/1/save"})
+(def ^:private autosaved {:method "POST", :path "/spreadsheet/things/1/save-and-continue"})
 
 (defn- visible-icons [^Locator cell]
   (mapv #(.getAttribute ^Locator % "aria-label")

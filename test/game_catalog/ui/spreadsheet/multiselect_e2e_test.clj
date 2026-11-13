@@ -76,8 +76,8 @@
       (.press keyboard "Enter")
       (wait-for-view-mode)
 
-      (is (= [{:method "POST", :path "/spreadsheet/things/1/save"} ; changing the selection
-              {:method "POST", :path "/spreadsheet/things/1/view"}] ; exiting edit mode
+      (is (= [{:method "POST", :path "/spreadsheet/things/1/save-and-continue"} ; changing the selection
+              {:method "POST", :path "/spreadsheet/things/1/save"}] ; exiting edit mode
              @browser/*request-log))
       (is (= ["Foo" "Bar"]
              (:thing/multiy (db/get-by-id :things "1"))))
@@ -132,5 +132,5 @@
       (.press keyboard "Escape")
       (wait-for-view-mode)
 
-      (is (= [{:method "POST", :path "/spreadsheet/things/1/view"}]
+      (is (= [{:method "POST", :path "/spreadsheet/things/1/save"}]
              @browser/*request-log)))))

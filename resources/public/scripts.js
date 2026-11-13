@@ -23,9 +23,9 @@ function enterEditMode(row, cell) {
 // The form's hx-sync attribute sends them one at a time, in order,
 // so that an old save cannot overwrite a newer one.
 
-function saveRow(row) {
+function saveAndContinue(row) {
     const {entityType, entityId} = getEntityInfo(row)
-    htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/save`, {
+    htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/save-and-continue`, {
         source: row.querySelector('form'),
         swap: 'none'
     })
@@ -45,7 +45,7 @@ function saveAndExitEditMode(row, cell = null) {
     if (cell) {
         values.focusIndex = cell.cellIndex
     }
-    htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/view`, {
+    htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/save`, {
         source: row.querySelector('form'),
         target: row,
         swap: 'outerHTML',
@@ -68,7 +68,7 @@ document.addEventListener('change', (e) => {
             // Exiting edit mode saves the row
             return
         }
-        saveRow(row)
+        saveAndContinue(row)
     }, 0)
 })
 
