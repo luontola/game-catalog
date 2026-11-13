@@ -361,3 +361,17 @@
     (wait-for-no-error-message)
     (is (= "1:1:INPUT" (focused)))
     (is (marked-as-not-saved?) "the row is still not saved")))
+
+(deftest session-expired-test
+  (.dblclick (browser/locator "td:text-is('Baz')"))
+  (wait-for-edit-mode)
+  (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
+
+  (testing "saving after the session has expired tells the user what to do"
+    (.clearCookies browser/*context*)
+    (press! "ControlOrMeta+a")
+    (.type (keyboard) "Grault")
+    (press! "Tab")
+    (is (= "The session has expired. Reload the page to continue." (wait-for-error-message)))
+    (is (marked-as-not-saved?))
+    (is (= "Baz" (:thing/foo (db/get-by-id :things "1"))))))

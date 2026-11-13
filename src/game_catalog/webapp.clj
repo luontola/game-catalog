@@ -9,6 +9,14 @@
 ;; defonce to avoid forgetting sessions every time the code is reloaded in development mode
 (defonce session-store (ttl-session/ttl-memory-store (.toSeconds (Duration/ofHours 4))))
 
+;; The anti-forgery token is in the session, so requests from a page fail after
+;; the session expires or the server restarts. The error message is plain text,
+;; so that the frontend shows it to the user.
+(def session-expired-response
+  {:status 403
+   :headers {"Content-Type" "text/plain; charset=utf-8"}
+   :body "The session has expired. Reload the page to continue."})
+
 (defn wrap-cache-control [handler]
   (fn [request]
     (let [response (handler request)]
@@ -21,7 +29,8 @@
       (defaults/wrap-defaults (-> defaults/site-defaults
                                   (assoc :proxy true)
                                   (assoc-in [:session :store] session-store)
-                                  (assoc-in [:session :flash] false)))
+                                  (assoc-in [:session :flash] false)
+                                  (assoc-in [:security :anti-forgery] {:error-response session-expired-response})))
       (wrap-cache-control)))
 
 (mount/defstate app
