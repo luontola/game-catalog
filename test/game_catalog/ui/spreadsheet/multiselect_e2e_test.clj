@@ -64,6 +64,7 @@
         (is (some? (.getAttribute select "multiple")))
         (is (= "1" (.getAttribute select "size"))))
 
+      (reset! browser/*request-log [])
       (.evaluate browser/*page* "
         const select = document.querySelector(\"tr.editing select[name='thing/multiy']\");
         for (const option of select.options) {
@@ -71,12 +72,12 @@
         }
         select.dispatchEvent(new Event('change', {bubbles: true}));
       ")
-      (reset! browser/*request-log [])
 
       (.press keyboard "Enter")
       (wait-for-view-mode)
 
-      (is (= [{:method "POST", :path "/spreadsheet/things/1/save"}]
+      (is (= [{:method "POST", :path "/spreadsheet/things/1/save"} ; changing the selection
+              {:method "POST", :path "/spreadsheet/things/1/view"}] ; exiting edit mode
              @browser/*request-log))
       (is (= ["Foo" "Bar"]
              (:thing/multiy (db/get-by-id :things "1"))))
@@ -131,6 +132,5 @@
       (.press keyboard "Escape")
       (wait-for-view-mode)
 
-      ;; Enter in the dropdown changed the selection, so there are changes to save
-      (is (= [{:method "POST", :path "/spreadsheet/things/1/save"}]
+      (is (= [{:method "POST", :path "/spreadsheet/things/1/view"}]
              @browser/*request-log)))))

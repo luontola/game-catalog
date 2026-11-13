@@ -88,7 +88,10 @@
              (autofocused (create! {:focusIndex "2"})))))))
 
 (deftest save-row-handler-test
-  (testing "parses form params using each column component"
+  (let [save! (fn [entity-id params]
+                ((spreadsheet/save-row-handler things-config)
+                 {:path-params {:entity-id entity-id}
+                  :params params}))]
     (db/init-collection! :things [{:entity/id "1"
                                    :thing/texty "Old"
                                    :thing/numbery 100
@@ -96,23 +99,79 @@
                                    :thing/multiy ["Foo"]
                                    :thing/refy ["1"]}])
 
-    ((spreadsheet/save-row-handler things-config)
-     {:path-params {:entity-id "1"}
-      :params {"thing/texty" "New"
-               "thing/numbery" "200"
-               "thing/selecty" "Good"
-               "thing/multiy" ["Foo" "Bar"]
-               "thing/refy" ["" "1" "2"]
-               ;; back references are computed on read, so they are never saved
-               "thing/back-refy" ["" "1"]}})
+    (testing "parses form params using each column component"
+      (let [response (save! "1" {"thing/texty" "New"
+                                 "thing/numbery" "200"
+                                 "thing/selecty" "Good"
+                                 "thing/multiy" ["Foo" "Bar"]
+                                 "thing/refy" ["" "1" "2"]
+                                 ;; back references are computed on read, so they are never saved
+                                 "thing/back-refy" ["" "1"]})]
+        (is (= {:entity/id "1"
+                :thing/texty "New"
+                :thing/numbery 200
+                :thing/selecty "Good"
+                :thing/multiy ["Foo" "Bar"]
+                :thing/refy ["1" "2"]}
+               (db/get-by-id :things "1")))
+        (is (= 204 (:status response))
+            "returns no content, so that the row which the user is editing does not change")))
 
-    (is (= {:entity/id "1"
-            :thing/texty "New"
-            :thing/numbery 200
-            :thing/selecty "Good"
-            :thing/multiy ["Foo" "Bar"]
-            :thing/refy ["1" "2"]}
-           (db/get-by-id :things "1")))))
+    (testing "saves only the fields which the form has"
+      (save! "1" {"thing/texty" "Newer"})
+      (is (= {:entity/id "1"
+              :thing/texty "Newer"
+              :thing/numbery 200
+              :thing/selecty "Good"
+              :thing/multiy ["Foo" "Bar"]
+              :thing/refy ["1" "2"]}
+             (db/get-by-id :things "1"))))
+
+    (testing "does not write to the database when nothing changed"
+      (let [collections-before @db/*collections
+            response (save! "1" {"thing/texty" "Newer"
+                                 "thing/numbery" "200"})]
+        (is (= 204 (:status response)))
+        (is (identical? collections-before @db/*collections))))
+
+    (testing "unknown rows"
+      (is (= 404 (:status (save! "2" {"thing/texty" "New"}))))
+      (is (nil? (db/get-by-id :things "2"))))))
+
+(deftest view-row-handler-test
+  (let [view! (fn [entity-id params]
+                ((spreadsheet/view-row-handler things-config)
+                 {:path-params {:entity-id entity-id}
+                  :params params}))]
+    (db/init-collection! :things [{:entity/id "1"
+                                   :thing/texty "Old"
+                                   :thing/numbery 100}])
+
+    (testing "saves the form params, and returns the saved row in view mode"
+      (let [response (view! "1" {"thing/texty" "New"})
+            row (.selectFirst (html/parse-table-fragment (:body response)) "tr")]
+        (is (= {:entity/id "1"
+                :thing/texty "New"
+                :thing/numbery 100}
+               (db/get-by-id :things "1")))
+        (is (.hasClass row "viewing"))
+        (is (= "New 100" (html/visualize-html (str row))))))
+
+    (testing "without form params, only returns the row in view mode"
+      (let [collections-before @db/*collections
+            response (view! "1" {})
+            row (.selectFirst (html/parse-table-fragment (:body response)) "tr")]
+        (is (identical? collections-before @db/*collections))
+        (is (= "New 100" (html/visualize-html (str row))))))
+
+    (testing "focuses the requested column"
+      (let [response (view! "1" {:focusIndex "1"})
+            cells (.select (html/parse-table-fragment (:body response)) "td")]
+        (is (= [false true false false false false]
+               (map #(.hasAttr ^Element % "autofocus") cells)))))
+
+    (testing "unknown rows"
+      (is (= 404 (:status (view! "2" {})))))))
 
 (deftest delete-row-handler-test
   (let [config (assoc things-config :target-configs {:things things-config})

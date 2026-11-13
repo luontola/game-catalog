@@ -1,6 +1,5 @@
 html {
     --page-bottom-margin: 5rem;
-    --marked-modified: #ffa033;
     /* Account for the floating add row button, when scrolling the just added row into view */
     scroll-padding-bottom: var(--page-bottom-margin);
 }
@@ -101,10 +100,6 @@ main {
     /* While a select's dropdown is open, the row may lose :focus-within */
     tr.editing:is(:focus-within, :has(:open)) {
         background-color: var(--marked);
-
-        &[data-modified="true"] {
-            background-color: var(--marked-modified);
-        }
     }
 
     /* Row number counter.

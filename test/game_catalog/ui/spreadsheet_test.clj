@@ -165,8 +165,8 @@
 (deftest edit-mode-test
   (let [keyboard (.keyboard browser/*page*)
         cell-1a (browser/locator "text=Cell 1A")
-        saved [{:method "POST", :path "/spreadsheet/things/1/save"}]
-        cancelled [{:method "POST", :path "/spreadsheet/things/1/view"}]]
+        ;; Exiting edit mode saves the row in the same request
+        exited [{:method "POST", :path "/spreadsheet/things/1/view"}]]
 
     (with-fixtures [data-fixture]
       (testing "double-click enters edit mode"
@@ -194,7 +194,7 @@
         (.click (browser/locator "text=Cell 2A"))
         (wait-for-view-mode)
 
-        (is (= saved @browser/*request-log))
+        (is (= exited @browser/*request-log))
         (is (= (html/normalize-whitespace "
               ID  Alfa      Bravo    Charlie
               1   Modified  Cell 1B  Cell 1C
@@ -203,7 +203,7 @@
                (html/visualize-html (browser/locator "table"))))
         (is (= "Cell 2A" (html/visualize-html (browser/focused-element)))))
 
-      (testing "focus loss exits edit mode without saving when there are no changes"
+      (testing "focus loss exits edit mode when there are no changes"
         (.dblclick (browser/locator "text=Modified"))
         (wait-for-edit-mode)
         (reset! browser/*request-log [])
@@ -211,7 +211,7 @@
         (.click (browser/locator "text=Cell 2A"))
         (wait-for-view-mode)
 
-        (is (= cancelled @browser/*request-log))
+        (is (= exited @browser/*request-log))
         (is (= "Cell 2A" (html/visualize-html (browser/focused-element))))))
 
     (with-fixtures [data-fixture]
@@ -231,10 +231,10 @@
           (.press keyboard "Enter")
           (wait-for-view-mode)
 
-          (is (= saved @browser/*request-log))
+          (is (= exited @browser/*request-log))
           (is (= "Modified" (html/visualize-html (browser/focused-element)))))
 
-        (testing "exits edit mode without saving when there are no changes"
+        (testing "exits edit mode when there are no changes"
           (.press keyboard "Enter")
           (wait-for-edit-mode)
           (reset! browser/*request-log [])
@@ -242,7 +242,7 @@
           (.press keyboard "Enter")
           (wait-for-view-mode)
 
-          (is (= cancelled @browser/*request-log))
+          (is (= exited @browser/*request-log))
           (is (= "Modified" (html/visualize-html (browser/focused-element)))))))
 
     (with-fixtures [data-fixture]
@@ -262,10 +262,10 @@
           (.press keyboard "F2")
           (wait-for-view-mode)
 
-          (is (= saved @browser/*request-log))
+          (is (= exited @browser/*request-log))
           (is (= "Modified" (html/visualize-html (browser/focused-element)))))
 
-        (testing "exits edit mode without saving when there are no changes"
+        (testing "exits edit mode when there are no changes"
           (.press keyboard "F2")
           (wait-for-edit-mode)
           (reset! browser/*request-log [])
@@ -273,7 +273,7 @@
           (.press keyboard "F2")
           (wait-for-view-mode)
 
-          (is (= cancelled @browser/*request-log))
+          (is (= exited @browser/*request-log))
           (is (= "Modified" (html/visualize-html (browser/focused-element)))))))
 
     (with-fixtures [data-fixture]
@@ -287,10 +287,10 @@
           (.press keyboard "Escape")
           (wait-for-view-mode)
 
-          (is (= saved @browser/*request-log))
+          (is (= exited @browser/*request-log))
           (is (= "Modified" (html/visualize-html (browser/focused-element)))))
 
-        (testing "exits edit mode without saving when there are no changes"
+        (testing "exits edit mode when there are no changes"
           (.press keyboard "Enter")
           (wait-for-edit-mode)
           (reset! browser/*request-log [])
@@ -298,7 +298,7 @@
           (.press keyboard "Escape")
           (wait-for-view-mode)
 
-          (is (= cancelled @browser/*request-log))
+          (is (= exited @browser/*request-log))
           (is (= "Modified" (html/visualize-html (browser/focused-element)))))))
 
     (testing "double-submit guard:"
@@ -313,7 +313,7 @@
           (.press keyboard "Enter")
           (wait-for-view-mode)
 
-          (is (= saved @browser/*request-log))))
+          (is (= exited @browser/*request-log))))
 
       (with-fixtures [data-fixture]
         (testing "pressing Escape twice quickly only submits once"
@@ -326,7 +326,7 @@
           (.press keyboard "Escape")
           (wait-for-view-mode)
 
-          (is (= saved @browser/*request-log)))))))
+          (is (= exited @browser/*request-log)))))))
 
 (deftest adding-rows-test
   (let [keyboard (.keyboard browser/*page*)]

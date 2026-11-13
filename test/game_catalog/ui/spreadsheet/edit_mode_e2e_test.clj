@@ -5,7 +5,7 @@
             [game-catalog.testing.browser :as browser]
             [game-catalog.ui.layout :as layout]
             [game-catalog.ui.spreadsheet :as spreadsheet])
-  (:import (com.microsoft.playwright Keyboard Locator$WaitForOptions Page$WaitForFunctionOptions TimeoutError)
+  (:import (com.microsoft.playwright Keyboard Locator$WaitForOptions Page$WaitForConditionOptions Page$WaitForFunctionOptions TimeoutError)
            (com.microsoft.playwright.options WaitForSelectorState)))
 
 (def things-config
@@ -138,56 +138,122 @@
     (is (= "5:0:INPUT" (wait-for-focus "5:0:INPUT")))
     (.waitFor (browser/locator "tr.viewing[id='1']"))
     (is (= [{:method "POST", :path "/spreadsheet/things/create"}
-            {:method "POST", :path "/spreadsheet/things/1/save"}]
+            {:method "POST", :path "/spreadsheet/things/1/view"}]
            (post-requests)))
     (is (= "Grault" (:thing/foo (db/get-by-id :things "1"))))
     (is (= "5:0:INPUT" (focused)) "focus stays in the new row")))
 
-(deftest modified-detection-test
-  (testing "a value which was changed back to the original is not saved"
-    (.dblclick (browser/locator "td:text-is('Baz')"))
-    (wait-for-edit-mode)
-    (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
-    (press! "ArrowRight")
-    (.type (keyboard) "x")
-    (is (= "true" (.getAttribute (browser/locator "tr.editing") "data-modified"))
-        "highlights the modified row")
-    (press! "Backspace")
-    (is (= "false" (.getAttribute (browser/locator "tr.editing") "data-modified"))
-        "removes the highlight when the change is reverted")
-    (reset! browser/*request-log [])
+(defn- wait-for-saved
+  "Waits until the entity has the expected values, and returns its values."
+  [expected]
+  (let [saved #(select-keys (db/get-by-id :things "1") (keys expected))]
+    (try
+      (.waitForCondition browser/*page*
+                         #(= expected (saved))
+                         (-> (Page$WaitForConditionOptions.)
+                             (.setTimeout 1000)))
+      (catch TimeoutError _))
+    (saved)))
 
-    (press! "Enter")
-    (wait-for-view-mode)
-    (is (= [{:method "POST", :path "/spreadsheet/things/1/view"}]
-           (post-requests))))
+(def ^:private autosaved {:method "POST", :path "/spreadsheet/things/1/save"})
+(def ^:private exited {:method "POST", :path "/spreadsheet/things/1/view"})
 
-  (testing "inputs which are not part of the form don't modify the row"
-    (.dblclick (browser/locator "td:text-is('Baz')"))
-    (wait-for-edit-mode)
+(deftest autosave-test
+  (.dblclick (browser/locator "td:text-is('Baz')"))
+  (wait-for-edit-mode)
+  (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
+  (reset! browser/*request-log [])
+
+  (testing "moving to another field without changes does not save"
+    (press! "Tab")
+    (is (= "1:1:INPUT" (wait-for-focus "1:1:INPUT")))
+    (press! "Shift+Tab")
     (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
-    (.evaluate browser/*page* "() => {
-      const input = document.createElement('input');
-      document.querySelector('tr.editing td').append(input);
-      input.focus();
-    }")
+    (is (= [] (post-requests))))
+
+  (testing "moving to another field saves the changes, and stays in edit mode"
+    (press! "ControlOrMeta+a")
     (.type (keyboard) "Grault")
+    (press! "Tab")
+    (is (= {:thing/foo "Grault"} (wait-for-saved {:thing/foo "Grault"})))
+    (is (= [autosaved] (post-requests)))
+    (is (= "1:1:INPUT" (focused)))
+    (is (= "1" (.getAttribute (browser/locator "tr.editing") "data-entity-id"))))
+
+  (testing "exiting edit mode saves the field which has the focus"
+    (press! "ControlOrMeta+a")
+    (.type (keyboard) "Garply")
     (reset! browser/*request-log [])
 
     (press! "Enter")
     (wait-for-view-mode)
-    (is (= [{:method "POST", :path "/spreadsheet/things/1/view"}]
-           (post-requests))))
+    (is (= [exited] (post-requests)))
+    (is (= {:thing/foo "Grault", :thing/bar "Garply"}
+           (wait-for-saved {:thing/foo "Grault", :thing/bar "Garply"}))))
 
-  (testing "changes made by scripts are saved, even without input events"
-    (.dblclick (browser/locator "td:text-is('Baz')"))
+  (testing "changes made by scripts are saved when exiting edit mode, even without change events"
+    (press! "Enter")
     (wait-for-edit-mode)
-    (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
-    (.evaluate browser/*page* "() => document.activeElement.value = 'Grault'")
+    (is (= "1:1:INPUT" (wait-for-focus "1:1:INPUT")))
+    (.evaluate browser/*page* "() => document.activeElement.value = 'Waldo'")
     (reset! browser/*request-log [])
 
     (press! "Enter")
     (wait-for-view-mode)
-    (is (= [{:method "POST", :path "/spreadsheet/things/1/save"}]
-           (post-requests)))
-    (is (= "Grault" (:thing/foo (db/get-by-id :things "1"))))))
+    (is (= [exited] (post-requests)))
+    (is (= "Waldo" (:thing/bar (db/get-by-id :things "1"))))))
+
+(deftest autosave-order-test
+  (.dblclick (browser/locator "td:text-is('Baz')"))
+  (wait-for-edit-mode)
+  (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
+  ;; Saving does not finish until the test opens the gate,
+  ;; so that the test can make more changes while a save is in progress
+  (.evaluate browser/*page* "() => {
+    const fetch = window.fetch;
+    window.saveGate = new Promise(resolve => window.openSaveGate = resolve);
+    window.activeSaves = 0;
+    window.maxActiveSaves = 0;
+    window.fetch = async (url, ...args) => {
+      if (!String(url).endsWith('/save')) {
+        return fetch(url, ...args);
+      }
+      window.activeSaves++;
+      window.maxActiveSaves = Math.max(window.maxActiveSaves, window.activeSaves);
+      try {
+        await window.saveGate;
+        return await fetch(url, ...args);
+      } finally {
+        window.activeSaves--;
+      }
+    };
+  }")
+  (reset! browser/*request-log [])
+  (let [change-field! (fn [value next-field-key]
+                        (press! "ControlOrMeta+a")
+                        (.type (keyboard) value)
+                        (press! next-field-key)
+                        ;; The save starts in a timer, so wait for the timers which are already queued
+                        (.evaluate browser/*page* "() => new Promise(resolve => setTimeout(resolve, 0))"))]
+    (change-field! "Foo 1" "Tab")
+    (change-field! "Bar 1" "Shift+Tab")
+    (change-field! "Foo 2" "Tab"))
+  (is (= {:thing/foo "Baz", :thing/bar "Qux"}
+         (select-keys (db/get-by-id :things "1") [:thing/foo :thing/bar]))
+      "the test should have made all the changes before the first save finishes")
+
+  (.evaluate browser/*page* "() => window.openSaveGate()")
+
+  (testing "the newest values are saved last"
+    (is (= {:thing/foo "Foo 2", :thing/bar "Bar 1"}
+           (wait-for-saved {:thing/foo "Foo 2", :thing/bar "Bar 1"}))))
+
+  (testing "saves are sent one at a time, so that an old save cannot overwrite a newer one"
+    (is (= 1 (.evaluate browser/*page* "() => window.maxActiveSaves"))))
+
+  (testing "of the saves which wait for their turn, only the newest is sent"
+    (is (= [autosaved autosaved] (post-requests))))
+
+  (testing "saving does not disturb editing"
+    (is (= "1:1:INPUT" (focused)))
+    (is (= "Bar 1" (.evaluate browser/*page* "() => document.activeElement.value")))))

@@ -3,39 +3,6 @@
 const spreadsheetRow = '.spreadsheet > tbody > tr'
 const spreadsheetCell = `${spreadsheetRow} > td`
 
-// A row is modified when its form data differs from when the row got focus.
-// Comparing the data instead of tracking input events also notices changes
-// made by scripts, and ignores inputs which are not part of the form.
-const initialFormData = new WeakMap()
-
-function serializeForm(row) {
-    const form = row.querySelector('form')
-    return new URLSearchParams(new FormData(form)).toString()
-}
-
-document.addEventListener('focusin', (e) => {
-    const row = e.target.closest(`${spreadsheetRow}.editing`)
-    if (row && !initialFormData.has(row)) {
-        initialFormData.set(row, serializeForm(row))
-    }
-})
-
-function isFormModified(row) {
-    return initialFormData.has(row) && initialFormData.get(row) !== serializeForm(row)
-}
-
-// Highlight modified rows. Scripts which change the form should dispatch
-// a change event, but saving the row doesn't depend on it.
-function updateModifiedHighlight(e) {
-    const row = e.target.closest(`${spreadsheetRow}.editing`)
-    if (row) {
-        row.dataset.modified = isFormModified(row)
-    }
-}
-
-document.addEventListener('input', updateModifiedHighlight)
-document.addEventListener('change', updateModifiedHighlight)
-
 function getEntityInfo(row) {
     const entityType = row.dataset.entityType
     const entityId = row.dataset.entityId
@@ -52,31 +19,22 @@ function enterEditMode(row, cell) {
     })
 }
 
-function saveAndExitEditMode(row, cell = null) {
-    // This function can be called twice for the same row,
-    // by the Enter/F2 keyboard handler and the focus-loss click handler,
-    // so we must guard against duplicate form submit attempts.
-    if (row.dataset.exiting === 'true') {
-        return
-    }
-    row.dataset.exiting = 'true'
+// Every request from a row's form sends all the fields of the row.
+// The form's hx-sync attribute sends them one at a time, in order,
+// so that an old save cannot overwrite a newer one.
 
+function saveRow(row) {
     const {entityType, entityId} = getEntityInfo(row)
-    const form = row.querySelector('form')
-    const values = {}
-    if (cell) {
-        values.focusIndex = cell.cellIndex
-    }
-
     htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/save`, {
-        source: form,
-        target: row,
-        swap: 'outerHTML',
-        values
+        source: row.querySelector('form'),
+        swap: 'none'
     })
 }
 
-function cancelEditMode(row, cell = null) {
+function saveAndExitEditMode(row, cell = null) {
+    // This function can be called twice for the same row,
+    // by the keyboard handler and the focus-loss handler,
+    // so we must guard against duplicate form submit attempts.
     if (row.dataset.exiting === 'true') {
         return
     }
@@ -88,11 +46,31 @@ function cancelEditMode(row, cell = null) {
         values.focusIndex = cell.cellIndex
     }
     htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/view`, {
+        source: row.querySelector('form'),
         target: row,
         swap: 'outerHTML',
-        values: values
+        values
     })
 }
+
+// Autosave: a row in edit mode is saved every time one of its fields changes,
+// and the row stays in edit mode. Text fields fire the change event when they
+// lose focus. Scripts which change the form must dispatch a change event.
+document.addEventListener('change', (e) => {
+    const row = e.target.closest(`${spreadsheetRow}.editing`)
+    if (!row || e.target.closest('.reference-picker')) {
+        // The reference picker's search field is not part of the row's form
+        return
+    }
+    // Wait for the focus to move, to know whether the focus is leaving the row
+    setTimeout(() => {
+        if (row.dataset.exiting === 'true' || !row.contains(document.activeElement)) {
+            // Exiting edit mode saves the row
+            return
+        }
+        saveRow(row)
+    }, 0)
+})
 
 function focusCell(cell) {
     // In edit mode, editors mark their main form element with the class.
@@ -190,7 +168,7 @@ document.addEventListener('keydown', (e) => {
         return
     }
     // The new row gets the focus in the same column as the focused cell.
-    // Focus loss will save or cancel any row which is in edit mode.
+    // Focus loss will save any row which is in edit mode.
     const cell = e.target.closest(spreadsheetCell)
     htmx.ajax('POST', button.getAttribute('hx-post'), {
         source: button,
@@ -236,13 +214,7 @@ document.addEventListener('keydown', (e) => {
             return
         }
         if (e.key === 'Enter' || e.key === 'F2' || e.key === 'Escape') {
-            // Exit edit mode and save changes (only if modified).
-            // Also Escape saves, because there is no way to discard changes.
-            if (isFormModified(row)) {
-                saveAndExitEditMode(row, cell)
-            } else {
-                cancelEditMode(row, cell)
-            }
+            saveAndExitEditMode(row, cell)
             e.preventDefault()
             return
         }
@@ -291,11 +263,7 @@ document.addEventListener('focusout', (e) => {
     setTimeout(() => {
         const newFocus = document.activeElement
         if (!row.contains(newFocus)) {
-            if (isFormModified(row)) {
-                saveAndExitEditMode(row)
-            } else {
-                cancelEditMode(row)
-            }
+            saveAndExitEditMode(row)
         }
     }, 0)
 })

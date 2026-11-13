@@ -7,7 +7,7 @@
             [game-catalog.ui.layout :as layout]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.reference :as reference])
-  (:import (com.microsoft.playwright Dialog Keyboard Locator Locator$WaitForOptions Page$WaitForFunctionOptions TimeoutError)
+  (:import (com.microsoft.playwright Dialog Keyboard Locator Locator$WaitForOptions Page$WaitForConditionOptions Page$WaitForFunctionOptions TimeoutError)
            (com.microsoft.playwright.options WaitForSelectorState)))
 
 (def things-config
@@ -235,6 +235,20 @@
 (defn- post-requests []
   (filterv #(= "POST" (:method %)) @browser/*request-log))
 
+(defn- wait-for-saved
+  "Waits until the entity has the expected values, and returns its values."
+  [expected]
+  (let [saved #(select-keys (db/get-by-id :things "1") (keys expected))]
+    (try
+      (.waitForCondition browser/*page*
+                         #(= expected (saved))
+                         (-> (Page$WaitForConditionOptions.)
+                             (.setTimeout 1000)))
+      (catch TimeoutError _))
+    (saved)))
+
+(def ^:private autosaved {:method "POST", :path "/spreadsheet/things/1/save"})
+
 (defn- visible-icons [^Locator cell]
   (mapv #(.getAttribute ^Locator % "aria-label")
         (.all (.locator cell ".pill-button [role=img]:visible"))))
@@ -256,27 +270,26 @@
     (testing "the button of a single-value column shows the replace icon when it has a value"
       (is (= ["Replace"] (visible-icons ref-cell))))
 
-    (testing "Enter on a remove button removes the pill, and does not exit edit mode"
+    (testing "Enter on a remove button removes the pill, saves the row, and does not exit edit mode"
       (press! "Shift+Tab")
       (is (browser/has-focus? (.locator refs-cell ".pill-remove[aria-label='Remove Charlie']")) (browser/focused-element))
       (press! "Enter")
       (is (= 1 (.count (.locator refs-cell ".reference-editor > .pill"))))
       (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
-      (is (= "true" (.getAttribute row "data-modified")))
-      (is (= 0 (count (post-requests)))))
+      (is (= {:thing/refs ["2"]} (wait-for-saved {:thing/refs ["2"]})))
+      (is (= [autosaved] (post-requests))))
 
-    (testing "clicking a remove button removes the pill, and does not exit edit mode"
+    (testing "clicking a remove button removes the pill, saves the row, and does not exit edit mode"
       (.click (.locator ref-cell ".pill-remove"))
       (is (= 0 (.count (.locator ref-cell ".reference-editor > .pill"))))
       (is (browser/has-focus? (.locator ref-cell ".pill-button")) (browser/focused-element))
       (is (= ["Add"] (visible-icons ref-cell)))
-      (is (= 0 (count (post-requests)))))
+      (is (= {:thing/ref nil} (wait-for-saved {:thing/ref nil})))
+      (is (= [autosaved autosaved] (post-requests))))
 
-    (testing "exiting edit mode saves the removals"
+    (testing "exiting edit mode keeps the removals"
       (press! "F2")
       (wait-for-view-mode)
-      (is (= [{:method "POST", :path "/spreadsheet/things/1/save"}]
-             (post-requests)))
       (is (= {:thing/refs ["2"], :thing/ref nil}
              (select-keys (db/get-by-id :things "1") [:thing/refs :thing/ref]))))))
 
@@ -338,17 +351,17 @@
       (press! "Backspace")
       (is (= "Name Refs Ref Delta Create del" (wait-for-picker-results "Name Refs Ref Delta Create del"))))
 
-    (testing "Enter adds the highlighted entity, and closes the picker"
+    (testing "Enter adds the highlighted entity, closes the picker, and saves the row"
       (press! "Enter")
       (wait-for-picker-closed)
       (is (= ["Bravo×" "Charlie×" "Delta×"] (vec (.allTextContents (.locator refs-cell ".reference-editor > .pill")))))
       (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
-      (is (= "true" (.getAttribute row "data-modified"))))
+      (is (= {:thing/refs ["2" "3" "4"]} (wait-for-saved {:thing/refs ["2" "3" "4"]}))))
 
     (testing "Escape closes the picker, but does not exit edit mode"
       (press! "Enter")
-      (is (= "Name Refs Ref Alfa Bravo, Charlie Bravo"
-             (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie Bravo")))
+      (is (= "Name Refs Ref Alfa Bravo, Charlie, Delta Bravo"
+             (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie, Delta Bravo")))
       (press! "Escape")
       (wait-for-picker-closed)
       (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
@@ -356,7 +369,7 @@
 
     (testing "clicking outside the picker closes it, but does not exit edit mode"
       (.click (.locator refs-cell ".pill-button"))
-      (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie Bravo")
+      (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie, Delta Bravo")
       (.click (.mouse browser/*page*) 1 1)
       (wait-for-picker-closed)
       (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
@@ -364,27 +377,29 @@
 
     (testing "the close button closes the picker, but does not exit edit mode"
       (.click (.locator refs-cell ".pill-button"))
-      (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie Bravo")
+      (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie, Delta Bravo")
       (is (= "Search Refs" (.getAttribute search "placeholder")))
       (.click (browser/locator ".reference-picker[open] .reference-picker-close"))
       (wait-for-picker-closed)
       (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
       (is (= 1 (.count row))))
 
-    (testing "clicking a result in a single-value column replaces the value"
+    (testing "clicking a result in a single-value column replaces the value, and saves the row"
       (.click (.locator ref-cell ".pill-button"))
-      (is (= "Name Refs Ref Alfa Bravo, Charlie Bravo Charlie Delta"
-             (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie Bravo Charlie Delta")))
+      (is (= "Name Refs Ref Alfa Bravo, Charlie, Delta Bravo Charlie Delta"
+             (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie, Delta Bravo Charlie Delta")))
       (.click (browser/locator ".reference-picker[open] tr:has(td:text-is('Charlie'))"))
       (wait-for-picker-closed)
       (is (= ["Charlie×"] (vec (.allTextContents (.locator ref-cell ".reference-editor > .pill")))))
-      (is (browser/has-focus? (.locator ref-cell ".pill-button")) (browser/focused-element)))
+      (is (browser/has-focus? (.locator ref-cell ".pill-button")) (browser/focused-element))
+      (is (= {:thing/ref "3"} (wait-for-saved {:thing/ref "3"}))))
 
-    (testing "picking does not make requests other than searching"
-      (is (= #{"/spreadsheet/things/reference-search"}
-             (set (map :path (post-requests))))))
+    (testing "only picking saves the row; searching and closing the picker do not"
+      (is (= [autosaved autosaved]
+             (remove #(= "/spreadsheet/things/reference-search" (:path %))
+                     (post-requests)))))
 
-    (testing "exiting edit mode saves the picked references"
+    (testing "exiting edit mode keeps the picked references"
       (press! "F2")
       (wait-for-view-mode)
       (is (= {:thing/refs ["2" "3" "4"], :thing/ref "3"}
@@ -426,7 +441,8 @@
       (is (= ["Bravo×" "Charlie×" "Delta Doe×"] (vec (.allTextContents (.locator refs-cell ".reference-editor > .pill")))))
       (is (= {:entity/id "5", :thing/name "Delta Doe"} (db/get-by-id :things "5")))
       (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
-      (is (= "true" (.getAttribute row "data-modified"))))
+      (is (= {:thing/refs ["2" "3" "5"]} (wait-for-saved {:thing/refs ["2" "3" "5"]}))
+          "saves the reference to the created entity"))
 
     (testing "clicking the create option in a single-value column replaces the value"
       (.click (.locator ref-cell ".pill-button"))
@@ -435,9 +451,11 @@
       (.click (browser/locator ".reference-picker[open] .reference-create"))
       (wait-for-picker-closed)
       (.waitFor (.locator ref-cell ".reference-editor > .pill:has-text('Echo')"))
-      (is (= ["Echo×"] (vec (.allTextContents (.locator ref-cell ".reference-editor > .pill"))))))
+      (is (= ["Echo×"] (vec (.allTextContents (.locator ref-cell ".reference-editor > .pill")))))
+      (is (= {:thing/ref "6"} (wait-for-saved {:thing/ref "6"}))
+          "saves the reference to the created entity"))
 
-    (testing "exiting edit mode saves the references to the created entities"
+    (testing "exiting edit mode keeps the references to the created entities"
       (press! "F2")
       (wait-for-view-mode)
       (is (= {:thing/refs ["2" "3" "5"], :thing/ref "6"}

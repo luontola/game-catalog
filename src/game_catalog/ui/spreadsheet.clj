@@ -124,7 +124,12 @@
         ;; It must be the last <td>, so that the cell indexes match the column
         ;; indexes, which the focusIndex parameter is based on.
         [:td.form-element-container
-         [:form {:id form-id}]]]))))
+         [:form {:id form-id
+                 ;; Every request from the form saves the whole row, so the requests
+                 ;; are sent one at a time. Otherwise an old save, which arrives late,
+                 ;; could overwrite a newer one. Of the waiting requests, only the last
+                 ;; one is sent, because it has the newest values of all the fields.
+                 :hx-sync "queue last"}]]]))))
 
 (defn table [config]
   (let [entities (->> (db/get-all (:collection-key config))
@@ -150,16 +155,54 @@
         [:button#context-menu-delete {:onclick "this.clickHandler()"}
          "Delete row"]]])))
 
-(defn view-row-handler [config]
+(defn- editable-columns [config]
+  (->> (:columns config)
+       (map with-defaults)
+       (remove :column/read-only?)))
+
+(defn- form-updates [config params]
+  (->> (editable-columns config)
+       (mapcat (fn [column]
+                 ((:column/parse-form-params column) params column)))
+       (into {})))
+
+(defn- save-form!
+  "Saves the form fields which the request has. Returns the up-to-date entity,
+   or nil if the entity doesn't exist."
+  [config request]
+  (let [collection-key (:collection-key config)
+        entity-id (get-in request [:path-params :entity-id])]
+    (when-some [old-entity (db/get-by-id collection-key entity-id)]
+      (let [new-entity (merge old-entity (form-updates config (:params request)))]
+        ;; Rows are saved often and usually only one field has changed, or none.
+        ;; Every write would invalidate the database's reverse indexes, so avoid
+        ;; writes if the data has not changed.
+        (when (not= old-entity new-entity)
+          (db/save! collection-key new-entity)
+          (log/info (str "Saved " (name collection-key) " " entity-id ":")
+                    (pr-str new-entity)))
+        new-entity))))
+
+(defn- row-not-found []
+  (-> (html/response "Row not found")
+      (response/status 404)))
+
+(defn save-row-handler
+  "Saves the row, without changing what the user sees."
+  [config]
   (fn [request]
-    (let [collection-key (:collection-key config)
-          entity-id (get-in request [:path-params :entity-id])
-          focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
-          entity (db/get-by-id collection-key entity-id)]
-      (if entity
+    (if (save-form! config request)
+      (http-response/no-content)
+      (row-not-found))))
+
+(defn view-row-handler
+  "Saves the row, if the request has its form fields, and exits edit mode."
+  [config]
+  (fn [request]
+    (let [focus-index (some-> (get-in request [:params :focusIndex]) parse-long)]
+      (if-some [entity (save-form! config request)]
         (html/response (view-row config entity focus-index))
-        (-> (html/response "Row not found")
-            (response/status 404))))))
+        (row-not-found)))))
 
 (defn edit-row-handler [config]
   (fn [request]
@@ -169,8 +212,7 @@
           entity (db/get-by-id collection-key entity-id)]
       (if entity
         (html/response (edit-row config entity focus-index))
-        (-> (html/response "Row not found")
-            (response/status 404))))))
+        (row-not-found)))))
 
 (defn sequential-id-generator [collection-key]
   (let [entities (db/get-all collection-key)
@@ -182,17 +224,6 @@
 
 (defn uuid-id-generator [_collection-key]
   (str (UUID/randomUUID)))
-
-(defn- editable-columns [config]
-  (->> (:columns config)
-       (map with-defaults)
-       (remove :column/read-only?)))
-
-(defn- form-updates [config params]
-  (->> (editable-columns config)
-       (mapcat (fn [column]
-                 ((:column/parse-form-params column) params column)))
-       (into {})))
 
 (defn- blank-entity
   "The same field values as saving a form where the user entered nothing."
@@ -221,20 +252,6 @@
       (db/save! collection-key entity)
       (log/info (str "Created " (name collection-key) " " (:entity/id entity)))
       (html/response (edit-row config entity focus-index)))))
-
-(defn save-row-handler [config]
-  (fn [request]
-    (let [collection-key (:collection-key config)
-          entity-id (get-in request [:path-params :entity-id])
-          focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
-          updates (form-updates config (:params request))
-          old-entity (or (db/get-by-id collection-key entity-id)
-                         (http-response/not-found! "Row not found"))
-          new-entity (merge old-entity updates)]
-      (db/save! collection-key new-entity)
-      (log/info (str "Saved " (name collection-key) " " (:entity/id new-entity) ":")
-                (pr-str new-entity))
-      (html/response (view-row config new-entity focus-index)))))
 
 (defn delete-row-handler [config]
   (fn [request]

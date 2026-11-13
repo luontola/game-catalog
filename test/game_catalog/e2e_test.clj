@@ -60,14 +60,15 @@
     (let [status-select (browser/locator "tr.editing select[name='game/status']")]
       (is (= "Backlog" (.inputValue status-select)))
 
-      (.selectOption status-select "Completed")
       (reset! browser/*request-log [])
+      (.selectOption status-select "Completed")
       (.click (browser/locator "text=Portal 2"))
       (.waitFor (browser/locator "tr.editing")
                 (-> (Locator$WaitForOptions.)
                     (.setState WaitForSelectorState/HIDDEN)))
 
-      (is (= [{:method "POST", :path "/spreadsheet/games/3/save"}]
+      (is (= [{:method "POST", :path "/spreadsheet/games/3/save"} ; changing the selection
+              {:method "POST", :path "/spreadsheet/games/3/view"}] ; exiting edit mode
              @browser/*request-log))
       (is (= "Completed"
              (:game/status (db/get-by-id :games "3")))))))
