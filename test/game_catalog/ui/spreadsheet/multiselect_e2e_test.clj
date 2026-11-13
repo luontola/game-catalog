@@ -131,5 +131,6 @@
       (.press keyboard "Escape")
       (wait-for-view-mode)
 
-      (is (= [{:method "POST", :path "/spreadsheet/things/1/view"}]
+      ;; Enter in the dropdown changed the selection, so there are changes to save
+      (is (= [{:method "POST", :path "/spreadsheet/things/1/save"}]
              @browser/*request-log)))))

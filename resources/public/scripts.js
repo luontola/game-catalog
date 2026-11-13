@@ -235,18 +235,14 @@ document.addEventListener('keydown', (e) => {
             // Let the browser click the focused button
             return
         }
-        if (e.key === 'Enter' || e.key === 'F2') {
-            // Exit edit mode and save changes (only if modified)
+        if (e.key === 'Enter' || e.key === 'F2' || e.key === 'Escape') {
+            // Exit edit mode and save changes (only if modified).
+            // Also Escape saves, because there is no way to discard changes.
             if (isFormModified(row)) {
                 saveAndExitEditMode(row, cell)
             } else {
                 cancelEditMode(row, cell)
             }
-            e.preventDefault()
-            return
-        } else if (e.key === 'Escape') {
-            // Cancel edit mode without saving
-            cancelEditMode(row, cell)
             e.preventDefault()
             return
         }

@@ -277,17 +277,29 @@
           (is (= "Modified" (html/visualize-html (browser/focused-element)))))))
 
     (with-fixtures [data-fixture]
-      (testing "Escape key discards changes and exits edit mode"
-        (.dblclick cell-1a)
-        (wait-for-edit-mode)
-        (.type keyboard "Discarded")
-        (reset! browser/*request-log [])
+      (testing "Escape key:"
+        (testing "saves changes and exits edit mode"
+          (.dblclick cell-1a)
+          (wait-for-edit-mode)
+          (.type keyboard "Modified")
+          (reset! browser/*request-log [])
 
-        (.press keyboard "Escape")
-        (wait-for-view-mode)
+          (.press keyboard "Escape")
+          (wait-for-view-mode)
 
-        (is (= cancelled @browser/*request-log))
-        (is (= "Cell 1A" (html/visualize-html (browser/focused-element))))))
+          (is (= saved @browser/*request-log))
+          (is (= "Modified" (html/visualize-html (browser/focused-element)))))
+
+        (testing "exits edit mode without saving when there are no changes"
+          (.press keyboard "Enter")
+          (wait-for-edit-mode)
+          (reset! browser/*request-log [])
+
+          (.press keyboard "Escape")
+          (wait-for-view-mode)
+
+          (is (= cancelled @browser/*request-log))
+          (is (= "Modified" (html/visualize-html (browser/focused-element)))))))
 
     (testing "double-submit guard:"
       (with-fixtures [data-fixture]
@@ -304,17 +316,17 @@
           (is (= saved @browser/*request-log))))
 
       (with-fixtures [data-fixture]
-        (testing "pressing Escape twice quickly only cancels once"
+        (testing "pressing Escape twice quickly only submits once"
           (.dblclick cell-1a)
           (wait-for-edit-mode)
-          (.type keyboard "Discarded")
+          (.type keyboard "Modified")
           (reset! browser/*request-log [])
 
           (.press keyboard "Escape")
           (.press keyboard "Escape")
           (wait-for-view-mode)
 
-          (is (= cancelled @browser/*request-log)))))))
+          (is (= saved @browser/*request-log)))))))
 
 (deftest adding-rows-test
   (let [keyboard (.keyboard browser/*page*)]
