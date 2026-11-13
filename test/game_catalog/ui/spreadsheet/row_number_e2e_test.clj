@@ -34,10 +34,10 @@
 (use-fixtures :once (partial browser/fixture test-routes))
 
 (defn wait-for-edit-mode []
-  (.waitFor (browser/locator "tr.editing:not(.adding)")))
+  (.waitFor (browser/locator "tr.editing")))
 
 (defn wait-for-view-mode []
-  (.waitFor (browser/locator "tr.editing:not(.adding)")
+  (.waitFor (browser/locator "tr.editing")
             (-> (Locator$WaitForOptions.)
                 (.setState WaitForSelectorState/HIDDEN))))
 
@@ -77,10 +77,11 @@
 
 (defn add-row! [name]
   (let [keyboard (.keyboard browser/*page*)]
-    (.click (browser/locator "tr.adding input >> nth=0"))
+    (.click (browser/locator ".add-row-button"))
+    (wait-for-edit-mode)
     (.type keyboard name)
     (.press keyboard "Enter")
-    (.waitFor (browser/locator (str "text=" name)))))
+    (wait-for-view-mode)))
 
 (defn delete-row! [name]
   (browser/right-click (browser/locator (str "text=" name)))
@@ -99,37 +100,36 @@
               #  Name
               1  Alfa
               2  Bravo
-              3  Charlie
-                 []")
+              3  Charlie")
              (html/visualize-html (browser/locator "table"))))
-      (is (= ["# Name" "1 Alfa" "2 Bravo" "3 Charlie" ""]
+      (is (= ["# Name" "1 Alfa" "2 Bravo" "3 Charlie"]
              (visible-table-rows))))
 
     (testing "a row in edit mode keeps its row number"
       (.dblclick (browser/locator "text=Bravo"))
       (wait-for-edit-mode)
-      (is (= ["# Name" "1 Alfa" "2 Bravo" "3 Charlie" ""]
+      (is (= ["# Name" "1 Alfa" "2 Bravo" "3 Charlie"]
              (visible-table-rows))))
 
     (testing "a saved row keeps its row number"
       (.type keyboard "Modified")
       (.press keyboard "Enter")
       (wait-for-view-mode)
-      (is (= ["# Name" "1 Alfa" "2 Modified" "3 Charlie" ""]
+      (is (= ["# Name" "1 Alfa" "2 Modified" "3 Charlie"]
              (visible-table-rows))))
 
     (testing "added rows continue the numbering"
       (add-row! "Delta")
       (add-row! "Echo")
-      (is (= ["# Name" "1 Alfa" "2 Modified" "3 Charlie" "4 Delta" "5 Echo" ""]
+      (is (= ["# Name" "1 Alfa" "2 Modified" "3 Charlie" "4 Delta" "5 Echo"]
              (visible-table-rows))))
 
     (testing "deleting a row doesn't change the other row numbers"
       (delete-row! "Modified")
-      (is (= ["# Name" "1 Alfa" "3 Charlie" "4 Delta" "5 Echo" ""]
+      (is (= ["# Name" "1 Alfa" "3 Charlie" "4 Delta" "5 Echo"]
              (visible-table-rows))))
 
     (testing "reloading the page renumbers the rows"
       (.reload browser/*page*)
-      (is (= ["# Name" "1 Alfa" "2 Charlie" "3 Delta" "4 Echo" ""]
+      (is (= ["# Name" "1 Alfa" "2 Charlie" "3 Delta" "4 Echo"]
              (visible-table-rows))))))

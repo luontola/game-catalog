@@ -175,39 +175,28 @@ document.addEventListener('click', (e) => {
     }
 }, {capture: true})
 
-// Cmd-Enter moves focus to the adding row
+// Cmd-Enter adds a new row, the same as clicking the add row button
 document.addEventListener('keydown', (e) => {
     if (!(e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey)) {
         return
     }
-    const cell = e.target.closest(spreadsheetCell)
-    const table = cell?.closest('.spreadsheet') ?? document.querySelector('.spreadsheet')
-    if (!table) {
-        return
-    }
-    const addingRow = table.querySelector('tr.adding')
-    if (!addingRow) {
+    const button = document.querySelector('.add-row-button')
+    if (!button || isDropdownOpen(e.target)) {
         return
     }
     e.preventDefault()
-    if (addingRow.contains(e.target)) {
+    if (e.repeat) {
+        // Holding down the keys must not fill the table with blank rows
         return
     }
-    const cellIndex = cell ? cell.cellIndex : 0
-    // Focus loss will save or cancel any row which is in edit mode
-    focusAddingRow(table, cellIndex)
+    // The new row gets the focus in the same column as the focused cell.
+    // Focus loss will save or cancel any row which is in edit mode.
+    const cell = e.target.closest(spreadsheetCell)
+    htmx.ajax('POST', button.getAttribute('hx-post'), {
+        source: button,
+        values: cell ? {focusIndex: cell.cellIndex} : {}
+    })
 })
-
-function focusAddingRow(table, cellIndex) {
-    const addingRow = table.querySelector('tr.adding')
-    if (addingRow.dataset.exiting === 'true') {
-        // The adding row was saved or canceled, and it will soon be replaced
-        // with a new one. Focusing the old row would lose the focus on swap.
-        document.addEventListener('htmx:after:swap', () => focusAddingRow(table, cellIndex), {once: true})
-        return
-    }
-    focusCell(addingRow.cells[cellIndex])
-}
 
 function isDropdownOpen(element) {
     if (element.closest('dialog[open]')) {
@@ -257,16 +246,7 @@ document.addEventListener('keydown', (e) => {
             return
         } else if (e.key === 'Escape') {
             // Cancel edit mode without saving
-            const lastRow = row.previousElementSibling
-            if (row.classList.contains('adding') && lastRow) {
-                // The adding row is always in edit mode,
-                // so move focus to the grid to let the user navigate it
-                const cellIndex = cell.cellIndex
-                cancelEditMode(row)
-                focusCell(lastRow.cells[cellIndex])
-            } else {
-                cancelEditMode(row, cell)
-            }
+            cancelEditMode(row, cell)
             e.preventDefault()
             return
         }
@@ -294,8 +274,7 @@ document.addEventListener('keydown', (e) => {
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         const cellIndex = cell.cellIndex
         const targetRow = e.key === 'ArrowUp' ? row.previousElementSibling : row.nextElementSibling
-        // The adding row is reachable only with Cmd-Enter
-        if (targetRow && !targetRow.classList.contains('adding')) {
+        if (targetRow) {
             targetCell = targetRow.cells[cellIndex]
         }
     }
@@ -478,16 +457,6 @@ document.addEventListener('dblclick', (e) => {
     enterEditMode(row, cell)
 })
 
-// Scroll to bottom when the adding row receives focus
-document.addEventListener('focusin', (e) => {
-    if (e.target.closest(`${spreadsheetRow}.adding`)) {
-        window.scrollTo({
-            top: document.documentElement.scrollHeight,
-            behavior: 'instant'
-        })
-    }
-})
-
 // Avoid multiple autofocus attributes in the DOM after htmx swaps.
 // Otherwise, the first autofocus in the DOM always grabs the focus.
 document.addEventListener('focusin', e => {
@@ -560,7 +529,7 @@ if (contextMenu) {
             return
         }
         const row = cell.closest('tr')
-        // Don't show context menu for rows in edit mode (including the adding row)
+        // Don't show context menu for rows in edit mode
         if (row.classList.contains('editing')) {
             return
         }

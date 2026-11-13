@@ -36,10 +36,10 @@
 (use-fixtures :once (partial browser/fixture test-routes))
 
 (defn wait-for-edit-mode []
-  (.waitFor (browser/locator "tr.editing:not(.adding)")))
+  (.waitFor (browser/locator "tr.editing")))
 
 (defn wait-for-view-mode []
-  (.waitFor (browser/locator "tr.editing:not(.adding)")
+  (.waitFor (browser/locator "tr.editing")
             (-> (Locator$WaitForOptions.)
                 (.setState WaitForSelectorState/HIDDEN))))
 
@@ -53,20 +53,19 @@
     (testing "renders selected values"
       (is (= (html/normalize-whitespace "
               Name     Multiy
-              Example  Foo
-                       []       []")
+              Example  Foo")
              (html/visualize-html (browser/locator "table")))))
 
     (testing "saves multiple selected values"
       (.dblclick (browser/locator "td.column-multiselect:text-is('Foo')"))
       (wait-for-edit-mode)
 
-      (let [select (browser/locator "tr.editing:not(.adding) select[name='thing/multiy']")]
+      (let [select (browser/locator "tr.editing select[name='thing/multiy']")]
         (is (some? (.getAttribute select "multiple")))
         (is (= "1" (.getAttribute select "size"))))
 
       (.evaluate browser/*page* "
-        const select = document.querySelector(\"tr.editing:not(.adding) select[name='thing/multiy']\");
+        const select = document.querySelector(\"tr.editing select[name='thing/multiy']\");
         for (const option of select.options) {
           option.selected = ['Foo', 'Bar'].includes(option.value);
         }
@@ -84,17 +83,18 @@
       (is (= "Foo, Bar"
              (html/visualize-html (browser/locator "td.column-multiselect:text-is('Foo, Bar')")))))
 
-    (testing "Cmd-Enter focuses the select, not the hidden input, on the adding row"
+    (testing "Cmd-Enter focuses the select, not the hidden input, on the new row"
       (.click (browser/locator "td.column-multiselect:text-is('Foo, Bar')"))
       (.press keyboard "ControlOrMeta+Enter")
+      (wait-for-edit-mode)
 
-      (is (browser/has-focus? (browser/locator "tr.adding select[name='thing/multiy']"))
+      (is (browser/has-focus? (browser/locator "tr.editing select[name='thing/multiy']"))
           (browser/focused-element)))))
 
 (deftest multiselect-dropdown-test
   (let [keyboard (.keyboard browser/*page*)
-        row (browser/locator "tr.editing:not(.adding)")
-        select (browser/locator "tr.editing:not(.adding) select[name='thing/multiy']")
+        row (browser/locator "tr.editing")
+        select (browser/locator "tr.editing select[name='thing/multiy']")
         dropdown-open? #(.evaluate select "el => el.matches(':open')")
         exiting-edit-mode? #(= "true" (.getAttribute row "data-exiting"))]
     (db/init-collection! :things [{:entity/id "1"

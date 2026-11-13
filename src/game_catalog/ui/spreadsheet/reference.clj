@@ -29,8 +29,7 @@
 (defn- back-reference-ids [{:keys [column entity]}]
   (let [target-collection (:column/target-collection column)
         back-reference (:column/back-reference column)]
-    (when-some [id (:entity/id entity)]
-      (db/referring-ids target-collection back-reference id))))
+    (db/referring-ids target-collection back-reference (:entity/id entity))))
 
 (defn value [{:keys [column entity] :as ctx}]
   (if (:column/back-reference column)

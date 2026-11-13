@@ -59,10 +59,10 @@
 (use-fixtures :each data-fixture)
 
 (defn wait-for-edit-mode []
-  (.waitFor (browser/locator "tr.editing:not(.adding)")))
+  (.waitFor (browser/locator "tr.editing")))
 
 (defn wait-for-view-mode []
-  (.waitFor (browser/locator "tr.editing:not(.adding)")
+  (.waitFor (browser/locator "tr.editing")
             (-> (Locator$WaitForOptions.)
                 (.setState WaitForSelectorState/HIDDEN))))
 
@@ -75,8 +75,7 @@
               ID  Alfa     Bravo    Charlie
               1   Cell 1A  Cell 1B  Cell 1C
               2   Cell 2A  Cell 2B  Cell 2C
-              3   Cell 3A  Cell 3B  Cell 3C
-                  []       []       []")
+              3   Cell 3A  Cell 3B  Cell 3C")
              (html/visualize-html (browser/locator "table")))))
 
     (testing "clicking a cell gives it focus"
@@ -117,7 +116,12 @@
       (testing "right edge"
         (.click (browser/locator "text=Cell 2C"))
         (.press keyboard "ArrowRight")
-        (is (= "Cell 2C" (html/visualize-html (browser/focused-element))))))
+        (is (= "Cell 2C" (html/visualize-html (browser/focused-element)))))
+
+      (testing "bottom edge"
+        (.click (browser/locator "text=Cell 3A"))
+        (.press keyboard "ArrowDown")
+        (is (= "Cell 3A" (html/visualize-html (browser/focused-element))))))
 
     (testing "arrow keys with modifier keys should not navigate:"
       (.click (browser/locator "text=Cell 2B"))
@@ -137,28 +141,7 @@
 
       (testing "shift"
         (.press keyboard "Shift+ArrowRight")
-        (is (= "Cell 2B" (html/visualize-html (browser/focused-element))))))
-
-    (testing "arrow keys cannot navigate to or from the adding row:"
-      (testing "down from the last row"
-        (.click (browser/locator "text=Cell 3A"))
-        (.press keyboard "ArrowDown")
-        (is (= "Cell 3A" (html/visualize-html (browser/focused-element)))))
-
-      (testing "up from adding row"
-        (.click (browser/locator "tr.adding input >> nth=0"))
-        (.press keyboard "ArrowUp")
-        (is (= "[]" (html/visualize-html (browser/focused-element)))))
-
-      (testing "up from adding row's # column"
-        (.click (browser/locator "tr.adding td >> nth=0"))
-        (.press keyboard "ArrowUp")
-        (is (= "" (html/visualize-html (browser/focused-element)))))
-
-      (testing "cannot move beyond the bottom edge"
-        (.click (browser/locator "tr.adding input >> nth=0"))
-        (.press keyboard "ArrowDown")
-        (is (= "[]" (html/visualize-html (browser/focused-element))))))))
+        (is (= "Cell 2B" (html/visualize-html (browser/focused-element))))))))
 
 (deftest editor-navigation-test
   (let [keyboard (.keyboard browser/*page*)
@@ -194,8 +177,7 @@
               ID  Alfa       Bravo      Charlie
               1   [Cell 1A]  [Cell 1B]  [Cell 1C]
               2   Cell 2A    Cell 2B    Cell 2C
-              3   Cell 3A    Cell 3B    Cell 3C
-                  []         []         []")
+              3   Cell 3A    Cell 3B    Cell 3C")
                (html/visualize-html (browser/locator "table"))))
         (is (= "[Cell 1A]" (html/visualize-html (browser/focused-element)))))
 
@@ -217,8 +199,7 @@
               ID  Alfa      Bravo    Charlie
               1   Modified  Cell 1B  Cell 1C
               2   Cell 2A   Cell 2B  Cell 2C
-              3   Cell 3A   Cell 3B  Cell 3C
-                  []        []       []")
+              3   Cell 3A   Cell 3B  Cell 3C")
                (html/visualize-html (browser/locator "table"))))
         (is (= "Cell 2A" (html/visualize-html (browser/focused-element)))))
 
@@ -337,26 +318,50 @@
 
 (deftest adding-rows-test
   (let [keyboard (.keyboard browser/*page*)]
-    (.click (browser/locator "tr.adding input >> nth=0"))
-    (.type keyboard "Added A")
-    (.press keyboard "Tab")
-    (.type keyboard "Added B")
-    (.press keyboard "Tab")
-    (.type keyboard "Added C")
-    (.press keyboard "Enter")
-    (.waitFor (browser/locator "text=Added A"))
 
-    (testing "the added row goes last in the table"
+    (testing "clicking the add row button creates a blank row"
+      (reset! browser/*request-log [])
+
+      (.click (browser/locator ".add-row-button"))
+      (wait-for-edit-mode)
+
+      (is (= [{:method "POST", :path "/spreadsheet/things/create"}]
+             @browser/*request-log))
+      (is (= {:entity/id "4"
+              :thing/alfa ""
+              :thing/bravo ""
+              :thing/charlie ""}
+             (db/get-by-id :things "4"))))
+
+    (testing "the new row goes last in the table, in edit mode"
       (is (= (html/normalize-whitespace "
               ID  Alfa     Bravo    Charlie
               1   Cell 1A  Cell 1B  Cell 1C
               2   Cell 2A  Cell 2B  Cell 2C
               3   Cell 3A  Cell 3B  Cell 3C
-              4   Added A  Added B  Added C
-                  []       []       []")
+              4   []       []       []")
              (html/visualize-html (browser/locator "table")))))
 
-    (testing "the added row is focused"
+    (testing "the first editable cell of the new row is focused"
+      (is (browser/has-focus? (browser/locator "tr[id='4'] input[name='thing/alfa']"))
+          (browser/focused-element)))
+
+    (testing "the new row is edited and saved the same way as other rows"
+      (.type keyboard "Added A")
+      (.press keyboard "Tab")
+      (.type keyboard "Added B")
+      (.press keyboard "Tab")
+      (.type keyboard "Added C")
+      (.press keyboard "Enter")
+      (wait-for-view-mode)
+
+      (is (= (html/normalize-whitespace "
+              ID  Alfa     Bravo    Charlie
+              1   Cell 1A  Cell 1B  Cell 1C
+              2   Cell 2A  Cell 2B  Cell 2C
+              3   Cell 3A  Cell 3B  Cell 3C
+              4   Added A  Added B  Added C")
+             (html/visualize-html (browser/locator "table"))))
       (is (= "Added C" (html/visualize-html (browser/focused-element)))))
 
     (testing "reloading the page will sort the added row to its place"
@@ -366,76 +371,10 @@
               4   Added A  Added B  Added C
               1   Cell 1A  Cell 1B  Cell 1C
               2   Cell 2A  Cell 2B  Cell 2C
-              3   Cell 3A  Cell 3B  Cell 3C
-                  []       []       []")
+              3   Cell 3A  Cell 3B  Cell 3C")
              (html/visualize-html (browser/locator "table")))))))
 
-(deftest adding-row-scroll-into-view-test
-  (let [keyboard (.keyboard browser/*page*)
-        many-entities (for [i (range 1 25)]
-                        {:entity/id (str i)
-                         :thing/alfa ""
-                         :thing/bravo ""
-                         :thing/charlie ""})]
-    (with-fixtures [(partial data-fixture many-entities)]
-
-      (testing "focusing the adding row scrolls to the page bottom"
-        (let [viewport-height (.evaluate browser/*page* "window.innerHeight")
-              scrollable-height (.evaluate browser/*page* "document.documentElement.scrollHeight")
-              scroll-before (.evaluate browser/*page* "window.scrollY")]
-          (is (< viewport-height scrollable-height (* 2 viewport-height))
-              "the test should have more rows than fits on the screen") ; but not unnecessarily many, to have a faster test
-          (is (= 0 scroll-before)
-              "the test should start scrolled to the top")
-
-          (.click (browser/locator "tr.adding input >> nth=0"))
-
-          (let [scroll-after (.evaluate browser/*page* "window.scrollY")]
-            (is (< scroll-before scroll-after))
-            (is (= (- scrollable-height viewport-height) scroll-after)))))
-
-      (testing "new row is scrolled into view, so it won't hide behind the adding row"
-        (.type keyboard "New")
-        (.press keyboard "Enter")
-        (.waitFor (browser/locator "text=New"))
-
-        (let [new-row (.boundingBox (browser/locator "text=New"))
-              new-row-bottom (+ (.y new-row) (.height new-row))
-              adding-row (.boundingBox (browser/locator "tr.adding"))
-              adding-row-top (.y adding-row)]
-          (is (<= new-row-bottom adding-row-top)
-              "new row should not overlap with the adding row"))))))
-
-(deftest add-row-button-test
-  (testing "clicking the button creates a blank row"
-    (reset! browser/*request-log [])
-
-    (.click (browser/locator ".add-row-button"))
-    (wait-for-edit-mode)
-
-    (is (= [{:method "POST", :path "/spreadsheet/things/create"}]
-           @browser/*request-log))
-    (is (= {:entity/id "4"
-            :thing/alfa ""
-            :thing/bravo ""
-            :thing/charlie ""}
-           (db/get-by-id :things "4"))))
-
-  (testing "the new row goes last in the table, in edit mode"
-    (is (= (html/normalize-whitespace "
-            ID  Alfa     Bravo    Charlie
-            1   Cell 1A  Cell 1B  Cell 1C
-            2   Cell 2A  Cell 2B  Cell 2C
-            3   Cell 3A  Cell 3B  Cell 3C
-            4   []       []       []
-                []       []       []")
-           (html/visualize-html (browser/locator "table")))))
-
-  (testing "the first editable cell of the new row is focused"
-    (is (browser/has-focus? (browser/locator "tr[id='4'] input[name='thing/alfa']"))
-        (browser/focused-element))))
-
-(deftest add-row-button-scroll-into-view-test
+(deftest adding-rows-scroll-into-view-test
   (let [many-entities (for [i (range 1 25)]
                         {:entity/id (str i)
                          :thing/alfa ""
@@ -493,18 +432,11 @@
 
       (is (not (context-menu-visible?))))
 
-    (testing "context menu does not appear on the adding row"
-      (is (not (context-menu-visible?)))
-
-      (browser/right-click (browser/locator "tr.adding td >> nth=1"))
-
-      (is (not (context-menu-visible?))))
-
     (testing "context menu does not appear on a row in edit mode"
       (.dblclick (browser/locator "text=Cell 2A"))
       (wait-for-edit-mode)
 
-      (browser/right-click (browser/locator "tr.editing:not(.adding) input >> nth=0"))
+      (browser/right-click (browser/locator "tr.editing input >> nth=0"))
 
       (is (not (context-menu-visible?)))
       (.press keyboard "Escape")
@@ -525,8 +457,7 @@
       (is (= (html/normalize-whitespace "
               ID  Alfa     Bravo    Charlie
               1   Cell 1A  Cell 1B  Cell 1C
-              3   Cell 3A  Cell 3B  Cell 3C
-                  []       []       []")
+              3   Cell 3A  Cell 3B  Cell 3C")
              (html/visualize-html (browser/locator "table")))))
 
     (testing "context menu is hidden after clicking delete"

@@ -48,23 +48,22 @@
              #  Name                                     Release  Remake  Series  Tags                 Purchases  Status     Content  DLCs
              1  Hollow Knight                            2017                     Metroidvania, Indie             Backlog
              2  Portal 2                                 2011             Portal                                  Playing
-             3  The Legend of Zelda: Breath of the Wild  2017             Zelda                                   Completed
-                []                                       []       []      []      []                              []         []")
+             3  The Legend of Zelda: Breath of the Wild  2017             Zelda                                   Completed")
              (html/visualize-html table)))))
 
   ;; TODO: should be tested for spreadsheet infra, not for games
   (testing "game status is edited with a select"
     (browser/navigate! "/games")
     (.dblclick (browser/locator "td.column-select:text-is('Backlog')"))
-    (.waitFor (browser/locator "tr.editing:not(.adding)"))
+    (.waitFor (browser/locator "tr.editing"))
 
-    (let [status-select (browser/locator "tr.editing:not(.adding) select[name='game/status']")]
+    (let [status-select (browser/locator "tr.editing select[name='game/status']")]
       (is (= "Backlog" (.inputValue status-select)))
 
       (.selectOption status-select "Completed")
       (reset! browser/*request-log [])
       (.click (browser/locator "text=Portal 2"))
-      (.waitFor (browser/locator "tr.editing:not(.adding)")
+      (.waitFor (browser/locator "tr.editing")
                 (-> (Locator$WaitForOptions.)
                     (.setState WaitForSelectorState/HIDDEN)))
 

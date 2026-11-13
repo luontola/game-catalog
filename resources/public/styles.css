@@ -1,7 +1,7 @@
 html {
     --page-bottom-margin: 5rem;
     --marked-modified: #ffa033;
-    /* Account for sticky adding row at the bottom, when scrolling the just added row into view */
+    /* Account for the floating add row button, when scrolling the just added row into view */
     scroll-padding-bottom: var(--page-bottom-margin);
 }
 
@@ -45,14 +45,6 @@ main {
         outline: var(--border-width) solid var(--border);
         outline-offset: calc(-0.5 * var(--border-width));
         top: calc(0.5 * var(--border-width));
-    }
-
-    tr.adding {
-        position: sticky;
-        /* Workaround to the row's cell borders disappearing when sticky */
-        outline: var(--border-width) solid var(--border);
-        outline-offset: calc(-0.5 * var(--border-width));
-        bottom: calc(0.5 * var(--border-width));
     }
 
     tr {
@@ -124,7 +116,7 @@ main {
         counter-reset: row-number;
     }
 
-    tr:not(.adding) {
+    tr {
         counter-increment: row-number;
 
         .row-number:empty::before {

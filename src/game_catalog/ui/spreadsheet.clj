@@ -93,16 +93,12 @@
    (edit-row config entity nil))
   ([config entity focus-index]
    (let [entity-type (entity-type config)
-         adding? (nil? entity)
-         entity-id (if adding? "new" (:entity/id entity))
+         entity-id (:entity/id entity)
          form-id (str entity-type "-form-" entity-id)]
      (h/html
-       [:tr.editing {:id (when-not adding?
-                           (:entity/id entity))
+       [:tr.editing {:id entity-id ; for linking to the row
                      :data-entity-type entity-type
-                     :data-entity-id entity-id
-                     :class (when adding?
-                              "adding")}
+                     :data-entity-id entity-id}
         (map-indexed
           (fn [idx column]
             (let [column (with-defaults column)
@@ -130,12 +126,6 @@
         [:td.form-element-container
          [:form {:id form-id}]]]))))
 
-(defn add-row
-  ([config]
-   (add-row config nil))
-  ([config focus-index]
-   (edit-row config nil focus-index)))
-
 (defn table [config]
   (let [entities (->> (db/get-all (:collection-key config))
                       (sort-by (:sort-by config)))]
@@ -147,14 +137,13 @@
            [:th (:column/name column)])]]
        [:tbody
         (for [[idx entity] (map-indexed vector entities)]
-          (view-row config entity nil (inc idx)))
-        (add-row config nil)]]
+          (view-row config entity nil (inc idx)))]]
       [:button.add-row-button {:type "button"
                                :aria-label "Add row"
                                :title "Add row"
                                :hx-post (str "/spreadsheet/" (entity-type config) "/create")
-                               :hx-target ".spreadsheet > tbody > tr.adding"
-                               :hx-swap "beforebegin"}
+                               :hx-target ".spreadsheet > tbody"
+                               :hx-swap "beforeend"}
        "+"]
       [:menu#context-menu {:class "context-menu"}
        [:li
@@ -167,12 +156,10 @@
           entity-id (get-in request [:path-params :entity-id])
           focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
           entity (db/get-by-id collection-key entity-id)]
-      (if (= entity-id "new")
-        (html/response (add-row config focus-index))
-        (if entity
-          (html/response (view-row config entity focus-index))
-          (-> (html/response "Row not found")
-              (response/status 404)))))))
+      (if entity
+        (html/response (view-row config entity focus-index))
+        (-> (html/response "Row not found")
+            (response/status 404))))))
 
 (defn edit-row-handler [config]
   (fn [request]
@@ -241,19 +228,13 @@
           entity-id (get-in request [:path-params :entity-id])
           focus-index (some-> (get-in request [:params :focusIndex]) parse-long)
           updates (form-updates config (:params request))
-          adding? (= "new" entity-id)
-          old-entity (db/get-by-id collection-key entity-id)
-          new-entity (cond
-                       adding? (assoc updates :entity/id ((:id-generator config) collection-key))
-                       old-entity (merge old-entity updates)
-                       :else (http-response/not-found! "Row not found"))]
+          old-entity (or (db/get-by-id collection-key entity-id)
+                         (http-response/not-found! "Row not found"))
+          new-entity (merge old-entity updates)]
       (db/save! collection-key new-entity)
       (log/info (str "Saved " (name collection-key) " " (:entity/id new-entity) ":")
                 (pr-str new-entity))
-      (html/response (h/html
-                       (view-row config new-entity focus-index)
-                       (when adding?
-                         (add-row config)))))))
+      (html/response (view-row config new-entity focus-index)))))
 
 (defn delete-row-handler [config]
   (fn [request]

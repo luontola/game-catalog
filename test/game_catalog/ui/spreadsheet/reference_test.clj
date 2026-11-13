@@ -111,12 +111,7 @@
       (testing "from single references"
         (is (= ["t1"] (back-references :thing/widget "w1")))
         (is (= ["t2"] (back-references :thing/widget "w2")))
-        (is (= [] (back-references :thing/widget "w3"))))
-
-      (testing "the adding row has no back references"
-        (is (empty? (reference/value {:column (assoc back-reference-column
-                                                :column/back-reference :thing/widgets)
-                                      :entity nil})))))))
+        (is (= [] (back-references :thing/widget "w3")))))))
 
 (defn- render-editor ^Document [ctx]
   (html/parse-fragment

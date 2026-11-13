@@ -58,11 +58,6 @@
                 (spreadsheet/edit-row config entity))]
       (is (= "1" (.attr (.selectFirst doc "tr") "id")))))
 
-  (testing "the adding row has no ID"
-    (let [doc (html/parse-table-fragment
-                (spreadsheet/add-row config))]
-      (is (not (.hasAttr (.selectFirst doc "tr") "id")))))
-
   (testing "renders column type classes on editable cells"
     (let [doc (html/parse-table-fragment
                 (spreadsheet/edit-row config entity))]

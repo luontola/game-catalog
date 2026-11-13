@@ -128,7 +128,7 @@
 
   (testing "Enter on the cell itself still enters edit mode"
     (press! "Enter")
-    (.waitFor (browser/locator "tr.editing:not(.adding)"))
+    (.waitFor (browser/locator "tr.editing"))
     (is (= "/things#1" (wait-for-url "/things#1")))))
 
 (deftest focus-in-history-test
@@ -191,10 +191,10 @@
     (is (<= (.evaluate browser/*page* "() => window.replaceStateCount")
             2)))
 
-  (testing "the adding row has no hash"
+  (testing "a new row has a hash"
     (.press ^Keyboard (.keyboard browser/*page*) "ControlOrMeta+Enter")
-    (.waitForFunction browser/*page* "() => document.activeElement.closest('tr.adding') !== null")
-    (is (= "/things" (wait-for-url "/things"))))
+    (.waitFor (browser/locator "tr.editing"))
+    (is (= "/things#5" (wait-for-url "/things#5"))))
 
   (testing "a link to an unknown row focuses nothing"
     (browser/navigate! "/things#nope")
@@ -225,10 +225,10 @@
       (is (= 0 (count @*dialog-messages))))))
 
 (defn- wait-for-edit-mode []
-  (.waitFor (browser/locator "tr.editing:not(.adding)")))
+  (.waitFor (browser/locator "tr.editing")))
 
 (defn- wait-for-view-mode []
-  (.waitFor (browser/locator "tr.editing:not(.adding)")
+  (.waitFor (browser/locator "tr.editing")
             (-> (Locator$WaitForOptions.)
                 (.setState WaitForSelectorState/HIDDEN))))
 
@@ -245,7 +245,7 @@
   (press! "Enter")
   (wait-for-edit-mode)
   (reset! browser/*request-log [])
-  (let [row (browser/locator "tr.editing:not(.adding)")
+  (let [row (browser/locator "tr.editing")
         refs-cell (.locator row ":scope > td.column-reference >> nth=0")
         ref-cell (.locator row ":scope > td.column-reference >> nth=1")]
 
@@ -307,7 +307,7 @@
   (press! "Enter")
   (wait-for-edit-mode)
   (reset! browser/*request-log [])
-  (let [row (browser/locator "tr.editing:not(.adding)")
+  (let [row (browser/locator "tr.editing")
         refs-cell (.locator row ":scope > td.column-reference >> nth=0")
         ref-cell (.locator row ":scope > td.column-reference >> nth=1")
         search (browser/locator ".reference-picker[open] .reference-search")]
@@ -396,7 +396,7 @@
   (press! "Enter")
   (wait-for-edit-mode)
   (reset! browser/*request-log [])
-  (let [row (browser/locator "tr.editing:not(.adding)")
+  (let [row (browser/locator "tr.editing")
         refs-cell (.locator row ":scope > td.column-reference >> nth=0")
         ref-cell (.locator row ":scope > td.column-reference >> nth=1")]
 

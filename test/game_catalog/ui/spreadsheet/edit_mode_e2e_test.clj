@@ -47,10 +47,10 @@
   (.press (keyboard) key))
 
 (defn wait-for-edit-mode []
-  (.waitFor (browser/locator "tr.editing:not(.adding)")))
+  (.waitFor (browser/locator "tr.editing")))
 
 (defn wait-for-view-mode []
-  (.waitFor (browser/locator "tr.editing:not(.adding)")
+  (.waitFor (browser/locator "tr.editing")
             (-> (Locator$WaitForOptions.)
                 (.setState WaitForSelectorState/HIDDEN))))
 
@@ -96,7 +96,7 @@
     (is (= "1:0:INPUT" (focused)))
     (press! "ArrowUp")
     (is (= "1:0:INPUT" (focused)))
-    (is (= "1" (.getAttribute (browser/locator "tr.editing:not(.adding)") "data-entity-id"))))
+    (is (= "1" (.getAttribute (browser/locator "tr.editing") "data-entity-id"))))
 
   (testing "after exiting edit mode, arrows move between rows"
     (press! "Enter")
@@ -108,22 +108,26 @@
     (press! "ArrowDown")
     (is (= "2:0:TD" (focused)))))
 
-(deftest cmd-enter-moves-focus-to-the-adding-row-test
-  (testing "defaults to the first column when nothing is focused"
+(deftest cmd-enter-adds-a-row-test
+  (testing "focuses the first editable column when nothing is focused"
     (is (= "BODY" (focused)))
 
     (press! "ControlOrMeta+Enter")
-    (is (= "new:0:INPUT" (focused))))
+    (is (= "3:0:INPUT" (wait-for-focus "3:0:INPUT")))
+    (is (= [{:method "POST", :path "/spreadsheet/things/create"}]
+           (post-requests))))
 
   (testing "keeps the column of the focused cell"
     (.click (browser/locator "td:text-is('Qux')"))
+    (wait-for-view-mode)
     (is (= "1:1:TD" (focused)))
 
-    ;; Leaving the adding row in the previous step replaces it with a new one
     (press! "ControlOrMeta+Enter")
-    (is (= "new:1:INPUT" (wait-for-focus "new:1:INPUT"))))
+    (is (= "4:1:INPUT" (wait-for-focus "4:1:INPUT"))))
 
   (testing "saves the row which was being edited"
+    (press! "Enter")
+    (wait-for-view-mode)
     (.dblclick (browser/locator "td:text-is('Baz')"))
     (wait-for-edit-mode)
     (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
@@ -131,51 +135,13 @@
     (reset! browser/*request-log [])
 
     (press! "ControlOrMeta+Enter")
-    (is (= "new:0:INPUT" (focused)))
-    (wait-for-view-mode)
-    (is (= [{:method "POST", :path "/spreadsheet/things/1/save"}]
+    (is (= "5:0:INPUT" (wait-for-focus "5:0:INPUT")))
+    (.waitFor (browser/locator "tr.viewing[id='1']"))
+    (is (= [{:method "POST", :path "/spreadsheet/things/create"}
+            {:method "POST", :path "/spreadsheet/things/1/save"}]
            (post-requests)))
     (is (= "Grault" (:thing/foo (db/get-by-id :things "1"))))
-    (is (= "new:0:INPUT" (focused)) "focus stays in the adding row")))
-
-(deftest cmd-enter-while-the-adding-row-is-being-replaced-test
-  (testing "focuses the new adding row, instead of the old row which is being replaced"
-    (press! "ControlOrMeta+Enter")
-    (is (= "new:0:INPUT" (focused)))
-    ;; Leaving the adding row replaces it with a new one, so delay that
-    (.evaluate browser/*page* "() => {
-      const fetch = window.fetch;
-      window.fetch = async (url, ...args) => {
-        if (String(url).includes('/new/view')) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
-        return fetch(url, ...args);
-      };
-    }")
-    (.click (browser/locator "td:text-is('Baz')"))
-    (.waitForFunction browser/*page* "() => {
-      window.oldAddingRow = document.querySelector('tr.adding');
-      return window.oldAddingRow.dataset.exiting === 'true';
-    }")
-
-    (press! "ControlOrMeta+Enter")
-    (.waitForFunction browser/*page* "() => !window.oldAddingRow.isConnected")
-    (is (= "new:0:INPUT" (wait-for-focus "new:0:INPUT")))))
-
-(deftest escape-in-the-adding-row-test
-  (testing "discards the new row and moves focus to the last row"
-    (.click (browser/locator "td:text-is('Corge')"))
-    (press! "ControlOrMeta+Enter")
-    (is (= "new:1:INPUT" (focused)))
-    (.type (keyboard) "Garply")
-
-    (press! "Escape")
-    (is (= "2:1:TD" (wait-for-focus "2:1:TD")))
-    (.waitForFunction browser/*page* "() => document.querySelector(\"tr.adding input[name='thing/bar']\").value === ''")
-    (is (= [{:method "POST", :path "/spreadsheet/things/new/view"}]
-           (post-requests)))
-    (is (= 2 (count (db/get-all :things))))
-    (is (= "2:1:TD" (focused)) "focus stays on the last row")))
+    (is (= "5:0:INPUT" (focused)) "focus stays in the new row")))
 
 (deftest modified-detection-test
   (testing "a value which was changed back to the original is not saved"
@@ -184,10 +150,10 @@
     (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
     (press! "ArrowRight")
     (.type (keyboard) "x")
-    (is (= "true" (.getAttribute (browser/locator "tr.editing:not(.adding)") "data-modified"))
+    (is (= "true" (.getAttribute (browser/locator "tr.editing") "data-modified"))
         "highlights the modified row")
     (press! "Backspace")
-    (is (= "false" (.getAttribute (browser/locator "tr.editing:not(.adding)") "data-modified"))
+    (is (= "false" (.getAttribute (browser/locator "tr.editing") "data-modified"))
         "removes the highlight when the change is reverted")
     (reset! browser/*request-log [])
 
@@ -202,7 +168,7 @@
     (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
     (.evaluate browser/*page* "() => {
       const input = document.createElement('input');
-      document.querySelector('tr.editing:not(.adding) td').append(input);
+      document.querySelector('tr.editing td').append(input);
       input.focus();
     }")
     (.type (keyboard) "Grault")
