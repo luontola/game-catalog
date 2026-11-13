@@ -72,6 +72,79 @@ document.addEventListener('change', (e) => {
     }, 0)
 })
 
+// Failed requests show an error message in the status bar. When the request
+// was from a row's form, the row is marked as not saved and it stays in edit
+// mode, so that the user's changes are not lost and saving can be retried.
+
+const statusBar = document.querySelector('.status-bar')
+const rowWithSaveError = `${spreadsheetRow}[data-save-error]`
+
+function showError(message) {
+    if (!statusBar) {
+        alert(message)
+        return
+    }
+    statusBar.querySelector('.status-bar-message').textContent = message
+    statusBar.hidden = false
+}
+
+function hideError() {
+    statusBar.hidden = true
+    statusBar.querySelector('.status-bar-message').textContent = ''
+}
+
+statusBar?.querySelector('.status-bar-close').addEventListener('click', hideError)
+
+// The row whose form made the request, if any
+function requestingRow(e) {
+    return e.target.closest?.(`${spreadsheetRow}.editing form`)?.closest('tr')
+}
+
+function requestFailed(e, message) {
+    const row = requestingRow(e)
+    if (row) {
+        row.dataset.saveError = 'true'
+        // Exiting edit mode failed, so let the user try it again
+        delete row.dataset.exiting
+    }
+    showError(message)
+}
+
+document.addEventListener('htmx:response:error', (e) => {
+    const ctx = e.detail.ctx
+    // htmx swaps also error responses, which would for example replace the row with the error message
+    ctx.swap = 'none'
+    // Our backend's error messages are plain text. Other errors could be anything, for example a stack trace.
+    const contentType = ctx.response.headers.get('content-type') ?? ''
+    const message = contentType.startsWith('text/plain') && ctx.text.trim() !== ''
+        ? ctx.text
+        : `Request failed (status ${ctx.response.status})`
+    requestFailed(e, message)
+})
+
+document.addEventListener('htmx:error', (e) => {
+    const {ctx, error} = e.detail
+    if (!ctx) {
+        // Not about a request
+        return
+    }
+    const message = ctx.response
+        ? `Request failed (${error})`
+        : 'Could not reach the server'
+    requestFailed(e, requestingRow(e) ? `${message}. The row is not saved.` : message)
+})
+
+// A successful request from a row's form means that the row is now saved
+document.addEventListener('htmx:after:request', (e) => {
+    const row = requestingRow(e)
+    if (row?.dataset.saveError && e.detail.ctx.response.status < 400) {
+        delete row.dataset.saveError
+        if (!document.querySelector(rowWithSaveError)) {
+            hideError()
+        }
+    }
+})
+
 function focusCell(cell) {
     // In edit mode, editors mark their main form element with the class.
     // In view mode and for read-only cells, the cell itself is focusable.
@@ -278,6 +351,10 @@ document.addEventListener('mousedown', (e) => {
     if (e.target.closest('.reference-picker') && !e.target.matches('input')) {
         e.preventDefault()
     }
+    // Closing the error message must not exit edit mode
+    if (e.target.closest('.status-bar-close')) {
+        e.preventDefault()
+    }
 })
 
 // Remove a pill by clicking its remove button
@@ -465,11 +542,6 @@ if (contextMenu) {
 
         const deleteButton = contextMenu.querySelector('#context-menu-delete')
         deleteButton.clickHandler = () => {
-            row.addEventListener('htmx:response:error', (e) => {
-                // htmx swaps also error responses, which would remove the row
-                e.detail.ctx.swap = 'none'
-                alert(e.detail.ctx.text)
-            }, {once: true})
             htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/delete`, {
                 target: row,
                 swap: 'delete'

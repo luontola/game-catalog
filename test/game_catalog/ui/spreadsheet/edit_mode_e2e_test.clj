@@ -5,8 +5,9 @@
             [game-catalog.testing.browser :as browser]
             [game-catalog.ui.layout :as layout]
             [game-catalog.ui.spreadsheet :as spreadsheet])
-  (:import (com.microsoft.playwright Keyboard Locator$WaitForOptions Page$WaitForConditionOptions Page$WaitForFunctionOptions TimeoutError)
-           (com.microsoft.playwright.options WaitForSelectorState)))
+  (:import (com.microsoft.playwright Keyboard Locator$WaitForOptions Page$WaitForConditionOptions Page$WaitForFunctionOptions Route Route$FulfillOptions TimeoutError)
+           (com.microsoft.playwright.options WaitForSelectorState)
+           (java.util.function Consumer)))
 
 (def things-config
   {:collection-key :things
@@ -38,7 +39,10 @@
                                                      :thing/bar "Corge"}])
                       (browser/navigate! "/")
                       (reset! browser/*request-log [])
-                      (f)))
+                      (try
+                        (f)
+                        (finally
+                          (.unrouteAll browser/*page*)))))
 
 (defn- keyboard ^Keyboard []
   (.keyboard browser/*page*))
@@ -257,3 +261,103 @@
   (testing "saving does not disturb editing"
     (is (= "1:1:INPUT" (focused)))
     (is (= "Bar 1" (.evaluate browser/*page* "() => document.activeElement.value")))))
+
+(defn- wait-for-error-message
+  "Waits until the status bar is visible, and returns its error message."
+  []
+  (.waitFor (browser/locator ".status-bar"))
+  (.textContent (browser/locator ".status-bar-message")))
+
+(defn- wait-for-no-error-message []
+  (.waitFor (browser/locator ".status-bar")
+            (-> (Locator$WaitForOptions.)
+                (.setState WaitForSelectorState/HIDDEN))))
+
+(defn- marked-as-not-saved? []
+  (some? (.getAttribute (browser/locator "tr[id='1']") "data-save-error")))
+
+(defn- input-value [field-name]
+  (.inputValue (browser/locator (str "tr.editing input[name='" field-name "']"))))
+
+(defn- fail-requests!
+  "Makes the browser's requests to the URL fail, using the handler."
+  [url-pattern handler]
+  (.route browser/*page* ^String url-pattern (reify Consumer
+                                               (accept [_ route]
+                                                 (handler route)))))
+
+(deftest save-error-test
+  (.dblclick (browser/locator "td:text-is('Baz')"))
+  (wait-for-edit-mode)
+  (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
+
+  (testing "a failed save shows the error message from the backend"
+    (db/delete! :things "1")
+    (press! "ControlOrMeta+a")
+    (.type (keyboard) "Grault")
+    (press! "Tab")
+    (is (= "Row not found. It was probably deleted." (wait-for-error-message))))
+
+  (testing "the row is marked as not saved, and it stays in edit mode with the user's changes"
+    (is (marked-as-not-saved?))
+    (is (= "1:1:INPUT" (focused)))
+    (is (= "Grault" (input-value "thing/foo"))))
+
+  (testing "the next successful save removes the error, and saves also the earlier changes"
+    (db/save! :things {:entity/id "1"})
+    (press! "ControlOrMeta+a")
+    (.type (keyboard) "Garply")
+    (press! "Shift+Tab")
+    (wait-for-no-error-message)
+    (is (not (marked-as-not-saved?)))
+    (is (= {:entity/id "1"
+            :thing/foo "Grault"
+            :thing/bar "Garply"}
+           (db/get-by-id :things "1")))))
+
+(deftest save-error-when-exiting-edit-mode-test
+  (.dblclick (browser/locator "td:text-is('Baz')"))
+  (wait-for-edit-mode)
+  (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
+  (press! "ControlOrMeta+a")
+  (.type (keyboard) "Grault")
+
+  (testing "when the server cannot be reached, the row stays in edit mode with the user's changes"
+    (fail-requests! "**/spreadsheet/things/1/view" #(.abort ^Route %))
+    (press! "Enter")
+    (is (= "Could not reach the server. The row is not saved." (wait-for-error-message)))
+    (is (marked-as-not-saved?))
+    (is (= "1:0:INPUT" (focused)))
+    (is (= "Grault" (input-value "thing/foo")))
+    (is (= "Baz" (:thing/foo (db/get-by-id :things "1")))))
+
+  (testing "exiting edit mode can be tried again"
+    (.unrouteAll browser/*page*)
+    (press! "Enter")
+    (wait-for-view-mode)
+    (wait-for-no-error-message)
+    (is (= "1:0:TD" (wait-for-focus "1:0:TD")))
+    (is (= "Grault" (:thing/foo (db/get-by-id :things "1"))))))
+
+(deftest unknown-error-test
+  (.dblclick (browser/locator "td:text-is('Baz')"))
+  (wait-for-edit-mode)
+  (is (= "1:0:INPUT" (wait-for-focus "1:0:INPUT")))
+
+  (testing "error responses which are not plain text are not shown to the user"
+    (fail-requests! "**/spreadsheet/things/1/save"
+                    #(.fulfill ^Route % (-> (Route$FulfillOptions.)
+                                            (.setStatus 500)
+                                            (.setContentType "text/html")
+                                            (.setBody "<h1>Stack trace</h1>"))))
+    (press! "ControlOrMeta+a")
+    (.type (keyboard) "Grault")
+    (press! "Tab")
+    (is (= "Request failed (status 500)" (wait-for-error-message)))
+    (is (marked-as-not-saved?)))
+
+  (testing "closing the error message does not exit edit mode"
+    (.click (browser/locator ".status-bar-close"))
+    (wait-for-no-error-message)
+    (is (= "1:1:INPUT" (focused)))
+    (is (marked-as-not-saved?) "the row is still not saved")))

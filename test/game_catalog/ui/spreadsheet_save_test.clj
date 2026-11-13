@@ -134,8 +134,11 @@
         (is (= 204 (:status response)))
         (is (identical? collections-before @db/*collections))))
 
-    (testing "unknown rows"
-      (is (= 404 (:status (save! "2" {"thing/texty" "New"}))))
+    (testing "unknown rows get an error message as plain text, which the frontend can show"
+      (is (= {:status 404
+              :headers {"Content-Type" "text/plain; charset=utf-8"}
+              :body "Row not found. It was probably deleted."}
+             (save! "2" {"thing/texty" "New"})))
       (is (nil? (db/get-by-id :things "2"))))))
 
 (deftest view-row-handler-test
@@ -201,3 +204,35 @@
 
     (testing "unknown rows"
       (is (= 404 (:status (delete! "3")))))))
+
+(deftest reference-handler-errors-test
+  (let [creatable-config (assoc things-config :reference-label :thing/texty)
+        config (fn [target-config]
+                 (assoc things-config :target-configs {:things target-config}))
+        error (fn [handler params]
+                (-> (handler {:params params})
+                    (select-keys [:status :body])))]
+    (db/init-collection! :things [])
+
+    (testing "searching an unknown column"
+      (is (= {:status 404, :body "Column not found"}
+             (error (spreadsheet/reference-search-handler (config creatable-config))
+                    {:column "thing/nope", :q "Foo"}))))
+
+    (testing "creating to an unknown column"
+      (is (= {:status 404, :body "Column not found"}
+             (error (spreadsheet/reference-create-handler (config creatable-config))
+                    {:column "thing/nope", :q "Foo"}))))
+
+    (testing "creating to a target collection whose label cannot be set"
+      (is (= {:status 400, :body "Cannot create entities in the target collection"}
+             (error (spreadsheet/reference-create-handler (config things-config))
+                    {:column "thing/refy", :q "Foo"}))))
+
+    (testing "creating without a label"
+      (is (= {:status 400, :body "Cannot create an entity without a label"}
+             (error (spreadsheet/reference-create-handler (config creatable-config))
+                    {:column "thing/refy", :q " "}))))
+
+    (testing "errors don't create entities"
+      (is (empty? (db/get-all :things))))))

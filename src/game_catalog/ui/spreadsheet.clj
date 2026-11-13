@@ -150,6 +150,13 @@
                                :hx-target ".spreadsheet > tbody"
                                :hx-swap "beforeend"}
        "+"]
+      ;; Shows the error message of a failed request
+      [:div.status-bar {:role "alert"
+                        :hidden true}
+       [:span.status-bar-message]
+       [:button.status-bar-close {:type "button"
+                                  :aria-label "Close"}
+        "×"]]
       [:menu#context-menu {:class "context-menu"}
        [:li
         [:button#context-menu-delete {:onclick "this.clickHandler()"}
@@ -183,9 +190,15 @@
                     (pr-str new-entity)))
         new-entity))))
 
+(defn- error-response
+  "Error messages are plain text, which the frontend shows in the status bar."
+  [status message]
+  (-> (response/response message)
+      (response/status status)
+      (response/content-type "text/plain; charset=utf-8")))
+
 (defn- row-not-found []
-  (-> (html/response "Row not found")
-      (response/status 404)))
+  (error-response 404 "Row not found. It was probably deleted."))
 
 (defn save-row-handler
   "Saves the row, without changing what the user sees."
@@ -262,17 +275,14 @@
                                (reference/referring-entities config entity-id))]
       (cond
         (nil? entity)
-        (-> (html/response "Row not found")
-            (response/status 404))
+        (row-not-found)
 
         (seq referring-entities)
-        (-> (response/response (str "Cannot delete this row, because other rows refer to it:\n"
-                                    (->> referring-entities
-                                         (map (fn [{:keys [collection-key label]}]
-                                                (str "- " (name collection-key) ": " label)))
-                                         (str/join "\n"))))
-            (response/status 409)
-            (response/content-type "text/plain; charset=utf-8"))
+        (error-response 409 (str "Cannot delete this row, because other rows refer to it:\n"
+                                 (->> referring-entities
+                                      (map (fn [{:keys [collection-key label]}]
+                                             (str "- " (name collection-key) ": " label)))
+                                      (str/join "\n"))))
 
         :else
         (do
@@ -290,45 +300,51 @@
 
 (defn reference-search-handler [config]
   (fn [request]
-    (let [params (:params request)
-          column (or (find-reference-column config (:column params))
-                     (http-response/not-found! "Column not found"))
-          target-config (-> (get-in config [:target-configs (:column/target-collection column)])
-                            ;; For the reference columns in the search results
-                            (assoc :target-configs (:target-configs config)))
-          ctx {:config config
-               :column column
-               :form-id (:form params)}
-          {:keys [entities more]} (reference/search ctx (:q params) (get params (text/form-field-name column)))]
-      (html/response
-        (h/html
-          (if (empty? entities)
-            [:p.reference-no-matches "No matches"]
-            (pick-table target-config entities #(reference/pill ctx (reference/entity-item target-config %))))
-          (when (pos? more)
-            [:p.reference-more more " more, type to refine"])
-          (reference/create-button ctx (:q params)))))))
+    (let [params (:params request)]
+      (if-some [column (find-reference-column config (:column params))]
+        (let [target-config (-> (get-in config [:target-configs (:column/target-collection column)])
+                                ;; For the reference columns in the search results
+                                (assoc :target-configs (:target-configs config)))
+              ctx {:config config
+                   :column column
+                   :form-id (:form params)}
+              {:keys [entities more]} (reference/search ctx (:q params) (get params (text/form-field-name column)))]
+          (html/response
+            (h/html
+              (if (empty? entities)
+                [:p.reference-no-matches "No matches"]
+                (pick-table target-config entities #(reference/pill ctx (reference/entity-item target-config %))))
+              (when (pos? more)
+                [:p.reference-more more " more, type to refine"])
+              (reference/create-button ctx (:q params)))))
+        (error-response 404 "Column not found")))))
 
 (defn reference-create-handler [config]
   (fn [request]
     (let [params (:params request)
-          column (or (find-reference-column config (:column params))
-                     (http-response/not-found! "Column not found"))
+          column (find-reference-column config (:column params))
           target-collection (:column/target-collection column)
           target-config (get-in config [:target-configs target-collection])
           ctx {:config config
                :column column
-               :form-id (:form params)}
-          _ (when-not (reference/creatable? ctx)
-              (http-response/bad-request! "Cannot create entities in the target collection"))
-          _ (when (str/blank? (:q params))
-              (http-response/bad-request! "Cannot create an entity without a label"))
-          entity (-> (reference/new-entity ctx (:q params))
-                     (assoc :entity/id ((:id-generator target-config) target-collection)))]
-      (db/save! target-collection entity)
-      (log/info (str "Saved " (name target-collection) " " (:entity/id entity) ":")
-                (pr-str entity))
-      (html/response (reference/pill ctx (reference/entity-item target-config entity))))))
+               :form-id (:form params)}]
+      (cond
+        (nil? column)
+        (error-response 404 "Column not found")
+
+        (not (reference/creatable? ctx))
+        (error-response 400 "Cannot create entities in the target collection")
+
+        (str/blank? (:q params))
+        (error-response 400 "Cannot create an entity without a label")
+
+        :else
+        (let [entity (-> (reference/new-entity ctx (:q params))
+                         (assoc :entity/id ((:id-generator target-config) target-collection)))]
+          (db/save! target-collection entity)
+          (log/info (str "Saved " (name target-collection) " " (:entity/id entity) ":")
+                    (pr-str entity))
+          (html/response (reference/pill ctx (reference/entity-item target-config entity))))))))
 
 (defn make-routes [config]
   (let [entity-type (entity-type config)]

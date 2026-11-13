@@ -1,5 +1,6 @@
 html {
     --page-bottom-margin: 5rem;
+    --marked-error: #ff8a80;
     /* Account for the floating add row button, when scrolling the just added row into view */
     scroll-padding-bottom: var(--page-bottom-margin);
 }
@@ -102,6 +103,11 @@ main {
         background-color: var(--marked);
     }
 
+    /* The latest save of the row failed. The row stays in edit mode also without the focus. */
+    tr.editing[data-save-error] {
+        background-color: var(--marked-error);
+    }
+
     /* Row number counter.
        The full page has the row numbers rendered by the backend, and they
        set the counter, so that rows which were added or re-rendered later
@@ -157,6 +163,45 @@ main {
     font-size: 2rem;
     line-height: 1;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Error message of a failed request, to the left of the add row button */
+.status-bar {
+    position: fixed;
+    left: 1.5rem;
+    right: 6.5rem;
+    bottom: 1rem;
+    z-index: 100;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    max-height: 40vh;
+    overflow: auto;
+    padding: 0.75rem 1rem;
+    border: var(--border-width) solid #b71c1c;
+    border-radius: 4px;
+    background-color: #ffebee;
+    color: #b71c1c;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+    &[hidden] {
+        display: none;
+    }
+
+    .status-bar-message {
+        flex: 1;
+        white-space: pre-line;
+    }
+
+    .status-bar-close {
+        margin: 0;
+        padding: 0 0.5rem;
+        border: none;
+        background: none;
+        color: inherit;
+        font-size: 1.25rem;
+        line-height: 1;
+    }
 }
 
 .context-menu {
