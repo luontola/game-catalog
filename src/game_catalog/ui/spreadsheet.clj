@@ -69,6 +69,7 @@
 
 (defn pick-table
   "Renders the entities for picking a whole row, without editing support.
+   The first row is highlighted, because the Enter key picks the highlighted row.
    The pick-template function returns content for each row's <template>."
   [config entities pick-template]
   (h/html
@@ -78,8 +79,9 @@
        (for [column (pick-columns config)]
          [:th (:column/name column)])]]
      [:tbody
-      (for [entity entities]
-        [:tr {:data-entity-id (:entity/id entity)}
+      (for [[idx entity] (map-indexed vector entities)]
+        [:tr {:class (when (zero? idx) "highlighted")
+              :data-entity-id (:entity/id entity)}
          [:template (pick-template entity)]
          (for [column (pick-columns config)]
            (view-cell {:mode :pick
@@ -88,13 +90,16 @@
                        :column column}
                       {}))])]]))
 
+(defn- form-id [config entity]
+  (str (entity-type config) "-form-" (:entity/id entity)))
+
 (defn edit-row
   ([config entity]
    (edit-row config entity nil))
   ([config entity focus-index]
    (let [entity-type (entity-type config)
          entity-id (:entity/id entity)
-         form-id (str entity-type "-form-" entity-id)]
+         form-id (form-id config entity)]
      (h/html
        [:tr.editing {:id entity-id ; for linking to the row
                      :data-entity-type entity-type
@@ -298,26 +303,54 @@
                      (= field-name (text/form-field-name %))))
        first))
 
+(defn- reference-search-results
+  "Renders the target entities which match the query, for the reference picker."
+  [{:keys [config column] :as ctx} query exclude-ids]
+  (let [target-config (-> (get-in config [:target-configs (:column/target-collection column)])
+                          ;; For the reference columns in the search results
+                          (assoc :target-configs (:target-configs config)))
+        {:keys [entities more]} (reference/search ctx query exclude-ids)]
+    (h/html
+      (if (empty? entities)
+        [:p.reference-no-matches "No matches"]
+        (pick-table target-config entities #(reference/pill ctx (reference/entity-item target-config %))))
+      (when (pos? more)
+        [:p.reference-more more " more, type to refine"])
+      (reference/create-button ctx query (empty? entities)))))
+
 (defn reference-search-handler [config]
   (fn [request]
     (let [params (:params request)]
       (if-some [column (find-reference-column config (:column params))]
-        (let [target-config (-> (get-in config [:target-configs (:column/target-collection column)])
-                                ;; For the reference columns in the search results
-                                (assoc :target-configs (:target-configs config)))
-              ctx {:config config
+        (let [ctx {:config config
                    :column column
-                   :form-id (:form params)}
-              {:keys [entities more]} (reference/search ctx (:q params) (get params (text/form-field-name column)))]
-          (html/response
-            (h/html
-              (if (empty? entities)
-                [:p.reference-no-matches "No matches"]
-                (pick-table target-config entities #(reference/pill ctx (reference/entity-item target-config %))))
-              (when (pos? more)
-                [:p.reference-more more " more, type to refine"])
-              (reference/create-button ctx (:q params)))))
+                   :form-id (:form params)}]
+          (html/response (reference-search-results ctx (:q params) (get params (text/form-field-name column)))))
         (error-response 404 "Column not found")))))
+
+(defn reference-picker-handler
+  "Saves the row, and returns the content of the reference column's editor
+   with the picker open. The picker has the results of an empty search."
+  [config]
+  (fn [request]
+    (let [column (find-reference-column config (get-in request [:params :column]))
+          entity (when column
+                   (save-form! config request))]
+      (cond
+        (nil? column)
+        (error-response 404 "Column not found")
+
+        (nil? entity)
+        (row-not-found)
+
+        :else
+        (let [ctx (with-value {:mode :edit
+                               :config config
+                               :entity entity
+                               :column column
+                               :form-id (form-id config entity)})]
+          (html/response (reference/editor-content
+                           (assoc ctx :picker-results (reference-search-results ctx "" (:value ctx))))))))))
 
 (defn reference-create-handler [config]
   (fn [request]
@@ -360,5 +393,7 @@
       {:post {:handler (save-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/save-and-continue")
       {:post {:handler (save-and-continue-handler config)}}]
+     [(str "/spreadsheet/" entity-type "/:entity-id/reference-picker")
+      {:post {:handler (reference-picker-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/delete")
       {:post {:handler (delete-row-handler config)}}]]))

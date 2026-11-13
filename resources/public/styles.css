@@ -277,6 +277,11 @@ main {
     cursor: pointer;
 }
 
+/* The element waits for the server's response */
+[data-busy] {
+    cursor: progress;
+}
+
 /* Larger targets for fingers */
 @media (pointer: coarse) {
     .pill-remove {

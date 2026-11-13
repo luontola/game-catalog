@@ -106,6 +106,9 @@ function requestFailed(e, message) {
         row.dataset.saveError = 'true'
         // Exiting edit mode failed, so let the user try it again
         delete row.dataset.exiting
+        for (const element of row.querySelectorAll('[data-busy]')) {
+            delete element.dataset.busy
+        }
     }
     showError(message)
 }
@@ -334,6 +337,11 @@ document.addEventListener('focusout', (e) => {
     }
     // Check if the new focus target is outside the row
     setTimeout(() => {
+        if (!e.target.isConnected) {
+            // The focused element was removed, so the user did not move the focus.
+            // The code which removed the element also sets the new focus.
+            return
+        }
         const newFocus = document.activeElement
         if (!row.contains(newFocus)) {
             saveAndExitEditMode(row)
@@ -374,18 +382,49 @@ document.addEventListener('click', (e) => {
     cell.dispatchEvent(new Event('change', {bubbles: true}))
 })
 
-// Reference picker: a dialog for searching the target collection
+// Reference editor: the server saves the row and renders the editor's content
+// again. The request goes through the queue of the row's form, so that
+// the responses arrive in the same order as the user's actions.
+function renderReferenceEditor(editor, path) {
+    const row = editor.closest(spreadsheetRow)
+    const form = row.querySelector('form')
+    if (row.dataset.exiting === 'true') {
+        // This request would replace the request for exiting edit mode, if it is waiting in the queue
+        return false
+    }
+    if (!form.reportValidity()) {
+        // htmx doesn't send invalid forms, and it doesn't tell about it
+        return false
+    }
+    const {entityType, entityId} = getEntityInfo(row)
+    htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/${path}`, {
+        source: form,
+        target: editor,
+        swap: 'innerHTML',
+        values: {column: editor.dataset.column}
+    })
+    return true
+}
 
-function openReferencePicker(editor) {
-    const dialog = editor.querySelector('.reference-picker')
-    const search = dialog.querySelector('.reference-search')
-    search.value = ''
-    // Closing the dialog returns the focus to the element which had it before opening.
-    // Clicking the button doesn't focus it, so focus it explicitly.
-    editor.querySelector('.pill-button').focus()
-    dialog.showModal()
-    search.focus()
-    search.dispatchEvent(new Event('reference-picker-open'))
+// Reference picker: a dialog for searching the target collection.
+// The server adds the picker to the editor's content with the first search
+// results, and the picker's auto-show-modal attribute opens it.
+
+function openReferencePicker(button) {
+    if (button.dataset.busy === 'true') {
+        return
+    }
+    if (renderReferenceEditor(button.closest('.reference-editor'), 'reference-picker')) {
+        // The response replaces the button, which also removes the busy state
+        button.dataset.busy = 'true'
+    }
+}
+
+function closeReferencePicker(dialog) {
+    const editor = dialog.closest('.reference-editor')
+    // The picker is used only once. Removing an open dialog also closes it.
+    dialog.remove()
+    editor?.querySelector('.pill-button').focus()
 }
 
 const pickerOption = '.reference-results tbody tr, .reference-results .reference-create'
@@ -408,7 +447,6 @@ function highlightedPickerOption(dialog) {
 async function pickReference(dialog, option) {
     const editor = dialog.closest('.reference-editor')
     const button = editor.querySelector('.pill-button')
-    dialog.close()
     if (editor.dataset.multiple === 'false') {
         editor.querySelectorAll(':scope > .pill').forEach(p => p.remove())
     }
@@ -422,13 +460,14 @@ async function pickReference(dialog, option) {
     } else {
         button.before(option.querySelector('template').content.cloneNode(true))
     }
+    closeReferencePicker(dialog)
     editor.dispatchEvent(new Event('change', {bubbles: true}))
 }
 
 document.addEventListener('click', (e) => {
     const button = e.target.closest('.reference-editor > .pill-button')
     if (button) {
-        openReferencePicker(button.closest('.reference-editor'))
+        openReferencePicker(button)
         return
     }
     const dialog = e.target.closest('.reference-picker')
@@ -437,7 +476,7 @@ document.addEventListener('click', (e) => {
     }
     if (e.target === dialog || e.target.closest('.reference-picker-close')) {
         // The dialog has no padding, so only clicks on the backdrop target it
-        dialog.close()
+        closeReferencePicker(dialog)
         return
     }
     const option = e.target.closest(pickerOption)
@@ -465,22 +504,19 @@ document.addEventListener('keydown', (e) => {
             pickReference(dialog, option)
         }
         e.preventDefault()
+    } else if (e.key === 'Escape') {
+        // The browser's own closing would return the focus to the element which had it
+        // before the picker was opened, and the server has replaced that element
+        closeReferencePicker(dialog)
+        e.preventDefault()
     }
 })
 
-// Highlight the first search result
-document.addEventListener('htmx:after:swap', (e) => {
-    const dialog = e.target.closest?.('.reference-picker')
-    if (dialog) {
-        highlightPickerOption(dialog, pickerOptions(dialog)[0])
-    }
-})
-
-// Don't leave old search results in the DOM.
+// The browser can close the dialog also in other ways than the Escape key.
 // The close event doesn't bubble, so it must be captured.
 document.addEventListener('close', (e) => {
     if (e.target.matches?.('.reference-picker')) {
-        e.target.querySelector('.reference-results').replaceChildren()
+        closeReferencePicker(e.target)
     }
 }, {capture: true})
 
@@ -513,22 +549,28 @@ document.addEventListener('focusin', e => {
     }
 })
 
-// Watch for elements with auto-scroll-into-view and scroll them into view
-const autoScrollObserver = new MutationObserver((mutations) => {
+// Watch for added elements with auto-scroll-into-view and scroll them into view,
+// and for added dialogs with auto-show-modal and open them
+const autoAttributeObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
             if (node.nodeType === Node.ELEMENT_NODE) {
-                const attr = 'auto-scroll-into-view';
-                if (node.hasAttribute(attr)) {
+                const scrollAttr = 'auto-scroll-into-view';
+                if (node.hasAttribute(scrollAttr)) {
                     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
                     node.scrollIntoView({behavior: prefersReducedMotion ? 'instant' : 'smooth', block: 'nearest'})
-                    node.removeAttribute(attr)
+                    node.removeAttribute(scrollAttr)
+                }
+                const modalAttr = 'auto-show-modal';
+                if (node.hasAttribute(modalAttr) && node.isConnected) {
+                    node.removeAttribute(modalAttr)
+                    node.showModal()
                 }
             }
         }
     }
 })
-autoScrollObserver.observe(document.body, {
+autoAttributeObserver.observe(document.body, {
     childList: true,
     subtree: true
 })

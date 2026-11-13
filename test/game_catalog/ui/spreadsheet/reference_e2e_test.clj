@@ -246,6 +246,7 @@
     (saved)))
 
 (def ^:private autosaved {:method "POST", :path "/spreadsheet/things/1/save-and-continue"})
+(def ^:private opened-picker {:method "POST", :path "/spreadsheet/things/1/reference-picker"})
 
 (defn- visible-icons [^Locator cell]
   (mapv #(.getAttribute ^Locator % "aria-label")
@@ -307,6 +308,9 @@
 (defn- highlighted-result []
   (.textContent (browser/locator ".reference-picker[open] tr.highlighted td >> nth=0")))
 
+(defn- wait-for-picker-open []
+  (.waitFor (browser/locator ".reference-picker[open]")))
+
 (defn- wait-for-picker-closed []
   (.waitFor (browser/locator ".reference-picker[open]")
             (-> (Locator$WaitForOptions.)
@@ -323,10 +327,15 @@
         ref-cell (.locator row ":scope > td.column-reference >> nth=1")
         search (browser/locator ".reference-picker[open] .reference-search")]
 
+    (testing "the picker is not on the page before it is opened"
+      (is (= 0 (.count (browser/locator "dialog")))))
+
     (testing "Enter on the add button opens the picker, which lists the entities which are not yet referred"
       (press! "Enter")
-      (is (= "Name Refs Ref Alfa Bravo, Charlie Bravo Delta"
-             (wait-for-picker-results "Name Refs Ref Alfa Bravo, Charlie Bravo Delta")))
+      (wait-for-picker-open)
+      (is (= "Name Refs Ref Alfa Bravo, Charlie Bravo Delta" (picker-results))
+          "the picker comes with the results")
+      (is (= [opened-picker] (post-requests)))
       (is (browser/has-focus? search) (browser/focused-element))
       (is (= "Alfa" (highlighted-result)) "highlights the first result"))
 
@@ -363,7 +372,9 @@
       (press! "Escape")
       (wait-for-picker-closed)
       (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
-      (is (= 1 (.count row))))
+      (is (= 1 (.count row)))
+      (is (= 0 (.count (browser/locator "dialog")))
+          "the closed picker is removed from the page"))
 
     (testing "clicking outside the picker closes it, but does not exit edit mode"
       (.click (.locator refs-cell ".pill-button"))
@@ -392,10 +403,11 @@
       (is (browser/has-focus? (.locator ref-cell ".pill-button")) (browser/focused-element))
       (is (= {:thing/ref "3"} (wait-for-saved {:thing/ref "3"}))))
 
-    (testing "only picking saves the row; searching and closing the picker do not"
-      (is (= [autosaved autosaved]
-             (remove #(= "/spreadsheet/things/reference-search" (:path %))
-                     (post-requests)))))
+    (testing "closing the picker without picking makes no requests"
+      (is (= {opened-picker 5 ; the tests above opened the picker five times
+              autosaved 2} ; and picked two times
+             (frequencies (remove #(= "/spreadsheet/things/reference-search" (:path %))
+                                  (post-requests))))))
 
     (testing "exiting edit mode keeps the picked references"
       (press! "F2")
@@ -444,6 +456,7 @@
 
     (testing "clicking the create option in a single-value column replaces the value"
       (.click (.locator ref-cell ".pill-button"))
+      (wait-for-picker-open)
       (.type (.keyboard browser/*page*) "Echo")
       (wait-for-picker-results "No matches Create Echo")
       (.click (browser/locator ".reference-picker[open] .reference-create"))

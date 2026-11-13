@@ -1,6 +1,7 @@
 (ns game-catalog.ui.spreadsheet.reference-test
   (:require [clojure.test :refer :all]
             [game-catalog.data.db :as db]
+            [game-catalog.infra.hiccup :as h]
             [game-catalog.infra.json :as json]
             [game-catalog.testing.html :as html]
             [game-catalog.ui.spreadsheet.reference :as reference]
@@ -166,6 +167,21 @@
       (is (empty? (pills doc)))
       (is (not (.hasAttr (.selectFirst doc ".pill-button") "autofocus")))))
 
+  (testing "the editor knows its column, for the requests which change the references"
+    (is (= "thing/widgets" (.attr (.selectFirst (render-editor {:value []}) ".reference-editor") "data-column"))))
+
+  (testing "the picker is not in the editor before the user opens it"
+    (is (nil? (.selectFirst (render-editor {:value []}) "dialog"))))
+
+  (testing "the open picker comes with the first search results"
+    (let [doc (render-editor {:value [], :picker-results (h/raw "<p>Results</p>")})
+          dialog (.selectFirst doc ".reference-editor > dialog.reference-picker")
+          search (.selectFirst dialog ".reference-search")]
+      (is (.hasAttr dialog "auto-show-modal") "the frontend opens it as a modal")
+      (is (.hasAttr search "autofocus"))
+      (is (= "/spreadsheet/things/reference-search" (.attr search "hx-post")))
+      (is (= "<p>Results</p>" (.html (.selectFirst dialog ".reference-results"))))))
+
   (testing "single reference has also a replace icon, and CSS shows only one of them"
     (let [doc (render-editor {:column single-column, :value "w2"})]
       (is (= "false" (.attr (.selectFirst doc ".reference-editor") "data-multiple")))
@@ -213,21 +229,27 @@
 (deftest create-button-test
   (let [ctx {:config config, :column column, :form-id "things-form-1"}]
     (testing "creates a target entity with the query as its label"
-      (let [button (.selectFirst (html/parse-fragment (reference/create-button ctx " Qux ")) "button")]
+      (let [button (.selectFirst (html/parse-fragment (reference/create-button ctx " Qux " false)) "button")]
         (is (= "Create Qux" (.text button)))
+        (is (not (.hasClass button "highlighted")))
         (is (= "/spreadsheet/things/reference-create" (.attr button "data-url")))
         (is (= {:column "thing/widgets", :form "things-form-1", :q "Qux"}
                (json/read-value (.attr button "hx-vals"))))
         (is (= {:widget/name "Qux"}
                (reference/new-entity ctx " Qux "))))))
 
+  (testing "the button can be the highlighted option, which the Enter key picks"
+    (let [ctx {:config config, :column column, :form-id "things-form-1"}
+          button (.selectFirst (html/parse-fragment (reference/create-button ctx "Qux" true)) "button")]
+      (is (.hasClass button "highlighted"))))
+
   (testing "no button for a blank query"
-    (is (nil? (reference/create-button {:config config, :column column} " "))))
+    (is (nil? (reference/create-button {:config config, :column column} " " false))))
 
   (testing "no button when the label is computed by a function"
     (let [config (assoc-in config [:target-configs :widgets :reference-label] (comp str :widget/size))]
       (is (not (reference/creatable? {:config config, :column column})))
-      (is (nil? (reference/create-button {:config config, :column column} "Qux"))))))
+      (is (nil? (reference/create-button {:config config, :column column} "Qux" false))))))
 
 (deftest parse-form-params-test
   (testing "multiple references"

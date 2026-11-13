@@ -140,33 +140,39 @@
 (defn new-entity [ctx query]
   {(:reference-label (target-config ctx)) (str/trim (str query))})
 
-(defn create-button [{:keys [config column form-id] :as ctx} query]
+(defn create-button
+  "The highlighted option is the one which the Enter key picks."
+  [{:keys [config column form-id] :as ctx} query highlighted?]
   (let [query (str/trim (str query))]
     (when (and (creatable? ctx)
                (not (str/blank? query)))
       (h/html
         [:button.reference-create {:type "button"
+                                   :class (when highlighted? "highlighted")
                                    :data-url (str "/spreadsheet/" (name (:collection-key config)) "/reference-create")
                                    :hx-vals (json/write-value-as-string {:column (form-field-name column)
                                                                          :form form-id
                                                                          :q query})}
          "Create " [:span.pill query]]))))
 
-(defn- picker [{:keys [config column form-id]}]
+(defn- picker [{:keys [config column form-id picker-results]}]
   (let [title (str "Search " (:column/name column))]
     (h/html
-      [:dialog.reference-picker {:aria-label title}
+      [:dialog.reference-picker {:aria-label title
+                                 ;; Opens the dialog as a modal when it is added to the page
+                                 :auto-show-modal true}
        [:div.reference-picker-header
         [:input.reference-search {:type "search"
                                   :name "q"
                                   :placeholder title
                                   :aria-label title
+                                  :autofocus true
                                   :autocomplete "off"
                                   :data-1p-ignore true
                                   ;; The Enter key on mobile keyboards picks the highlighted result
                                   :enterkeyhint "go"
                                   :hx-post (str "/spreadsheet/" (name (:collection-key config)) "/reference-search")
-                                  :hx-trigger "input changed delay:150ms, reference-picker-open"
+                                  :hx-trigger "input changed delay:150ms"
                                   ;; Includes the referred entities, so that the search can exclude them
                                   :hx-include "closest .reference-editor"
                                   :hx-vals (json/write-value-as-string {:column (form-field-name column)
@@ -177,26 +183,40 @@
         [:button.reference-picker-close {:type "button"
                                          :aria-label "Close"}
          "×"]]
-       [:div.reference-results]])))
+       [:div.reference-results
+        picker-results]])))
 
-(defn editor [{:keys [column form-id focus?] :as ctx}]
+(defn editor-content
+  "The content of the editor element. The frontend replaces it with the
+   server's response after the user changes the references.
+
+   The picker is not part of the editor until the user opens it. When ctx
+   has :picker-results, the content includes the picker with those results
+   of the first search. Content without the picker closes the picker."
+  [{:keys [column form-id focus? picker-results] :as ctx}]
   (h/html
-    [:span.reference-editor {:data-multiple (str (boolean (:column/multiple? column)))}
-     ;; Ensures that removing all references submits an empty value;
-     ;; otherwise browsers omit the field entirely, which means "no change".
-     [:input {:type "hidden"
-              :form form-id
-              :name (form-field-name column)
-              :value ""}]
-     (for [item (items ctx)]
-       (pill ctx item))
-     [:button.pill-button.editor-entry-point {:type "button"
-                                              :autofocus focus?}
-      ;; CSS shows only one icon, depending on whether a single-value column has a value
-      [:span.reference-add {:role "img", :aria-label "Add"} "+"]
-      (when-not (:column/multiple? column)
-        [:span.reference-replace {:role "img", :aria-label "Replace"} "⇄"])]
-     (picker ctx)]))
+    ;; Ensures that removing all references submits an empty value;
+    ;; otherwise browsers omit the field entirely, which means "no change".
+    [:input {:type "hidden"
+             :form form-id
+             :name (form-field-name column)
+             :value ""}]
+    (for [item (items ctx)]
+      (pill ctx item))
+    [:button.pill-button.editor-entry-point {:type "button"
+                                             :autofocus focus?}
+     ;; CSS shows only one icon, depending on whether a single-value column has a value
+     [:span.reference-add {:role "img", :aria-label "Add"} "+"]
+     (when-not (:column/multiple? column)
+       [:span.reference-replace {:role "img", :aria-label "Replace"} "⇄"])]
+    (when picker-results
+      (picker ctx))))
+
+(defn editor [{:keys [column] :as ctx}]
+  (h/html
+    [:span.reference-editor {:data-column (form-field-name column)
+                             :data-multiple (str (boolean (:column/multiple? column)))}
+     (editor-content ctx)]))
 
 (defn parse-form-params [params column]
   (let [field-name (form-field-name column)]

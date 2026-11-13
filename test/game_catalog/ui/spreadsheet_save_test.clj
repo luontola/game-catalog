@@ -236,3 +236,36 @@
 
     (testing "errors don't create entities"
       (is (empty? (db/get-all :things))))))
+
+(deftest reference-picker-handler-test
+  (let [target-config (assoc things-config :reference-label :thing/texty)
+        config (assoc things-config :target-configs {:things target-config})
+        open-picker! (fn [entity-id params]
+                       ((spreadsheet/reference-picker-handler config)
+                        {:path-params {:entity-id entity-id}
+                         :params params}))]
+    (db/init-collection! :things [{:entity/id "1", :thing/texty "Foo", :thing/refy ["2"]}
+                                  {:entity/id "2", :thing/texty "Bar"}
+                                  {:entity/id "3", :thing/texty "Gazonk"}])
+
+    (testing "saves the row, and returns the editor's content with the picker open"
+      (let [response (open-picker! "1" {:column "thing/refy"
+                                        "thing/texty" "Foo 2"
+                                        "thing/refy" ["" "2" "3"]})
+            doc (html/parse-fragment (:body response))]
+        (is (= {:entity/id "1", :thing/texty "Foo 2", :thing/refy ["2" "3"]}
+               (db/get-by-id :things "1")))
+        (is (= ["Bar ×" "Gazonk ×"]
+               (map #(.text ^Element %) (.select doc "body > .pill"))))
+        (is (some? (.selectFirst doc "body > dialog.reference-picker[auto-show-modal]")))
+
+        (testing "with the entities which the saved row doesn't refer to"
+          (is (= ["1"]
+                 (map #(.attr ^Element % "data-entity-id") (.select doc ".reference-results tbody tr")))))))
+
+    (testing "unknown columns"
+      (is (= {:status 404, :body "Column not found"}
+             (select-keys (open-picker! "1" {:column "thing/nope"}) [:status :body]))))
+
+    (testing "unknown rows"
+      (is (= 404 (:status (open-picker! "4" {:column "thing/refy"})))))))

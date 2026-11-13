@@ -2,7 +2,8 @@
   (:require [clojure.test :refer :all]
             [game-catalog.testing.html :as html]
             [game-catalog.ui.spreadsheet :as spreadsheet]
-            [game-catalog.ui.spreadsheet.numeric :as numeric]))
+            [game-catalog.ui.spreadsheet.numeric :as numeric])
+  (:import (org.jsoup.nodes Element)))
 
 ;; Covers only a few column types, to cover generic spreadsheet functionality
 ;; instead of column type specifics.
@@ -63,3 +64,17 @@
                 (spreadsheet/edit-row config entity))]
       (is (some? (.selectFirst doc "td.column-text")))
       (is (some? (.selectFirst doc "td.column-numeric"))))))
+
+(deftest pick-table-test
+  (let [entities [entity
+                  (assoc entity :entity/id "2")
+                  (assoc entity :entity/id "3")]
+        doc (html/parse-fragment (spreadsheet/pick-table config entities (constantly nil)))]
+
+    (testing "the rows know their entities"
+      (is (= ["1" "2" "3"]
+             (map #(.attr ^Element % "data-entity-id") (.select doc "tbody tr")))))
+
+    (testing "the first row is highlighted, because the Enter key picks the highlighted row"
+      (is (= [true false false]
+             (map #(.hasClass ^Element % "highlighted") (.select doc "tbody tr")))))))
