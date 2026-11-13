@@ -69,11 +69,16 @@
   (let [entities [entity
                   (assoc entity :entity/id "2")
                   (assoc entity :entity/id "3")]
-        doc (html/parse-fragment (spreadsheet/pick-table config entities))]
+        doc (html/parse-fragment (spreadsheet/pick-table config entities (fn [entity]
+                                                                           {:data-pick (:entity/id entity)})))]
 
     (testing "the rows know their entities"
       (is (= ["1" "2" "3"]
              (map #(.attr ^Element % "data-entity-id") (.select doc "tbody tr")))))
+
+    (testing "the rows have the attributes for picking their entities"
+      (is (= ["1" "2" "3"]
+             (map #(.attr ^Element % "data-pick") (.select doc "tbody tr")))))
 
     (testing "the first row is highlighted, because the Enter key picks the highlighted row"
       (is (= [true false false]

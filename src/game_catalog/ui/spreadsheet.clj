@@ -69,8 +69,9 @@
 
 (defn pick-table
   "Renders the entities for picking a whole row, without editing support.
-   The first row is highlighted, because the Enter key picks the highlighted row."
-  [config entities]
+   The first row is highlighted, because the Enter key picks the highlighted row.
+   The pick-attrs function returns the row's attributes for picking the entity."
+  [config entities pick-attrs]
   (h/html
     [:table.spreadsheet-picker
      [:thead
@@ -79,8 +80,9 @@
          [:th (:column/name column)])]]
      [:tbody
       (for [[idx entity] (map-indexed vector entities)]
-        [:tr {:class (when (zero? idx) "highlighted")
-              :data-entity-id (:entity/id entity)}
+        [:tr (merge (pick-attrs entity)
+                    {:class (when (zero? idx) "highlighted")
+                     :data-entity-id (:entity/id entity)})
          (for [column (pick-columns config)]
            (view-cell {:mode :pick
                        :config config
@@ -318,19 +320,10 @@
     (h/html
       (if (empty? entities)
         [:p.reference-no-matches "No matches"]
-        (pick-table target-config entities))
+        (pick-table target-config entities #(reference/pick-attrs ctx {:target (:entity/id %)})))
       (when (pos? more)
         [:p.reference-more more " more, type to refine"])
       (reference/create-button ctx query (empty? entities)))))
-
-(defn reference-search-handler [config]
-  (fn [request]
-    (let [params (:params request)]
-      (if-some [column (find-reference-column config (:column params))]
-        (let [ctx {:config config
-                   :column column}]
-          (html/response (reference-search-results ctx (:q params) (get params (text/form-field-name column)))))
-        (error-response 404 "Column not found")))))
 
 (defn- reference-editor-ctx [config entity column]
   (with-value {:mode :edit
@@ -338,6 +331,26 @@
                :entity entity
                :column column
                :form-id (form-id config entity)}))
+
+(defn reference-search-handler
+  "Returns the picker's options for the query. The request has the column's
+   references which the user sees, and the results exclude them."
+  [config]
+  (fn [request]
+    (let [params (:params request)
+          entity (db/get-by-id (:collection-key config) (get-in request [:path-params :entity-id]))
+          column (find-reference-column config (:column params))]
+      (cond
+        (nil? column)
+        (error-response 404 "Column not found")
+
+        (nil? entity)
+        (row-not-found)
+
+        :else
+        (html/response (reference-search-results (reference-editor-ctx config entity column)
+                                                 (:q params)
+                                                 (get params (text/form-field-name column))))))))
 
 (defn reference-picker-handler
   "Saves the row, and returns the content of the reference column's editor
@@ -375,7 +388,8 @@
 
    The request can add a reference to the column: the :target parameter
    is the ID of an existing target entity, and the :create parameter is
-   the label of a new target entity to create."
+   the label of a new target entity to create. The :remove parameter is
+   the ID of a target entity whose reference to remove."
   [config]
   (fn [request]
     (let [params (:params request)
@@ -386,7 +400,8 @@
           ctx {:config config
                :column column}
           create? (contains? params :create)
-          target-id (:target params)]
+          target-id (:target params)
+          remove-id (:remove params)]
       ;; All the checks are before the writes, so that a failed request changes nothing
       (cond
         (nil? column)
@@ -410,24 +425,27 @@
                           target-id)
               entity-key (:column/entity-key column)
               updates (form-updates config params)
-              updates (cond-> updates
-                        ;; The form has the references which the user sees. The saved
-                        ;; references are the fallback for requests without the form.
-                        target-id (assoc entity-key (reference/add-reference
-                                                      column
-                                                      (get updates entity-key (get old-entity entity-key))
-                                                      target-id)))
-              entity (save-updates! config entity-id updates)]
+              ;; The form has the references which the user sees. The saved
+              ;; references are the fallback for requests without the form.
+              old-value (get updates entity-key (get old-entity entity-key))
+              new-value (cond-> old-value
+                          target-id (as-> $ (reference/add-reference column $ target-id))
+                          remove-id (as-> $ (reference/remove-reference column $ remove-id)))
+              entity (save-updates! config entity-id (assoc updates entity-key new-value))
+              ;; The focus was on the remove button, which the response doesn't have
+              focus-item (when remove-id
+                           (reference/item-after (assoc ctx :value old-value) remove-id))]
           (html/response (reference/editor-content
                            (assoc (reference-editor-ctx config entity column)
-                             ;; The focus was in the picker, which the response closes
-                             :focus? (some? target-id)))))))))
+                             :focus-item focus-item
+                             ;; After a pick, the focus was in the picker, which the response closes
+                             :focus? (or (some? target-id)
+                                         (and (some? remove-id)
+                                              (nil? focus-item)))))))))))
 
 (defn make-routes [config]
   (let [entity-type (entity-type config)]
-    [[(str "/spreadsheet/" entity-type "/reference-search")
-      {:post {:handler (reference-search-handler config)}}]
-     [(str "/spreadsheet/" entity-type "/create")
+    [[(str "/spreadsheet/" entity-type "/create")
       {:post {:handler (create-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/edit")
       {:post {:handler (edit-row-handler config)}}]
@@ -435,6 +453,8 @@
       {:post {:handler (save-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/save-and-continue")
       {:post {:handler (save-and-continue-handler config)}}]
+     [(str "/spreadsheet/" entity-type "/:entity-id/reference-search")
+      {:post {:handler (reference-search-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/reference-picker")
       {:post {:handler (reference-picker-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/save-reference")

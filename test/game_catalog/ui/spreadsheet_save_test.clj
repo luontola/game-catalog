@@ -206,11 +206,29 @@
       (is (= 404 (:status (delete! "3")))))))
 
 (deftest reference-search-handler-test
-  (let [config (assoc things-config :target-configs {:things things-config})]
+  (let [config (assoc things-config :target-configs {:things things-config})
+        search (fn [entity-id params]
+                 ((spreadsheet/reference-search-handler config)
+                  {:path-params {:entity-id entity-id}
+                   :params params}))]
+    (db/init-collection! :things [{:entity/id "1", :thing/texty "Foo", :thing/refy ["2"]}
+                                  {:entity/id "2", :thing/texty "Bar"}
+                                  {:entity/id "3", :thing/texty "Gazonk"}])
+
+    (testing "returns the options which the request's form doesn't refer to, and they save the row when picked"
+      (let [doc (html/parse-fragment (:body (search "1" {:column "thing/refy", :q "", "thing/refy" ["" "3"]})))]
+        (is (= [["2" "/spreadsheet/things/1/save-reference"]
+                ["1" "/spreadsheet/things/1/save-reference"]]
+               (map (fn [^Element row]
+                      [(.attr row "data-entity-id") (.attr row "hx-post")])
+                    (.select doc "tbody tr"))))))
+
     (testing "unknown columns"
       (is (= {:status 404, :body "Column not found"}
-             (-> ((spreadsheet/reference-search-handler config) {:params {:column "thing/nope", :q "Foo"}})
-                 (select-keys [:status :body])))))))
+             (select-keys (search "1" {:column "thing/nope", :q "Foo"}) [:status :body]))))
+
+    (testing "unknown rows"
+      (is (= 404 (:status (search "4" {:column "thing/refy", :q "Foo"})))))))
 
 (deftest save-reference-handler-test
   (let [columns (conj (:columns things-config)
@@ -283,6 +301,27 @@
                                             :target "3"
                                             "thing/refy" ""})
       (is (= ["3"] (:thing/refy (db/get-by-id :things "1")))))
+
+    (testing "removing a reference:"
+      (db/init-collection! :things (assoc-in entities [0 :thing/refy] ["2" "3"]))
+      (let [response (save! (config creatable-config) "1" {:column "thing/refy"
+                                                           :remove "2"
+                                                           "thing/texty" "Foo 2"
+                                                           "thing/refy" ["" "2" "3"]})]
+        (testing "saves the row without the reference"
+          (is (= {:entity/id "1", :thing/texty "Foo 2", :thing/refy ["3"], :thing/single-refy "2"}
+                 (db/get-by-id :things "1")))
+          (is (= ["Gazonk ×"] (pills response))))
+
+        (testing "focuses the next remove button, because the response doesn't have the button which had the focus"
+          (is (= ["pill-remove"] (focused response)))))
+
+      (testing "focuses the add button after removing the last reference"
+        (is (= ["pill-button editor-entry-point"]
+               (focused (save! (config creatable-config) "1" {:column "thing/refy"
+                                                              :remove "3"
+                                                              "thing/refy" ["" "3"]}))))
+        (is (= [] (:thing/refy (db/get-by-id :things "1"))))))
 
     (testing "creating a target:"
       (db/init-collection! :things entities)

@@ -270,6 +270,18 @@
     (catch TimeoutError _
       false)))
 
+(defn- wait-for-pills
+  "Waits until the cell has the expected pills, and returns the cell's pills."
+  [^Locator cell expected]
+  (let [pills #(vec (.allTextContents (.locator cell ".reference-editor > .pill")))]
+    (try
+      (.waitForCondition browser/*page*
+                         #(= expected (pills))
+                         (-> (Page$WaitForConditionOptions.)
+                             (.setTimeout 1000)))
+      (catch TimeoutError _))
+    (pills)))
+
 (deftest pills-test
   (.click (browser/locator "td:text-is('Alfa')"))
   (press! "ArrowRight")
@@ -291,17 +303,16 @@
       (press! "Shift+Tab")
       (is (browser/has-focus? (.locator refs-cell ".pill-remove[aria-label='Remove Charlie']")) (browser/focused-element))
       (press! "Enter")
-      (is (= 1 (.count (.locator refs-cell ".reference-editor > .pill"))))
-      (is (has-focus-soon? (.locator refs-cell ".pill-button")) (browser/focused-element))
-      (is (= {:thing/refs ["2"]} (wait-for-saved {:thing/refs ["2"]})))
+      (is (= ["Bravo×"] (wait-for-pills refs-cell ["Bravo×"])))
+      (is (= {:thing/refs ["2"]} (select-keys (db/get-by-id :things "1") [:thing/refs])))
       (is (= [saved-reference] (post-requests)))
       (is (has-focus-soon? (.locator refs-cell ".pill-button")) (browser/focused-element)))
 
     (testing "clicking a remove button removes the pill, saves the row, and does not exit edit mode"
       (.click (.locator ref-cell ".pill-remove"))
-      (is (= 0 (.count (.locator ref-cell ".reference-editor > .pill"))))
+      (is (= [] (wait-for-pills ref-cell [])))
       (is (has-focus-soon? (.locator ref-cell ".pill-button")) (browser/focused-element))
-      (is (= {:thing/ref nil} (wait-for-saved {:thing/ref nil})))
+      (is (= {:thing/ref nil} (select-keys (db/get-by-id :things "1") [:thing/ref])))
       (is (= [saved-reference saved-reference] (post-requests))))
 
     (testing "the server renders the button of a single-value column with the add icon when it has no value"
@@ -430,7 +441,7 @@
     (testing "closing the picker without picking makes no requests"
       (is (= {opened-picker 5 ; the tests above opened the picker five times
               saved-reference 2} ; and picked two times
-             (frequencies (remove #(= "/spreadsheet/things/reference-search" (:path %))
+             (frequencies (remove #(= "/spreadsheet/things/1/reference-search" (:path %))
                                   (post-requests))))))
 
     (testing "exiting edit mode keeps the picked references"
@@ -652,17 +663,17 @@
     (is (browser/has-focus? (.locator refs-cell ".pill-remove[aria-label='Remove Bravo']")) (browser/focused-element))
     (gate-requests! "remove" "/save-reference")
 
-    (testing "removing a reference moves the focus to the next remove button"
+    (testing "the pill stays while its removal is being saved, but it is not part of the form"
       (press! "Enter")
-      (is (= ["Charlie×"] (pill-texts refs-cell)))
-      (is (browser/has-focus? remove-charlie) (browser/focused-element)))
+      (is (= ["Bravo×" "Charlie×"] (pill-texts refs-cell)))
+      (is (= "true" (.getAttribute (.locator refs-cell ".pill >> nth=0") "data-busy")))
+      (is (.isDisabled (.locator refs-cell ".pill >> nth=0 >> input"))))
 
-    (testing "the focus stays there when the server renders the buttons again"
-      (.evaluate remove-charlie "button => button.dataset.old = 'true'")
+    (testing "the server removes the pill, and moves the focus to the next remove button"
       (open-gate! "remove")
-      (is (= {:thing/refs ["3"]} (wait-for-saved {:thing/refs ["3"]})))
-      (.waitFor (.locator refs-cell ".pill-remove:not([data-old])"))
-      (is (browser/has-focus? remove-charlie) (browser/focused-element))
+      (is (= ["Charlie×"] (wait-for-pills refs-cell ["Charlie×"])))
+      (is (= ["3"] (:thing/refs (db/get-by-id :things "1"))))
+      (is (has-focus-soon? remove-charlie) (browser/focused-element))
       (is (= 1 (.count row))))))
 
 (deftest open-picker-after-removal-test
@@ -684,4 +695,6 @@
           "the server's responses come in the same order as the user's actions")
       (is (= "Name Refs Ref Alfa Bravo Bravo Charlie Delta" (picker-results))
           "the results have the removed reference")
-      (is (= ["Bravo×"] (pill-texts refs-cell))))))
+      (is (= ["Bravo×"] (pill-texts refs-cell)))
+      (is (= ["2"] (:thing/refs (db/get-by-id :things "1")))
+          "opening the picker saves the row, and it must not add the removed reference back"))))

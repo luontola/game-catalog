@@ -116,7 +116,7 @@
 
 (defn- render-editor ^Document [ctx]
   (html/parse-fragment
-    (reference/editor (merge {:config config, :column column, :form-id "things-form-1"} ctx))))
+    (reference/editor (merge {:config config, :entity {:entity/id "t1"}, :column column, :form-id "things-form-1"} ctx))))
 
 (defn- pills [^Document doc]
   (->> (.select doc ".pill")
@@ -167,8 +167,24 @@
       (is (empty? (pills doc)))
       (is (not (.hasAttr (.selectFirst doc ".pill-button") "autofocus")))))
 
-  (testing "the editor knows its column, for the requests which change the references"
-    (is (= "thing/widgets" (.attr (.selectFirst (render-editor {:value []}) ".reference-editor") "data-column"))))
+  (testing "the buttons save the row and render the editor again, through the request queue of the row's form"
+    (let [doc (render-editor {:value ["w1"]})
+          add-button (.selectFirst doc ".pill-button")
+          remove-button (.selectFirst doc ".pill-remove")]
+      (is (= "/spreadsheet/things/t1/reference-picker" (.attr add-button "hx-post")))
+      (is (= {:column "thing/widgets"} (json/read-value (.attr add-button "hx-vals"))))
+      (is (= "/spreadsheet/things/t1/save-reference" (.attr remove-button "hx-post")))
+      (is (= {:column "thing/widgets", :remove "w1"} (json/read-value (.attr remove-button "hx-vals"))))
+      (doseq [^Element button [add-button remove-button]]
+        (is (= "[form='things-form-1']" (.attr button "hx-include")))
+        (is (= "#things-form-1:queue last" (.attr button "hx-sync")))
+        (is (= "closest .reference-editor" (.attr button "hx-target")))
+        (is (= "innerHTML" (.attr button "hx-swap"))))))
+
+  (testing "the focus can go to the remove button of a referred entity"
+    (let [doc (render-editor {:value ["w3" "w1"], :focus-item "w3"})]
+      (is (= ["things-form-1-thing/widgets-remove-w3"]
+             (mapv #(.id ^Element %) (.select doc "[autofocus]"))))))
 
   (testing "the picker is not in the editor before the user opens it"
     (is (nil? (.selectFirst (render-editor {:value []}) "dialog"))))
@@ -179,7 +195,7 @@
           search (.selectFirst dialog ".reference-search")]
       (is (.hasAttr dialog "auto-show-modal") "the frontend opens it as a modal")
       (is (.hasAttr search "autofocus"))
-      (is (= "/spreadsheet/things/reference-search" (.attr search "hx-post")))
+      (is (= "/spreadsheet/things/t1/reference-search" (.attr search "hx-post")))
       (is (= {:column "thing/widgets"} (json/read-value (.attr search "hx-vals"))))
       (is (= "<p>Results</p>" (.html (.selectFirst dialog ".reference-results"))))))
 
@@ -235,18 +251,21 @@
                (search "" nil)))))))
 
 (deftest create-button-test
-  (let [ctx {:config config, :column column, :form-id "things-form-1"}]
+  (let [ctx {:config config, :entity {:entity/id "t1"}, :column column, :form-id "things-form-1"}]
     (testing "creates a target entity with the query as its label"
       (let [button (.selectFirst (html/parse-fragment (reference/create-button ctx " Qux " false)) "button")]
         (is (= "Create Qux" (.text button)))
         (is (not (.hasClass button "highlighted")))
-        (is (= "Qux" (.attr button "data-create")))
+        (is (.hasClass button "reference-create"))
+        (is (= "/spreadsheet/things/t1/save-reference" (.attr button "hx-post")))
+        (is (= {:column "thing/widgets", :create "Qux"} (json/read-value (.attr button "hx-vals"))))
         (is (= {:widget/name "Qux"}
                (reference/new-entity ctx " Qux "))))))
 
   (testing "the button can be the highlighted option, which the Enter key picks"
     (let [ctx {:config config, :column column, :form-id "things-form-1"}
           button (.selectFirst (html/parse-fragment (reference/create-button ctx "Qux" true)) "button")]
+      (is (.hasClass button "reference-create"))
       (is (.hasClass button "highlighted"))))
 
   (testing "no button for a blank query"
@@ -268,6 +287,26 @@
   (testing "single reference: replaces the reference"
     (is (= "w2" (reference/add-reference single-column "w1" "w2")))
     (is (= "w1" (reference/add-reference single-column nil "w1")))))
+
+(deftest remove-reference-test
+  (testing "multiple references: removes the reference"
+    (is (= ["w2"] (reference/remove-reference column ["w1" "w2"] "w1")))
+    (is (= [] (reference/remove-reference column ["w1"] "w1")))
+    (is (= ["w1"] (reference/remove-reference column ["w1"] "w2"))))
+
+  (testing "single reference: removes the reference"
+    (is (nil? (reference/remove-reference single-column "w1" "w1")))
+    (is (= "w1" (reference/remove-reference single-column "w1" "w2")))))
+
+(deftest item-after-test
+  (let [ctx {:config config, :column column, :value ["w1" "w2" "w3"]}]
+    (testing "the items are in the target collection's order: Bar w2, Foo w1, Gazonk w3"
+      (is (= "w1" (reference/item-after ctx "w2")))
+      (is (= "w3" (reference/item-after ctx "w1"))))
+
+    (testing "nothing is after the last item, or after an unknown item"
+      (is (nil? (reference/item-after ctx "w3")))
+      (is (nil? (reference/item-after ctx "w404"))))))
 
 (deftest parse-form-params-test
   (testing "multiple references"

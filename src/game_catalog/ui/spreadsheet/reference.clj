@@ -105,7 +105,23 @@
   [{:keys [column form-id]} suffix]
   (str form-id "-" (form-field-name column) "-" suffix))
 
-(defn pill [{:keys [column form-id] :as ctx} {:keys [id label tooltip missing?]}]
+(defn request-attrs
+  "The htmx attributes for an element which, when clicked, saves the row with
+   the given changes to the reference column, and renders the editor again.
+
+   The request has the fields of the row's form, and it goes through
+   the form's request queue, so that the server gets the user's actions
+   in order and the responses come in the same order."
+  [{:keys [config entity column form-id]} path params]
+  {:hx-post (str "/spreadsheet/" (name (:collection-key config)) "/" (:entity/id entity) "/" path)
+   :hx-vals (json/write-value-as-string (assoc params :column (form-field-name column)))
+   :hx-include (str "[form='" form-id "']")
+   :hx-validate "true"
+   :hx-sync (str "#" form-id ":queue last")
+   :hx-target "closest .reference-editor"
+   :hx-swap "innerHTML"})
+
+(defn pill [{:keys [column form-id focus-item] :as ctx} {:keys [id label tooltip missing?]}]
   (let [label (if missing? id label)]
     (h/html
       [:span.pill {:class (when missing? "missing")
@@ -115,9 +131,11 @@
                 :name (form-field-name column)
                 :value id}]
        label
-       [:button.pill-remove {:type "button"
-                             :id (button-id ctx (str "remove-" id))
-                             :aria-label (str "Remove " label)}
+       [:button.pill-remove (merge (request-attrs ctx "save-reference" {:remove id})
+                                   {:type "button"
+                                    :id (button-id ctx (str "remove-" id))
+                                    :autofocus (= id focus-item)
+                                    :aria-label (str "Remove " label)})
         "×"]])))
 
 (def search-limit 50)
@@ -147,6 +165,13 @@
 (defn new-entity [ctx query]
   {(:reference-label (target-config ctx)) (str/trim (str query))})
 
+(defn pick-attrs
+  "The htmx attributes for a picker's option, which adds a reference to
+   an existing target entity or to a new one. The response has no picker,
+   which closes the picker."
+  [ctx params]
+  (request-attrs ctx "save-reference" params))
+
 (defn create-button
   "The highlighted option is the one which the Enter key picks."
   [ctx query highlighted?]
@@ -154,9 +179,11 @@
     (when (and (creatable? ctx)
                (not (str/blank? query)))
       (h/html
-        [:button.reference-create {:type "button"
-                                   :class (when highlighted? "highlighted")
-                                   :data-create query}
+        [:button (assoc (pick-attrs ctx {:create query})
+                   :type "button"
+                   :class (if highlighted?
+                            "reference-create highlighted"
+                            "reference-create"))
          "Create " [:span.pill query]]))))
 
 (defn add-reference
@@ -167,7 +194,23 @@
     (vec (distinct (conj (value->ids value) target-id)))
     target-id))
 
-(defn- picker [{:keys [config column picker-results]}]
+(defn remove-reference
+  "Returns the column's value without the reference to the target entity."
+  [column value target-id]
+  (let [ids (vec (remove #(= target-id %) (value->ids value)))]
+    (if (:column/multiple? column)
+      ids
+      (first ids))))
+
+(defn item-after
+  "Returns the ID of the referred entity which is shown after the target entity."
+  [ctx target-id]
+  (->> (items ctx)
+       (map :id)
+       (drop-while #(not= target-id %))
+       second))
+
+(defn- picker [{:keys [config entity column picker-results]}]
   (let [title (str "Search " (:column/name column))]
     (h/html
       [:dialog.reference-picker {:aria-label title
@@ -183,7 +226,7 @@
                                   :data-1p-ignore true
                                   ;; The Enter key on mobile keyboards picks the highlighted result
                                   :enterkeyhint "go"
-                                  :hx-post (str "/spreadsheet/" (name (:collection-key config)) "/reference-search")
+                                  :hx-post (str "/spreadsheet/" (name (:collection-key config)) "/" (:entity/id entity) "/reference-search")
                                   :hx-trigger "input changed delay:150ms"
                                   ;; Includes the referred entities, so that the search can exclude them
                                   :hx-include "closest .reference-editor"
@@ -203,7 +246,10 @@
 
    The picker is not part of the editor until the user opens it. When ctx
    has :picker-results, the content includes the picker with those results
-   of the first search. Content without the picker closes the picker."
+   of the first search. Content without the picker closes the picker.
+
+   The focus goes to the add button with :focus?, or to the remove button
+   of the referred entity in :focus-item."
   [{:keys [column form-id focus? picker-results] :as ctx}]
   (let [items (items ctx)
         ;; Single-value columns replace the value instead of adding to it
@@ -218,18 +264,19 @@
                :value ""}]
       (for [item items]
         (pill ctx item))
-      [:button.pill-button.editor-entry-point {:type "button"
-                                               :id (button-id ctx "add")
-                                               :autofocus focus?}
+      [:button.pill-button.editor-entry-point (merge (request-attrs ctx "reference-picker" {})
+                                                     {:type "button"
+                                                      :id (button-id ctx "add")
+                                                      :autofocus focus?})
        (if replace?
          [:span {:role "img", :aria-label "Replace"} "⇄"]
          [:span {:role "img", :aria-label "Add"} "+"])]
       (when picker-results
         (picker ctx)))))
 
-(defn editor [{:keys [column] :as ctx}]
+(defn editor [ctx]
   (h/html
-    [:span.reference-editor {:data-column (form-field-name column)}
+    [:span.reference-editor
      (editor-content ctx)]))
 
 (defn parse-form-params [params column]

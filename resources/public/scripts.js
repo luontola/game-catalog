@@ -95,9 +95,11 @@ function hideError() {
 
 statusBar?.querySelector('.status-bar-close').addEventListener('click', hideError)
 
-// The row whose form made the request, if any
+// The row which the request saves, if any
 function requestingRow(e) {
-    return e.target.closest?.(`${spreadsheetRow}.editing form`)?.closest('tr')
+    if (e.target.matches?.(`form, ${rowQueueRequest}`)) {
+        return e.target.closest(`${spreadsheetRow}.editing`)
+    }
 }
 
 function requestFailed(e, message) {
@@ -108,6 +110,10 @@ function requestFailed(e, message) {
         delete row.dataset.exiting
         for (const element of row.querySelectorAll('[data-busy]')) {
             delete element.dataset.busy
+        }
+        // The references which were being removed are not removed
+        for (const input of row.querySelectorAll('.pill > input:disabled')) {
+            input.disabled = false
         }
         // The picker would hide the error message, and the pick did not succeed
         const dialog = row.querySelector('.reference-picker')
@@ -370,60 +376,45 @@ document.addEventListener('mousedown', (e) => {
     }
 })
 
-// Reference editor: the server saves the row and renders the editor's content
-// again. The request goes through the queue of the row's form, so that
+// Reference editor: its buttons and the picker's options have htmx attributes.
+// When clicked, the server saves the row and renders the editor's content again.
+// Their requests go through the queue of the row's form (hx-sync), so that
 // the responses arrive in the same order as the user's actions.
-function renderReferenceEditor(editor, path, values = {}) {
-    const row = editor.closest(spreadsheetRow)
-    const form = row.querySelector('form')
-    if (row.dataset.exiting === 'true') {
-        // This request would replace the request for exiting edit mode, if it is waiting in the queue
-        return false
-    }
-    if (!form.reportValidity()) {
-        // htmx doesn't send invalid forms, and it doesn't tell about it
-        return false
-    }
-    const {entityType, entityId} = getEntityInfo(row)
-    htmx.ajax('POST', `/spreadsheet/${entityType}/${entityId}/${path}`, {
-        source: form,
-        target: editor,
-        swap: 'innerHTML',
-        values: {column: editor.dataset.column, ...values}
-    })
-    return true
-}
+const rowQueueRequest = ':not(form)[hx-sync]'
 
-// Remove a reference by clicking its remove button
-document.addEventListener('click', (e) => {
-    const button = e.target.closest('.reference-editor > .pill > .pill-remove')
-    if (!button) {
+document.addEventListener('htmx:config:request', (e) => {
+    if (!e.target.matches?.(rowQueueRequest)) {
         return
     }
-    const pill = button.closest('.pill')
-    const editor = button.closest('.reference-editor')
-    // Move the focus before removing the focused button, so that the focus stays in the row.
-    // The server renders the buttons again, and htmx keeps the focus on the button with the same ID.
-    const nextFocus = pill.nextElementSibling.querySelector('.pill-remove')
-        ?? editor.querySelector('.pill-button')
-    nextFocus.focus()
-    pill.remove()
-    renderReferenceEditor(editor, 'save-reference')
+    if (e.target.closest(spreadsheetRow)?.dataset.exiting === 'true') {
+        // This request would replace the request for exiting edit mode, if it is waiting in the queue
+        e.preventDefault()
+        return
+    }
+    const pill = e.target.closest('.pill')
+    if (pill) {
+        // The reference is being removed. The user's next actions must not send
+        // it to the server again, because that would add the reference back.
+        pill.dataset.busy = 'true'
+        pill.querySelector('input').disabled = true
+    }
+    const dialog = e.target.closest('.reference-picker')
+    if (dialog) {
+        if (isBusy(dialog)) {
+            // Only one pick
+            e.preventDefault()
+            return
+        }
+        // The server's response to a pick has no picker, which closes the picker.
+        // Until then the picker stays open and busy: it blocks the other changes to the row,
+        // which could replace this request when it is waiting in the queue.
+        dialog.dataset.busy = 'true'
+    }
 })
 
 // Reference picker: a dialog for searching the target collection.
 // The server adds the picker to the editor's content with the first search
 // results, and the picker's auto-show-modal attribute opens it.
-
-function openReferencePicker(button) {
-    if (isBusy(button)) {
-        return
-    }
-    if (renderReferenceEditor(button.closest('.reference-editor'), 'reference-picker')) {
-        // The response replaces the button, which also removes the busy state
-        button.dataset.busy = 'true'
-    }
-}
 
 function closeReferencePicker(dialog) {
     const editor = dialog.closest('.reference-editor')
@@ -449,29 +440,11 @@ function highlightedPickerOption(dialog) {
     return dialog.querySelector('.reference-results .highlighted')
 }
 
-// The server adds the picked reference, or creates the entity and adds a reference to it,
-// and saves the row. The server's response has no picker, which closes the picker.
-// Until then the picker stays open and busy: it blocks the other changes to the row,
-// which could replace this request when it is waiting in the queue of the row's form.
-function pickReference(dialog, option) {
-    const values = option.matches('.reference-create')
-        ? {create: option.dataset.create}
-        : {target: option.dataset.entityId}
-    if (renderReferenceEditor(dialog.closest('.reference-editor'), 'save-reference', values)) {
-        dialog.dataset.busy = 'true'
-    }
-}
-
 function isBusy(element) {
     return element.dataset.busy === 'true'
 }
 
 document.addEventListener('click', (e) => {
-    const button = e.target.closest('.reference-editor > .pill-button')
-    if (button) {
-        openReferencePicker(button)
-        return
-    }
     const dialog = e.target.closest('.reference-picker')
     if (!dialog || isBusy(dialog)) {
         return
@@ -479,11 +452,6 @@ document.addEventListener('click', (e) => {
     if (e.target === dialog || e.target.closest('.reference-picker-close')) {
         // The dialog has no padding, so only clicks on the backdrop target it
         closeReferencePicker(dialog)
-        return
-    }
-    const option = e.target.closest(pickerOption)
-    if (option) {
-        pickReference(dialog, option)
     }
 })
 
@@ -506,10 +474,8 @@ document.addEventListener('keydown', (e) => {
         highlightPickerOption(dialog, options[Math.max(index - 1, 0)])
         e.preventDefault()
     } else if (e.key === 'Enter') {
-        const option = highlightedPickerOption(dialog)
-        if (option) {
-            pickReference(dialog, option)
-        }
+        // The option's htmx attributes make the request
+        highlightedPickerOption(dialog)?.click()
         e.preventDefault()
     } else if (e.key === 'Escape') {
         // The browser's own closing would return the focus to the element which had it

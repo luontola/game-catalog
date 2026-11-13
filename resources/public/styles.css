@@ -245,6 +245,11 @@ main {
     vertical-align: middle;
 }
 
+/* The value is being removed */
+.pill[data-busy] {
+    opacity: 0.5;
+}
+
 .pill.missing {
     color: var(--text-light);
     font-style: italic;
@@ -270,7 +275,7 @@ main {
 }
 
 /* The element waits for the server's response */
-[data-busy] {
+[data-busy], .pill-button.htmx-request {
     cursor: progress;
 }
 
