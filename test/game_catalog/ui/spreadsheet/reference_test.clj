@@ -183,11 +183,18 @@
       (is (= {:column "thing/widgets"} (json/read-value (.attr search "hx-vals"))))
       (is (= "<p>Results</p>" (.html (.selectFirst dialog ".reference-results"))))))
 
-  (testing "single reference has also a replace icon, and CSS shows only one of them"
+  (testing "single reference: the button replaces the value instead of adding to it"
     (let [doc (render-editor {:column single-column, :value "w2"})]
-      (is (= "false" (.attr (.selectFirst doc ".reference-editor") "data-multiple")))
       (is (= [{:value "w2", :text "Bar ×"}] (pills doc)))
-      (is (= ["Add" "Replace"] (icons doc)))))
+      (is (= ["Replace"] (icons doc))))
+    (is (= ["Add"] (icons (render-editor {:column single-column, :value nil})))))
+
+  (testing "the buttons have IDs, so that the focus can stay on a button when the editor is rendered again"
+    (let [doc (render-editor {:value ["w3" "w1"]})]
+      (is (= ["things-form-1-thing/widgets-remove-w1"
+              "things-form-1-thing/widgets-remove-w3"
+              "things-form-1-thing/widgets-add"]
+             (mapv #(.id ^Element %) (.select doc "button"))))))
 
   (testing "a blank label is replaced with a placeholder"
     (is (= [{:value "w4", :text "(no label) ×"}]

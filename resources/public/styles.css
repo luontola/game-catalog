@@ -127,14 +127,6 @@ main {
 
     /* Column type specific styling */
 
-    td.column-reference {
-        /* Single-value columns replace the value instead of adding to it */
-        .reference-editor[data-multiple="false"]:has(> .pill) .reference-add,
-        .reference-editor:not(:has(> .pill)) .reference-replace {
-            display: none;
-        }
-    }
-
     td.column-numeric {
         input[type="number"] {
             /* Hide the spinner arrows */

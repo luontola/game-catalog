@@ -370,23 +370,6 @@ document.addEventListener('mousedown', (e) => {
     }
 })
 
-// Remove a pill by clicking its remove button
-document.addEventListener('click', (e) => {
-    const button = e.target.closest('.spreadsheet .pill-remove')
-    if (!button) {
-        return
-    }
-    const pill = button.closest('.pill')
-    const cell = button.closest('td')
-    // Move the focus before removing the focused button,
-    // so that the focus doesn't leave the row, which would exit edit mode
-    const nextFocus = pill.nextElementSibling?.querySelector('.pill-remove')
-        ?? cell.querySelector('.editor-entry-point')
-    nextFocus.focus()
-    pill.remove()
-    cell.dispatchEvent(new Event('change', {bubbles: true}))
-})
-
 // Reference editor: the server saves the row and renders the editor's content
 // again. The request goes through the queue of the row's form, so that
 // the responses arrive in the same order as the user's actions.
@@ -410,6 +393,23 @@ function renderReferenceEditor(editor, path, values = {}) {
     })
     return true
 }
+
+// Remove a reference by clicking its remove button
+document.addEventListener('click', (e) => {
+    const button = e.target.closest('.reference-editor > .pill > .pill-remove')
+    if (!button) {
+        return
+    }
+    const pill = button.closest('.pill')
+    const editor = button.closest('.reference-editor')
+    // Move the focus before removing the focused button, so that the focus stays in the row.
+    // The server renders the buttons again, and htmx keeps the focus on the button with the same ID.
+    const nextFocus = pill.nextElementSibling.querySelector('.pill-remove')
+        ?? editor.querySelector('.pill-button')
+    nextFocus.focus()
+    pill.remove()
+    renderReferenceEditor(editor, 'save-reference')
+})
 
 // Reference picker: a dialog for searching the target collection.
 // The server adds the picker to the editor's content with the first search

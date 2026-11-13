@@ -99,7 +99,13 @@
                label]
               label)))))))
 
-(defn pill [{:keys [column form-id]} {:keys [id label tooltip missing?]}]
+(defn- button-id
+  "The server renders the editor's buttons again after every change to the
+   references. The IDs let htmx keep the focus on the same button."
+  [{:keys [column form-id]} suffix]
+  (str form-id "-" (form-field-name column) "-" suffix))
+
+(defn pill [{:keys [column form-id] :as ctx} {:keys [id label tooltip missing?]}]
   (let [label (if missing? id label)]
     (h/html
       [:span.pill {:class (when missing? "missing")
@@ -110,6 +116,7 @@
                 :value id}]
        label
        [:button.pill-remove {:type "button"
+                             :id (button-id ctx (str "remove-" id))
                              :aria-label (str "Remove " label)}
         "×"]])))
 
@@ -198,28 +205,31 @@
    has :picker-results, the content includes the picker with those results
    of the first search. Content without the picker closes the picker."
   [{:keys [column form-id focus? picker-results] :as ctx}]
-  (h/html
-    ;; Ensures that removing all references submits an empty value;
-    ;; otherwise browsers omit the field entirely, which means "no change".
-    [:input {:type "hidden"
-             :form form-id
-             :name (form-field-name column)
-             :value ""}]
-    (for [item (items ctx)]
-      (pill ctx item))
-    [:button.pill-button.editor-entry-point {:type "button"
-                                             :autofocus focus?}
-     ;; CSS shows only one icon, depending on whether a single-value column has a value
-     [:span.reference-add {:role "img", :aria-label "Add"} "+"]
-     (when-not (:column/multiple? column)
-       [:span.reference-replace {:role "img", :aria-label "Replace"} "⇄"])]
-    (when picker-results
-      (picker ctx))))
+  (let [items (items ctx)
+        ;; Single-value columns replace the value instead of adding to it
+        replace? (and (not (:column/multiple? column))
+                      (seq items))]
+    (h/html
+      ;; Ensures that removing all references submits an empty value;
+      ;; otherwise browsers omit the field entirely, which means "no change".
+      [:input {:type "hidden"
+               :form form-id
+               :name (form-field-name column)
+               :value ""}]
+      (for [item items]
+        (pill ctx item))
+      [:button.pill-button.editor-entry-point {:type "button"
+                                               :id (button-id ctx "add")
+                                               :autofocus focus?}
+       (if replace?
+         [:span {:role "img", :aria-label "Replace"} "⇄"]
+         [:span {:role "img", :aria-label "Add"} "+"])]
+      (when picker-results
+        (picker ctx)))))
 
 (defn editor [{:keys [column] :as ctx}]
   (h/html
-    [:span.reference-editor {:data-column (form-field-name column)
-                             :data-multiple (str (boolean (:column/multiple? column)))}
+    [:span.reference-editor {:data-column (form-field-name column)}
      (editor-content ctx)]))
 
 (defn parse-form-params [params column]
