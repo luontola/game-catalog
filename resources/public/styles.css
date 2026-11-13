@@ -363,6 +363,11 @@ main {
         }
     }
 
+    /* The pick is being saved */
+    &[data-busy] .reference-results {
+        opacity: 0.5;
+    }
+
     .reference-create {
         display: block;
         width: 100%;

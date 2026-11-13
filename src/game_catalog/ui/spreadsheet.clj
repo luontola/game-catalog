@@ -69,9 +69,8 @@
 
 (defn pick-table
   "Renders the entities for picking a whole row, without editing support.
-   The first row is highlighted, because the Enter key picks the highlighted row.
-   The pick-template function returns content for each row's <template>."
-  [config entities pick-template]
+   The first row is highlighted, because the Enter key picks the highlighted row."
+  [config entities]
   (h/html
     [:table.spreadsheet-picker
      [:thead
@@ -82,7 +81,6 @@
       (for [[idx entity] (map-indexed vector entities)]
         [:tr {:class (when (zero? idx) "highlighted")
               :data-entity-id (:entity/id entity)}
-         [:template (pick-template entity)]
          (for [column (pick-columns config)]
            (view-cell {:mode :pick
                        :config config
@@ -178,14 +176,13 @@
                  ((:column/parse-form-params column) params column)))
        (into {})))
 
-(defn- save-form!
-  "Saves the form fields which the request has. Returns the up-to-date entity,
+(defn- save-updates!
+  "Saves the updated fields of the entity. Returns the up-to-date entity,
    or nil if the entity doesn't exist."
-  [config request]
-  (let [collection-key (:collection-key config)
-        entity-id (get-in request [:path-params :entity-id])]
+  [config entity-id updates]
+  (let [collection-key (:collection-key config)]
     (when-some [old-entity (db/get-by-id collection-key entity-id)]
-      (let [new-entity (merge old-entity (form-updates config (:params request)))]
+      (let [new-entity (merge old-entity updates)]
         ;; Rows are saved often and usually only one field has changed, or none.
         ;; Every write would invalidate the database's reverse indexes, so avoid
         ;; writes if the data has not changed.
@@ -194,6 +191,14 @@
           (log/info (str "Saved " (name collection-key) " " entity-id ":")
                     (pr-str new-entity)))
         new-entity))))
+
+(defn- save-form!
+  "Saves the form fields which the request has. Returns the up-to-date entity,
+   or nil if the entity doesn't exist."
+  [config request]
+  (save-updates! config
+                 (get-in request [:path-params :entity-id])
+                 (form-updates config (:params request))))
 
 (defn- error-response
   "Error messages are plain text, which the frontend shows in the status bar."
@@ -313,7 +318,7 @@
     (h/html
       (if (empty? entities)
         [:p.reference-no-matches "No matches"]
-        (pick-table target-config entities #(reference/pill ctx (reference/entity-item target-config %))))
+        (pick-table target-config entities))
       (when (pos? more)
         [:p.reference-more more " more, type to refine"])
       (reference/create-button ctx query (empty? entities)))))
@@ -323,10 +328,16 @@
     (let [params (:params request)]
       (if-some [column (find-reference-column config (:column params))]
         (let [ctx {:config config
-                   :column column
-                   :form-id (:form params)}]
+                   :column column}]
           (html/response (reference-search-results ctx (:q params) (get params (text/form-field-name column)))))
         (error-response 404 "Column not found")))))
+
+(defn- reference-editor-ctx [config entity column]
+  (with-value {:mode :edit
+               :config config
+               :entity entity
+               :column column
+               :form-id (form-id config entity)}))
 
 (defn reference-picker-handler
   "Saves the row, and returns the content of the reference column's editor
@@ -344,47 +355,78 @@
         (row-not-found)
 
         :else
-        (let [ctx (with-value {:mode :edit
-                               :config config
-                               :entity entity
-                               :column column
-                               :form-id (form-id config entity)})]
+        (let [ctx (reference-editor-ctx config entity column)]
           (html/response (reference/editor-content
                            (assoc ctx :picker-results (reference-search-results ctx "" (:value ctx))))))))))
 
-(defn reference-create-handler [config]
+(defn- create-reference-target! [{:keys [config column] :as ctx} label]
+  (let [target-collection (:column/target-collection column)
+        target-config (get-in config [:target-configs target-collection])
+        entity (-> (reference/new-entity ctx label)
+                   (assoc :entity/id ((:id-generator target-config) target-collection)))]
+    (db/save! target-collection entity)
+    (log/info (str "Saved " (name target-collection) " " (:entity/id entity) ":")
+              (pr-str entity))
+    (:entity/id entity)))
+
+(defn save-reference-handler
+  "Saves the row, and returns the content of the reference column's editor
+   without the picker, which closes the picker.
+
+   The request can add a reference to the column: the :target parameter
+   is the ID of an existing target entity, and the :create parameter is
+   the label of a new target entity to create."
+  [config]
   (fn [request]
     (let [params (:params request)
+          entity-id (get-in request [:path-params :entity-id])
+          old-entity (db/get-by-id (:collection-key config) entity-id)
           column (find-reference-column config (:column params))
           target-collection (:column/target-collection column)
-          target-config (get-in config [:target-configs target-collection])
           ctx {:config config
-               :column column
-               :form-id (:form params)}]
+               :column column}
+          create? (contains? params :create)
+          target-id (:target params)]
+      ;; All the checks are before the writes, so that a failed request changes nothing
       (cond
         (nil? column)
         (error-response 404 "Column not found")
 
-        (not (reference/creatable? ctx))
+        (nil? old-entity)
+        (row-not-found)
+
+        (and create? (not (reference/creatable? ctx)))
         (error-response 400 "Cannot create entities in the target collection")
 
-        (str/blank? (:q params))
+        (and create? (str/blank? (:create params)))
         (error-response 400 "Cannot create an entity without a label")
 
+        (and target-id (nil? (db/get-by-id target-collection target-id)))
+        (error-response 404 "The picked row was not found. It was probably deleted.")
+
         :else
-        (let [entity (-> (reference/new-entity ctx (:q params))
-                         (assoc :entity/id ((:id-generator target-config) target-collection)))]
-          (db/save! target-collection entity)
-          (log/info (str "Saved " (name target-collection) " " (:entity/id entity) ":")
-                    (pr-str entity))
-          (html/response (reference/pill ctx (reference/entity-item target-config entity))))))))
+        (let [target-id (if create?
+                          (create-reference-target! ctx (:create params))
+                          target-id)
+              entity-key (:column/entity-key column)
+              updates (form-updates config params)
+              updates (cond-> updates
+                        ;; The form has the references which the user sees. The saved
+                        ;; references are the fallback for requests without the form.
+                        target-id (assoc entity-key (reference/add-reference
+                                                      column
+                                                      (get updates entity-key (get old-entity entity-key))
+                                                      target-id)))
+              entity (save-updates! config entity-id updates)]
+          (html/response (reference/editor-content
+                           (assoc (reference-editor-ctx config entity column)
+                             ;; The focus was in the picker, which the response closes
+                             :focus? (some? target-id)))))))))
 
 (defn make-routes [config]
   (let [entity-type (entity-type config)]
     [[(str "/spreadsheet/" entity-type "/reference-search")
       {:post {:handler (reference-search-handler config)}}]
-     [(str "/spreadsheet/" entity-type "/reference-create")
-      {:post {:handler (reference-create-handler config)}}]
      [(str "/spreadsheet/" entity-type "/create")
       {:post {:handler (create-row-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/edit")
@@ -395,5 +437,7 @@
       {:post {:handler (save-and-continue-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/reference-picker")
       {:post {:handler (reference-picker-handler config)}}]
+     [(str "/spreadsheet/" entity-type "/:entity-id/save-reference")
+      {:post {:handler (save-reference-handler config)}}]
      [(str "/spreadsheet/" entity-type "/:entity-id/delete")
       {:post {:handler (delete-row-handler config)}}]]))

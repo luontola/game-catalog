@@ -69,7 +69,7 @@
   (let [entities [entity
                   (assoc entity :entity/id "2")
                   (assoc entity :entity/id "3")]
-        doc (html/parse-fragment (spreadsheet/pick-table config entities (constantly nil)))]
+        doc (html/parse-fragment (spreadsheet/pick-table config entities))]
 
     (testing "the rows know their entities"
       (is (= ["1" "2" "3"]

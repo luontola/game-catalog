@@ -205,37 +205,127 @@
     (testing "unknown rows"
       (is (= 404 (:status (delete! "3")))))))
 
-(deftest reference-handler-errors-test
-  (let [creatable-config (assoc things-config :reference-label :thing/texty)
+(deftest reference-search-handler-test
+  (let [config (assoc things-config :target-configs {:things things-config})]
+    (testing "unknown columns"
+      (is (= {:status 404, :body "Column not found"}
+             (-> ((spreadsheet/reference-search-handler config) {:params {:column "thing/nope", :q "Foo"}})
+                 (select-keys [:status :body])))))))
+
+(deftest save-reference-handler-test
+  (let [columns (conj (:columns things-config)
+                      (assoc reference/column-defaults
+                        :column/name "Single Refy"
+                        :column/entity-key :thing/single-refy
+                        :column/target-collection :things
+                        :column/multiple? false))
+        things-config (assoc things-config :columns columns)
+        creatable-config (assoc things-config :reference-label :thing/texty)
         config (fn [target-config]
                  (assoc things-config :target-configs {:things target-config}))
-        error (fn [handler params]
-                (-> (handler {:params params})
-                    (select-keys [:status :body])))]
-    (db/init-collection! :things [])
+        save! (fn [config entity-id params]
+                ((spreadsheet/save-reference-handler config)
+                 {:path-params {:entity-id entity-id}
+                  :params params}))
+        pills (fn [response]
+                (->> (.select (html/parse-fragment (:body response)) "body > .pill")
+                     (map #(.text ^Element %))))
+        focused (fn [response]
+                  (->> (.select (html/parse-fragment (:body response)) "[autofocus]")
+                       (map #(.className ^Element %))))
+        entities [{:entity/id "1", :thing/texty "Foo", :thing/refy ["2"], :thing/single-refy "2"}
+                  {:entity/id "2", :thing/texty "Bar"}
+                  {:entity/id "3", :thing/texty "Gazonk"}]]
 
-    (testing "searching an unknown column"
-      (is (= {:status 404, :body "Column not found"}
-             (error (spreadsheet/reference-search-handler (config creatable-config))
-                    {:column "thing/nope", :q "Foo"}))))
+    (testing "without a target:"
+      (db/init-collection! :things entities)
+      (let [response (save! (config creatable-config) "1" {:column "thing/refy"
+                                                           "thing/texty" "Foo 2"
+                                                           "thing/refy" ["" "3"]})]
+        (testing "saves the row"
+          (is (= {:entity/id "1", :thing/texty "Foo 2", :thing/refy ["3"], :thing/single-refy "2"}
+                 (db/get-by-id :things "1"))))
 
-    (testing "creating to an unknown column"
-      (is (= {:status 404, :body "Column not found"}
-             (error (spreadsheet/reference-create-handler (config creatable-config))
-                    {:column "thing/nope", :q "Foo"}))))
+        (testing "returns the editor's content without the picker"
+          (is (= ["Gazonk ×"] (pills response)))
+          (is (nil? (.selectFirst (html/parse-fragment (:body response)) "dialog"))))
 
-    (testing "creating to a target collection whose label cannot be set"
-      (is (= {:status 400, :body "Cannot create entities in the target collection"}
-             (error (spreadsheet/reference-create-handler (config things-config))
-                    {:column "thing/refy", :q "Foo"}))))
+        (testing "does not change the focus, because the user can already be in another field"
+          (is (empty? (focused response))))))
 
-    (testing "creating without a label"
-      (is (= {:status 400, :body "Cannot create an entity without a label"}
-             (error (spreadsheet/reference-create-handler (config creatable-config))
-                    {:column "thing/refy", :q " "}))))
+    (testing "picking an existing target:"
+      (db/init-collection! :things entities)
+      (let [response (save! (config creatable-config) "1" {:column "thing/refy"
+                                                           :target "3"
+                                                           "thing/texty" "Foo 2"
+                                                           "thing/refy" ["" "2"]})]
+        (testing "saves the row and the new reference"
+          (is (= {:entity/id "1", :thing/texty "Foo 2", :thing/refy ["2" "3"], :thing/single-refy "2"}
+                 (db/get-by-id :things "1"))))
 
-    (testing "errors don't create entities"
-      (is (empty? (db/get-all :things))))))
+        (testing "returns the editor's content with the new reference"
+          (is (= ["Bar ×" "Gazonk ×"] (pills response))))
+
+        (testing "focuses the add button, because the picker which had the focus is closed"
+          (is (= ["pill-button editor-entry-point"] (focused response))))))
+
+    (testing "picking to a single-value column replaces the reference"
+      (db/init-collection! :things entities)
+      (let [response (save! (config creatable-config) "1" {:column "thing/single-refy"
+                                                           :target "3"
+                                                           "thing/single-refy" ["" "2"]})]
+        (is (= "3" (:thing/single-refy (db/get-by-id :things "1"))))
+        (is (= ["Gazonk ×"] (pills response)))))
+
+    (testing "the form's references are used, instead of the saved references, because they are what the user sees"
+      (db/init-collection! :things entities)
+      (save! (config creatable-config) "1" {:column "thing/refy"
+                                            :target "3"
+                                            "thing/refy" ""})
+      (is (= ["3"] (:thing/refy (db/get-by-id :things "1")))))
+
+    (testing "creating a target:"
+      (db/init-collection! :things entities)
+      (let [response (save! (config creatable-config) "1" {:column "thing/refy"
+                                                           :create " Qux "
+                                                           "thing/refy" ["" "2"]})]
+        (testing "creates the target entity with the label"
+          (is (= {:entity/id "4", :thing/texty "Qux"}
+                 (db/get-by-id :things "4"))))
+
+        (testing "saves the reference to it"
+          (is (= ["2" "4"] (:thing/refy (db/get-by-id :things "1"))))
+          (is (= ["Bar ×" "Qux ×"] (pills response))))))
+
+    (testing "errors:"
+      (db/init-collection! :things entities)
+      (let [collections-before @db/*collections
+            error (fn [config entity-id params]
+                    (select-keys (save! config entity-id (assoc params "thing/texty" "Changed"))
+                                 [:status :body]))]
+
+        (testing "unknown column"
+          (is (= {:status 404, :body "Column not found"}
+                 (error (config creatable-config) "1" {:column "thing/nope", :target "3"}))))
+
+        (testing "unknown row"
+          (is (= {:status 404, :body "Row not found. It was probably deleted."}
+                 (error (config creatable-config) "5" {:column "thing/refy", :create "Qux"}))))
+
+        (testing "unknown target"
+          (is (= {:status 404, :body "The picked row was not found. It was probably deleted."}
+                 (error (config creatable-config) "1" {:column "thing/refy", :target "5"}))))
+
+        (testing "creating to a target collection whose label cannot be set"
+          (is (= {:status 400, :body "Cannot create entities in the target collection"}
+                 (error (config things-config) "1" {:column "thing/refy", :create "Qux"}))))
+
+        (testing "creating without a label"
+          (is (= {:status 400, :body "Cannot create an entity without a label"}
+                 (error (config creatable-config) "1" {:column "thing/refy", :create " "}))))
+
+        (testing "errors don't save the row, and don't create entities"
+          (is (identical? collections-before @db/*collections)))))))
 
 (deftest reference-picker-handler-test
   (let [target-config (assoc things-config :reference-label :thing/texty)

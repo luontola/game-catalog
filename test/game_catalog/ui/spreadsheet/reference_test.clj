@@ -180,6 +180,7 @@
       (is (.hasAttr dialog "auto-show-modal") "the frontend opens it as a modal")
       (is (.hasAttr search "autofocus"))
       (is (= "/spreadsheet/things/reference-search" (.attr search "hx-post")))
+      (is (= {:column "thing/widgets"} (json/read-value (.attr search "hx-vals"))))
       (is (= "<p>Results</p>" (.html (.selectFirst dialog ".reference-results"))))))
 
   (testing "single reference has also a replace icon, and CSS shows only one of them"
@@ -232,9 +233,7 @@
       (let [button (.selectFirst (html/parse-fragment (reference/create-button ctx " Qux " false)) "button")]
         (is (= "Create Qux" (.text button)))
         (is (not (.hasClass button "highlighted")))
-        (is (= "/spreadsheet/things/reference-create" (.attr button "data-url")))
-        (is (= {:column "thing/widgets", :form "things-form-1", :q "Qux"}
-               (json/read-value (.attr button "hx-vals"))))
+        (is (= "Qux" (.attr button "data-create")))
         (is (= {:widget/name "Qux"}
                (reference/new-entity ctx " Qux "))))))
 
@@ -250,6 +249,18 @@
     (let [config (assoc-in config [:target-configs :widgets :reference-label] (comp str :widget/size))]
       (is (not (reference/creatable? {:config config, :column column})))
       (is (nil? (reference/create-button {:config config, :column column} "Qux" false))))))
+
+(deftest add-reference-test
+  (testing "multiple references: adds the reference"
+    (is (= ["w1" "w2"] (reference/add-reference column ["w1"] "w2")))
+    (is (= ["w1"] (reference/add-reference column nil "w1"))))
+
+  (testing "multiple references: an entity is referred only once"
+    (is (= ["w1" "w2"] (reference/add-reference column ["w1" "w2"] "w1"))))
+
+  (testing "single reference: replaces the reference"
+    (is (= "w2" (reference/add-reference single-column "w1" "w2")))
+    (is (= "w1" (reference/add-reference single-column nil "w1")))))
 
 (deftest parse-form-params-test
   (testing "multiple references"

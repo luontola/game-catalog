@@ -109,6 +109,11 @@ function requestFailed(e, message) {
         for (const element of row.querySelectorAll('[data-busy]')) {
             delete element.dataset.busy
         }
+        // The picker would hide the error message, and the pick did not succeed
+        const dialog = row.querySelector('.reference-picker')
+        if (dialog) {
+            closeReferencePicker(dialog)
+        }
     }
     showError(message)
 }
@@ -385,7 +390,7 @@ document.addEventListener('click', (e) => {
 // Reference editor: the server saves the row and renders the editor's content
 // again. The request goes through the queue of the row's form, so that
 // the responses arrive in the same order as the user's actions.
-function renderReferenceEditor(editor, path) {
+function renderReferenceEditor(editor, path, values = {}) {
     const row = editor.closest(spreadsheetRow)
     const form = row.querySelector('form')
     if (row.dataset.exiting === 'true') {
@@ -401,7 +406,7 @@ function renderReferenceEditor(editor, path) {
         source: form,
         target: editor,
         swap: 'innerHTML',
-        values: {column: editor.dataset.column}
+        values: {column: editor.dataset.column, ...values}
     })
     return true
 }
@@ -411,7 +416,7 @@ function renderReferenceEditor(editor, path) {
 // results, and the picker's auto-show-modal attribute opens it.
 
 function openReferencePicker(button) {
-    if (button.dataset.busy === 'true') {
+    if (isBusy(button)) {
         return
     }
     if (renderReferenceEditor(button.closest('.reference-editor'), 'reference-picker')) {
@@ -444,24 +449,21 @@ function highlightedPickerOption(dialog) {
     return dialog.querySelector('.reference-results .highlighted')
 }
 
-async function pickReference(dialog, option) {
-    const editor = dialog.closest('.reference-editor')
-    const button = editor.querySelector('.pill-button')
-    if (editor.dataset.multiple === 'false') {
-        editor.querySelectorAll(':scope > .pill').forEach(p => p.remove())
+// The server adds the picked reference, or creates the entity and adds a reference to it,
+// and saves the row. The server's response has no picker, which closes the picker.
+// Until then the picker stays open and busy: it blocks the other changes to the row,
+// which could replace this request when it is waiting in the queue of the row's form.
+function pickReference(dialog, option) {
+    const values = option.matches('.reference-create')
+        ? {create: option.dataset.create}
+        : {target: option.dataset.entityId}
+    if (renderReferenceEditor(dialog.closest('.reference-editor'), 'save-reference', values)) {
+        dialog.dataset.busy = 'true'
     }
-    if (option.matches('.reference-create')) {
-        // The server creates the entity and returns its pill
-        await htmx.ajax('POST', option.dataset.url, {
-            source: option,
-            target: button,
-            swap: 'beforebegin'
-        })
-    } else {
-        button.before(option.querySelector('template').content.cloneNode(true))
-    }
-    closeReferencePicker(dialog)
-    editor.dispatchEvent(new Event('change', {bubbles: true}))
+}
+
+function isBusy(element) {
+    return element.dataset.busy === 'true'
 }
 
 document.addEventListener('click', (e) => {
@@ -471,7 +473,7 @@ document.addEventListener('click', (e) => {
         return
     }
     const dialog = e.target.closest('.reference-picker')
-    if (!dialog) {
+    if (!dialog || isBusy(dialog)) {
         return
     }
     if (e.target === dialog || e.target.closest('.reference-picker-close')) {
@@ -488,6 +490,11 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
     const dialog = e.target.closest('.reference-picker')
     if (!dialog) {
+        return
+    }
+    if (isBusy(dialog)) {
+        // Also Escape must not close the picker
+        e.preventDefault()
         return
     }
     const options = pickerOptions(dialog)
@@ -513,7 +520,13 @@ document.addEventListener('keydown', (e) => {
 })
 
 // The browser can close the dialog also in other ways than the Escape key.
-// The close event doesn't bubble, so it must be captured.
+// The cancel and close events don't bubble, so they must be captured.
+document.addEventListener('cancel', (e) => {
+    if (e.target.matches?.('.reference-picker') && isBusy(e.target)) {
+        e.preventDefault()
+    }
+}, {capture: true})
+
 document.addEventListener('close', (e) => {
     if (e.target.matches?.('.reference-picker')) {
         closeReferencePicker(e.target)

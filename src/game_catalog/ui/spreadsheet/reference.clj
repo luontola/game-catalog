@@ -142,20 +142,25 @@
 
 (defn create-button
   "The highlighted option is the one which the Enter key picks."
-  [{:keys [config column form-id] :as ctx} query highlighted?]
+  [ctx query highlighted?]
   (let [query (str/trim (str query))]
     (when (and (creatable? ctx)
                (not (str/blank? query)))
       (h/html
         [:button.reference-create {:type "button"
                                    :class (when highlighted? "highlighted")
-                                   :data-url (str "/spreadsheet/" (name (:collection-key config)) "/reference-create")
-                                   :hx-vals (json/write-value-as-string {:column (form-field-name column)
-                                                                         :form form-id
-                                                                         :q query})}
+                                   :data-create query}
          "Create " [:span.pill query]]))))
 
-(defn- picker [{:keys [config column form-id picker-results]}]
+(defn add-reference
+  "Returns the column's value with a reference to the target entity.
+   A single-value column's old reference is replaced."
+  [column value target-id]
+  (if (:column/multiple? column)
+    (vec (distinct (conj (value->ids value) target-id)))
+    target-id))
+
+(defn- picker [{:keys [config column picker-results]}]
   (let [title (str "Search " (:column/name column))]
     (h/html
       [:dialog.reference-picker {:aria-label title
@@ -175,8 +180,7 @@
                                   :hx-trigger "input changed delay:150ms"
                                   ;; Includes the referred entities, so that the search can exclude them
                                   :hx-include "closest .reference-editor"
-                                  :hx-vals (json/write-value-as-string {:column (form-field-name column)
-                                                                        :form form-id})
+                                  :hx-vals (json/write-value-as-string {:column (form-field-name column)})
                                   :hx-target "next .reference-results"
                                   :hx-swap "innerHTML"}]
         ;; Touch screens have no Escape key, and a full-screen dialog has no backdrop to click

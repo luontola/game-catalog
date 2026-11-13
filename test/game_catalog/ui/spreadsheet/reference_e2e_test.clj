@@ -7,8 +7,9 @@
             [game-catalog.ui.layout :as layout]
             [game-catalog.ui.spreadsheet :as spreadsheet]
             [game-catalog.ui.spreadsheet.reference :as reference])
-  (:import (com.microsoft.playwright Keyboard Locator Locator$WaitForOptions Page$WaitForConditionOptions Page$WaitForFunctionOptions TimeoutError)
-           (com.microsoft.playwright.options WaitForSelectorState)))
+  (:import (com.microsoft.playwright Keyboard Locator Locator$WaitForOptions Page$WaitForConditionOptions Page$WaitForFunctionOptions Route TimeoutError)
+           (com.microsoft.playwright.options WaitForSelectorState)
+           (java.util.function Consumer)))
 
 (def things-config
   (let [config {:collection-key :things
@@ -52,7 +53,10 @@
                                                     {:entity/id "4"
                                                      :thing/name "Delta"}])
                       (browser/navigate! "/things")
-                      (f)))
+                      (try
+                        (f)
+                        (finally
+                          (.unrouteAll browser/*page*)))))
 
 (defn- press! [key]
   (.press ^Keyboard (.keyboard browser/*page*) key))
@@ -247,6 +251,7 @@
 
 (def ^:private autosaved {:method "POST", :path "/spreadsheet/things/1/save-and-continue"})
 (def ^:private opened-picker {:method "POST", :path "/spreadsheet/things/1/reference-picker"})
+(def ^:private saved-reference {:method "POST", :path "/spreadsheet/things/1/save-reference"})
 
 (defn- visible-icons [^Locator cell]
   (mapv #(.getAttribute ^Locator % "aria-label")
@@ -405,7 +410,7 @@
 
     (testing "closing the picker without picking makes no requests"
       (is (= {opened-picker 5 ; the tests above opened the picker five times
-              autosaved 2} ; and picked two times
+              saved-reference 2} ; and picked two times
              (frequencies (remove #(= "/spreadsheet/things/reference-search" (:path %))
                                   (post-requests))))))
 
@@ -471,3 +476,146 @@
       (wait-for-view-mode)
       (is (= {:thing/refs ["2" "3" "5"], :thing/ref "6"}
              (select-keys (db/get-by-id :things "1") [:thing/refs :thing/ref]))))))
+
+(defn- gate-requests!
+  "Makes the requests, whose URL has the suffix, wait until the test opens the named gate.
+   Then the test can do things while the request is in progress."
+  [gate-name url-suffix]
+  (.evaluate browser/*page* "([gateName, urlSuffix]) => {
+    window.gates ??= {};
+    const gate = new Promise(resolve => window.gates[gateName] = resolve);
+    const fetch = window.fetch;
+    window.fetch = async (url, ...args) => {
+      if (String(url).endsWith(urlSuffix)) {
+        await gate;
+      }
+      return fetch(url, ...args);
+    };
+  }" [gate-name url-suffix]))
+
+(defn- open-gate! [gate-name]
+  (.evaluate browser/*page* "gateName => window.gates[gateName]()" gate-name))
+
+(defn- pill-texts [^Locator cell]
+  (vec (.allTextContents (.locator cell ".reference-editor > .pill"))))
+
+(deftest pick-in-progress-test
+  (.click (browser/locator "td:text-is('Alfa')"))
+  (press! "ArrowRight")
+  (press! "Enter")
+  (wait-for-edit-mode)
+  (press! "Enter")
+  (wait-for-picker-open)
+  (gate-requests! "pick" "/save-reference")
+  (reset! browser/*request-log [])
+  (let [row (browser/locator "tr.editing")
+        refs-cell (.locator row ":scope > td.column-reference >> nth=0")
+        open-pickers (browser/locator ".reference-picker[open]")]
+
+    (testing "the picker stays open until the pick is saved"
+      (press! "Enter")
+      (is (= "true" (.getAttribute open-pickers "data-busy")))
+      (is (= ["Bravo×" "Charlie×"] (pill-texts refs-cell))))
+
+    (testing "the picker cannot be closed while the pick is being saved"
+      (press! "Escape")
+      (press! "Escape")
+      (.click (browser/locator ".reference-picker-close"))
+      (.click (.mouse browser/*page*) 1 1)
+      (is (= 1 (.count open-pickers))))
+
+    (testing "the picker accepts no more picks"
+      (press! "ArrowDown")
+      (press! "Enter")
+      (.click (browser/locator ".reference-picker tr:has(td:text-is('Delta'))"))
+      (is (= 1 (.count open-pickers))))
+
+    (testing "the picker closes when the pick is saved"
+      (open-gate! "pick")
+      (wait-for-picker-closed)
+      (is (= 0 (.count (browser/locator "dialog"))))
+      (is (= ["Alfa×" "Bravo×" "Charlie×"] (pill-texts refs-cell)))
+      (is (= {:thing/refs ["2" "3" "1"]}
+             (select-keys (db/get-by-id :things "1") [:thing/refs])))
+      (is (= [saved-reference] (post-requests))
+          "only the first pick was sent"))
+
+    (testing "the add button gets the focus, and the row stays in edit mode"
+      (is (browser/has-focus? (.locator refs-cell ".pill-button")) (browser/focused-element))
+      (is (= 1 (.count row))))))
+
+(deftest pick-waits-for-earlier-requests-test
+  (.dblclick (browser/locator "td:text-is('Alfa')"))
+  (wait-for-edit-mode)
+  (gate-requests! "open" "/reference-picker")
+  (gate-requests! "save" "/save-and-continue")
+  (let [row (browser/locator "tr.editing")
+        refs-cell (.locator row ":scope > td.column-reference >> nth=0")]
+
+    ;; The user changes a field while the picker's opening is in progress,
+    ;; so that saving the field is in progress when the picker opens
+    (.click (.locator refs-cell ".pill-button"))
+    (press! "ControlOrMeta+a")
+    (.type (.keyboard browser/*page*) "Alfa 2")
+    (press! "Tab")
+    (.evaluate browser/*page* "() => new Promise(resolve => setTimeout(resolve, 0))")
+    (open-gate! "open")
+    (wait-for-picker-open)
+
+    (testing "the pick waits for the earlier request"
+      (press! "Enter")
+      (is (= "true" (.getAttribute (browser/locator ".reference-picker[open]") "data-busy")))
+      (is (= "Alfa" (:thing/name (db/get-by-id :things "1")))
+          "the test should pick before the earlier request finishes"))
+
+    (testing "both changes are saved"
+      (open-gate! "save")
+      (wait-for-picker-closed)
+      (is (= ["Alfa 2×" "Bravo×" "Charlie×"] (pill-texts refs-cell)))
+      (is (= {:thing/name "Alfa 2", :thing/refs ["2" "3" "1"]}
+             (select-keys (db/get-by-id :things "1") [:thing/name :thing/refs]))))))
+
+(deftest failed-pick-test
+  (.click (browser/locator "td:text-is('Alfa')"))
+  (press! "ArrowRight")
+  (press! "ArrowRight")
+  (press! "Enter")
+  (wait-for-edit-mode)
+  (let [row (browser/locator "tr.editing")
+        ref-cell (.locator row ":scope > td.column-reference >> nth=1")]
+    (is (= ["Bravo×"] (pill-texts ref-cell)))
+    (press! "Enter")
+    (wait-for-picker-open)
+    (.type (.keyboard browser/*page*) "Echo")
+    (wait-for-picker-results "No matches Create Echo")
+    (.route browser/*page* "**/spreadsheet/things/1/save-reference" (reify Consumer
+                                                                       (accept [_ route]
+                                                                         (.abort ^Route route))))
+
+    (testing "a failed pick closes the picker, and shows the error"
+      (press! "Enter")
+      (wait-for-picker-closed)
+      (is (= "Could not reach the server. The row is not saved."
+             (.textContent (browser/locator ".status-bar-message"))))
+      (is (some? (.getAttribute row "data-save-error"))))
+
+    (testing "the old reference of a single-value column is not lost"
+      (is (= ["Bravo×"] (pill-texts ref-cell)))
+      (is (= "2" (:thing/ref (db/get-by-id :things "1")))))
+
+    (testing "the add button gets the focus, and the row stays in edit mode"
+      (is (browser/has-focus? (.locator ref-cell ".pill-button")) (browser/focused-element))
+      (is (= 1 (.count row))))
+
+    (testing "the pick can be tried again"
+      (.unrouteAll browser/*page*)
+      (press! "Enter")
+      (wait-for-picker-open)
+      (.type (.keyboard browser/*page*) "Echo")
+      (wait-for-picker-results "No matches Create Echo")
+      (press! "Enter")
+      (wait-for-picker-closed)
+      (is (= ["Echo×"] (pill-texts ref-cell)))
+      (is (= "5" (:thing/ref (db/get-by-id :things "1"))))
+      (is (.isHidden (browser/locator ".status-bar")))
+      (is (nil? (.getAttribute row "data-save-error"))))))
